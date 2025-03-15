@@ -39,10 +39,10 @@
                 <div id="dropArea" class="drop-area">
                     <div class="drop-message">
                         <i class="fas fa-file-excel"></i>
-                        <h3>Drag & Drop Excel File</h3>
+                        <h3>Drag & Drop Excel or CSV File</h3>
                         <p>or</p>
                         <label for="excelFile" class="file-input-label">Browse Files</label>
-                        <input type="file" id="excelFile" accept=".xlsx, .xls" hidden>
+                        <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" hidden>
                     </div>
                     <div id="fileInfo" class="file-info hidden">
                         <div class="file-details">
@@ -168,7 +168,10 @@
         </div>
     </main>
 
-    <div id="loading-container" class="loading-container"></div>
+    <div id="loading-container" class="loading-container">
+        <div class="loading-spinner"></div>
+        <p>Processing your file...</p>
+    </div>
 
     <footer>
         <div class="container">
@@ -177,6 +180,14 @@
     </footer>
 
     <!-- JavaScript Libraries -->
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    
+    <!-- Application JavaScript -->
+    <script src="../js/itemBank/fileHandler.js"></script>
+    <script src="../js/itemBank/questionProcessor.js"></script>
+    <script src="../js/itemBank/uiController.js"></script>
+    <script src="../js/itemBank/main.js"></script>
 </body>
 </html>

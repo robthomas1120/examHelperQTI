@@ -947,3 +947,65 @@ footer p {
         justify-content: center;
     }
 }
+
+.options-preview {
+    margin-top: 10px;
+    font-size: 0.85rem;
+}
+
+.options-preview .option {
+    padding: 3px 0;
+    display: flex;
+    align-items: center;
+}
+
+.options-preview .option.correct {
+    color: #4CAF50;
+    font-weight: 500;
+}
+
+.options-preview .option-marker {
+    margin-right: 5px;
+    width: 16px;
+    text-align: center;
+}
+
+.options-preview .more-options {
+    margin-top: 5px;
+    color: #718096;
+    font-style: italic;
+    font-size: 0.8rem;
+}
+
+.fib-answers {
+    margin-top: 10px;
+    font-size: 0.85rem;
+}
+
+.fib-formatted-question {
+    margin-bottom: 5px;
+}
+
+.fib-formatted-question .blank {
+    display: inline-block;
+    min-width: 30px;
+    border-bottom: 1px solid #4a6cf7;
+    text-align: center;
+    color: #4a6cf7;
+    font-weight: 500;
+}
+
+.fib-answers-list {
+    color: #718096;
+}
+
+.fib-answers-list span {
+    font-weight: 500;
+    color: #2d3748;
+}
+
+.correct-count {
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #4a6cf7;
+}
