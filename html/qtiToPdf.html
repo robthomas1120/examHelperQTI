@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QTI to PDF Converter</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/qtiToPdf.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="nav-container">
+                <nav>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="quickConvert.html">Quick Convert</a></li>
+                        <li><a href="itemBank.html">Item Bank</a></li>
+                        <li><a href="qtiToPdf.html" class="active">QTI to PDF</a></li>
+                    </ul>
+                </nav>
+            </div>
+            <div class="logo">
+                <i class="fas fa-file-pdf"></i>
+            </div>
+            <h1>QTI to PDF Converter</h1>
+            <p>Convert QTI files to PDF format for easy printing and distribution</p>
+        </header>
+
+        <main>
+            <div class="upload-container">
+                <div class="upload-area" id="dropArea">
+                    <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                    <h2>Upload QTI File</h2>
+                    <p class="upload-text">Drag and drop your QTI file here or click to browse</p>
+                    <p class="supported-formats">Supported formats: .zip (QTI package)</p>
+                    
+                    <div class="file-info hidden" id="fileInfo">
+                        <div class="file-preview">
+                            <i class="fas fa-file-archive file-icon"></i>
+                            <div class="file-details">
+                                <span id="file-name">No file selected</span>
+                                <span id="file-size" class="file-size"></span>
+                            </div>
+                        </div>
+                        <button class="remove-file" id="removeFile">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <button class="browse-btn">Browse Files</button>
+                    <input type="file" id="qtiFile" accept=".zip" class="hidden-input">
+                </div>
+                
+                <div class="settings-container">
+                    <div class="form-group">
+                        <label for="documentTitle">Document Title:</label>
+                        <input type="text" id="documentTitle" placeholder="Enter document title">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pdfOptions">PDF Options:</label>
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="includeAnswers" checked>
+                                <label for="includeAnswers">Include Answers</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="includeImages" checked>
+                                <label for="includeImages">Include Images</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="includePageNumbers" checked>
+                                <label for="includePageNumbers">Include Page Numbers</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="paperSize">Paper Size:</label>
+                        <select id="paperSize">
+                            <option value="a4">A4</option>
+                            <option value="letter">Letter</option>
+                            <option value="legal">Legal</option>
+                        </select>
+                    </div>
+
+                    <button id="convertBtn" class="primary-btn" disabled>
+                        <i class="fas fa-file-export"></i> Convert to PDF
+                    </button>
+                </div>
+            </div>
+            
+            <section class="preview-section">
+                <div class="card">
+                    <h2><i class="fas fa-eye"></i> QTI Preview</h2>
+                    <div id="qti-preview">
+                        <p class="placeholder-text">QTI content will appear here after upload</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="results-section hidden" id="results-section">
+                <div class="card">
+                    <h2><i class="fas fa-check-circle"></i> Conversion Results</h2>
+                    <div id="conversion-summary"></div>
+                    <button id="downloadBtn" class="secondary-btn">
+                        <i class="fas fa-download"></i> Download PDF
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p class="copyright">QTI Converter by EdTech Interns 2025</p>
+        </footer>
+    </div>
+
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="../js/qtiToPdf.js"></script>
+</body>
+</html>

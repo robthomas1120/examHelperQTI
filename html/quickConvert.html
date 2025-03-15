@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QTI Converter</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/quickConvert.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Navigation styles */
+        .nav-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        nav ul {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        
+        nav li {
+            margin: 0 15px;
+        }
+        
+        nav a {
+            text-decoration: none;
+            color: #718096;
+            font-weight: 500;
+            transition: color 0.3s ease;
+            padding: 5px 0;
+            border-bottom: 2px solid transparent;
+        }
+        
+        nav a:hover, nav a.active {
+            color: #4a6cf7;
+            border-bottom-color: #4a6cf7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="nav-container">
+                <nav>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="quickConvert.html" class="active">Quick Convert</a></li>
+                        <li><a href="itemBank.html">Item Bank</a></li>
+                        <li><a href="qtiToPdf.html">QTI to PDF</a></li>
+                    </ul>
+                </nav>
+            </div>
+            <div class="logo">
+                <i class="fas fa-file-csv"></i>
+            </div>
+            <h1>CSV to QTI Converter</h1>
+            <p>Convert CSV quiz files to QTI format for LMS import</p>
+        </header>
+
+        <main>
+            <div class="upload-container">
+                <div class="upload-area" id="dropArea">
+                    <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                    <h2>Please Upload File</h2>
+                    <p class="upload-text">Drag and drop your file here or click to browse</p>
+                    <p class="supported-formats">Supported formats: .csv, .xlsx</p>
+                    
+                    <div class="file-info hidden" id="fileInfo">
+                        <div class="file-preview">
+                            <i class="fas fa-file-csv file-icon"></i>
+                            <div class="file-details">
+                                <span id="file-name">No file selected</span>
+                                <span id="file-size" class="file-size"></span>
+                            </div>
+                        </div>
+                        <button class="remove-file" id="removeFile">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <button class="browse-btn">Browse Files</button>
+                    <input type="file" id="csvFile" accept=".csv,.xlsx" class="hidden-input">
+                </div>
+                
+                <div class="settings-container">
+                    <div class="form-group">
+                        <label for="quizTitle">Quiz Title:</label>
+                        <input type="text" id="quizTitle" placeholder="Enter quiz title">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quizDescription">Quiz Description:</label>
+                        <textarea id="quizDescription" placeholder="Enter quiz description"></textarea>
+                    </div>
+
+                    <button id="convertBtn" class="primary-btn" disabled>
+                        <i class="fas fa-sync-alt"></i> Convert to QTI
+                    </button>
+                </div>
+            </div>
+            
+            <section class="preview-section">
+                <div class="card">
+                    <h2><i class="fas fa-table"></i> CSV Preview</h2>
+                    <div id="csv-preview">
+                        <p class="placeholder-text">CSV content will appear here after upload</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="results-section hidden" id="results-section">
+                <div class="card">
+                    <h2><i class="fas fa-check-circle"></i> Conversion Results</h2>
+                    <div id="conversion-summary"></div>
+                    <button id="downloadBtn" class="secondary-btn">
+                        <i class="fas fa-download"></i> Download QTI Package
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p class="copyright">CSV to QTI Converter by EdTech Interns 2025</p>
+        </footer>
+    </div>
+
+    <!-- JSZip library for creating zip files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- XLSX library for Excel file support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
