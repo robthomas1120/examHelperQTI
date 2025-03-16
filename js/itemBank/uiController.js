@@ -430,23 +430,30 @@ class UIController {
         // Add type-specific content
         this.addTypeSpecificContent(card, question);
         
-        // Add add button if not already selected
-        if (!this.questionProcessor.isQuestionSelected(question.id)) {
-            const addBtn = document.createElement('div');
-            addBtn.className = 'add-remove-btn add-btn';
-            addBtn.innerHTML = '<i class="fas fa-plus"></i>';
-            addBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.questionProcessor.addSelectedQuestion(question);
-                this.renderSelectedQuestions();
-                card.classList.add('is-selected');
-            });
-            card.appendChild(addBtn);
-        }
-        
         return card;
     }
-    
+
+    /**
+     * Check if text is a metadata field
+     * @param {String} text - Text to check
+     * @returns {Boolean} - True if text is a metadata field
+     */
+    isMetadataText(text) {
+        if (!text) return true;
+        const lowerText = String(text).toLowerCase();
+        return lowerText === 'question' || 
+               lowerText.includes('choice1') || 
+               lowerText.includes('tagging') || 
+               lowerText.includes('choice2') ||
+               lowerText.includes('choice3') ||
+               lowerText.includes('choice4') ||
+               lowerText.includes('choice5') ||
+               lowerText.includes('choice6') ||
+               lowerText.includes('choice1a') ||
+               lowerText.includes('choice1b') ||
+               lowerText.includes('choice2a') ||
+               lowerText.includes('choice2b');
+    }
 
     /**
      * Add type-specific content to question card
@@ -455,6 +462,22 @@ class UIController {
      */
     addTypeSpecificContent(card, question) {
         const type = question.type;
+        
+        // Check if the question text is just a header or field name and not a real question
+        if (this.isMetadataText(question.text) && question.data && question.data.length > 1) {
+            // Try to find a real question text in the data
+            for (let i = 1; i < question.data.length; i++) {
+                const item = question.data[i];
+                if (item && !this.isMetadataText(item) && String(item).length > 5) {
+                    // Replace the card's question title with this better text
+                    const existingTitle = card.querySelector('.question-title');
+                    if (existingTitle) {
+                        existingTitle.textContent = this.truncateText(String(item), 60);
+                    }
+                    break;
+                }
+            }
+        }
         
         if (type === 'TF') {
             // Add True/False answer indication
@@ -475,11 +498,18 @@ class UIController {
             const displayLimit = Math.min(3, question.options.length);
             for (let i = 0; i < displayLimit; i++) {
                 const option = question.options[i];
+                if (!option) continue;
+                
+                // Skip options that are just metadata labels
+                if (this.isMetadataText(option.text)) continue;
+                
                 const optionEl = document.createElement('div');
                 optionEl.className = `option ${option.isCorrect ? 'correct' : ''}`;
+                // Convert option text to string safely
+                const optionText = option.text === undefined || option.text === null ? '' : String(option.text);
                 optionEl.innerHTML = `
                     <span class="option-marker">${option.isCorrect ? '✓' : '○'}</span>
-                    <span class="option-text">${this.truncateText(option.text, 20)}</span>
+                    <span class="option-text">${this.truncateText(optionText, 20)}</span>
                 `;
                 optionsPreview.appendChild(optionEl);
             }
@@ -500,33 +530,45 @@ class UIController {
             // Display only the first 2-3 options
             const displayLimit = Math.min(3, question.options.length);
             
+            // Filter out metadata labels
+            const realOptions = question.options.filter(opt => opt && !this.isMetadataText(opt.text));
+            
             // Show how many correct answers there are
-            const correctCount = question.options.filter(opt => opt.isCorrect).length;
+            const correctCount = realOptions.filter(opt => opt.isCorrect).length;
             const countIndicator = document.createElement('div');
             countIndicator.className = 'correct-count';
             countIndicator.textContent = `${correctCount} correct ${correctCount === 1 ? 'answer' : 'answers'}`;
             optionsPreview.appendChild(countIndicator);
             
-            for (let i = 0; i < displayLimit; i++) {
-                const option = question.options[i];
+            for (let i = 0; i < Math.min(displayLimit, realOptions.length); i++) {
+                const option = realOptions[i];
+                if (!option) continue;
+                
                 const optionEl = document.createElement('div');
                 optionEl.className = `option ${option.isCorrect ? 'correct' : ''}`;
+                // Convert option text to string safely
+                const optionText = option.text === undefined || option.text === null ? '' : String(option.text);
                 optionEl.innerHTML = `
                     <span class="option-marker">${option.isCorrect ? '☑' : '☐'}</span>
-                    <span class="option-text">${this.truncateText(option.text, 20)}</span>
+                    <span class="option-text">${this.truncateText(optionText, 20)}</span>
                 `;
                 optionsPreview.appendChild(optionEl);
             }
             
-            if (question.options.length > displayLimit) {
+            if (realOptions.length > displayLimit) {
                 const moreIndicator = document.createElement('div');
                 moreIndicator.className = 'more-options';
-                moreIndicator.textContent = `+ ${question.options.length - displayLimit} more`;
+                moreIndicator.textContent = `+ ${realOptions.length - displayLimit} more`;
                 optionsPreview.appendChild(moreIndicator);
             }
             
             card.appendChild(optionsPreview);
         } else if (type === 'FIB' && question.correctAnswers && question.correctAnswers.length > 0) {
+            // Filter out metadata from answers
+            const realAnswers = question.correctAnswers.filter(ans => !this.isMetadataText(ans));
+            
+            if (realAnswers.length === 0) return; // Skip if no real answers
+            
             // Add fill in blank answers preview
             const answersPreview = document.createElement('div');
             answersPreview.className = 'fib-answers';
@@ -537,15 +579,56 @@ class UIController {
                 formattedQuestion.className = 'fib-formatted-question';
                 formattedQuestion.innerHTML = question.formattedText;
                 answersPreview.appendChild(formattedQuestion);
+            } else if (question.text) {
+                // Format the text to highlight blanks
+                const questionText = typeof question.text === 'string' ? question.text : String(question.text);
+                const formattedQuestion = document.createElement('div');
+                formattedQuestion.className = 'fib-formatted-question';
+                formattedQuestion.innerHTML = this.formatFIBQuestionText(questionText);
+                answersPreview.appendChild(formattedQuestion);
             }
             
             const answersList = document.createElement('div');
             answersList.className = 'fib-answers-list';
-            answersList.innerHTML = `<span>Answers:</span> ${question.correctAnswers.join(', ')}`;
+            answersList.innerHTML = `<span>Answers:</span> ${realAnswers.join(', ')}`;
             answersPreview.appendChild(answersList);
             
             card.appendChild(answersPreview);
+        } else if (type === 'ESS') {
+            // Add essay indication
+            const essayIndicator = document.createElement('div');
+            essayIndicator.className = 'essay-indicator';
+            essayIndicator.innerHTML = '<i class="fas fa-pen"></i> Essay question';
+            card.appendChild(essayIndicator);
         }
+        
+        // Add add button if not already selected
+        if (!this.questionProcessor.isQuestionSelected(question.id)) {
+            const addBtn = document.createElement('div');
+            addBtn.className = 'add-remove-btn add-btn';
+            addBtn.innerHTML = '<i class="fas fa-plus"></i>';
+            addBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.questionProcessor.addSelectedQuestion(question);
+                this.renderSelectedQuestions();
+                card.classList.add('is-selected');
+            });
+            card.appendChild(addBtn);
+        }
+    }
+
+    /**
+     * Format Fill in Blank question text to highlight blanks
+     * @param {String} text - Raw question text
+     * @returns {String} - Formatted text with highlighted blanks
+     */
+    formatFIBQuestionText(text) {
+        if (!text) return '';
+        
+        // Replace underscores with highlighted spans
+        return text.replace(/_{2,}/g, '<span class="blank">_____</span>')
+                  .replace(/\s_+\s/g, ' <span class="blank">_____</span> ')
+                  .replace(/_+/g, '<span class="blank">_____</span>');
     }
 
     /**
@@ -582,144 +665,55 @@ class UIController {
      * @param {Number} index - Question number
      * @returns {HTMLElement} - Selected question card
      */
-    addTypeSpecificContent(card, question) {
-        const type = question.type;
+    createSelectedQuestionCard(question, index) {
+        const card = document.createElement('div');
+        card.className = 'selected-question-card';
+        card.setAttribute('data-id', question.selectedId);
         
-        if (type === 'TF') {
-            // Add True/False answer indication
-            const tfAnswer = document.createElement('div');
-            tfAnswer.className = 'tf-answer';
-            tfAnswer.innerHTML = `
-                <span>Answer:</span>
-                <div class="true ${question.isTrue ? 'selected' : ''}">True</div>
-                <div class="false ${!question.isTrue ? 'selected' : ''}">False</div>
-            `;
-            card.appendChild(tfAnswer);
-        } else if (type === 'MC' && question.options && question.options.length > 0) {
-            // Add multiple choice options preview
-            const optionsPreview = document.createElement('div');
-            optionsPreview.className = 'options-preview';
-            
-            // Display only the first 2-3 options
-            const displayLimit = Math.min(3, question.options.length);
-            for (let i = 0; i < displayLimit; i++) {
-                const option = question.options[i];
-                if (!option) continue;
-                
-                const optionEl = document.createElement('div');
-                optionEl.className = `option ${option.isCorrect ? 'correct' : ''}`;
-                // Convert option text to string safely
-                const optionText = option.text === undefined || option.text === null ? '' : String(option.text);
-                optionEl.innerHTML = `
-                    <span class="option-marker">${option.isCorrect ? '✓' : '○'}</span>
-                    <span class="option-text">${this.truncateText(optionText, 20)}</span>
-                `;
-                optionsPreview.appendChild(optionEl);
+        // Question number
+        const numberSpan = document.createElement('div');
+        numberSpan.className = 'question-number';
+        numberSpan.textContent = index;
+        card.appendChild(numberSpan);
+        
+        // Question type badge
+        const typeBadge = document.createElement('span');
+        typeBadge.className = `question-type-badge ${question.type}`;
+        typeBadge.textContent = question.type;
+        card.appendChild(typeBadge);
+        
+        // Question text - ensure it's a string
+        const textSpan = document.createElement('span');
+        textSpan.className = 'question-text';
+        
+        // Handle metadata text
+        let displayText = question.text;
+        if (this.isMetadataText(displayText) && question.data && question.data.length > 1) {
+            // Try to find a better text
+            for (let i = 1; i < question.data.length; i++) {
+                const item = question.data[i];
+                if (item && !this.isMetadataText(item) && String(item).length > 5) {
+                    displayText = item;
+                    break;
+                }
             }
-            
-            if (question.options.length > displayLimit) {
-                const moreIndicator = document.createElement('div');
-                moreIndicator.className = 'more-options';
-                moreIndicator.textContent = `+ ${question.options.length - displayLimit} more`;
-                optionsPreview.appendChild(moreIndicator);
-            }
-            
-            card.appendChild(optionsPreview);
-        } else if (type === 'MA' && question.options && question.options.length > 0) {
-            // Add multiple answer options preview (similar to MC)
-            const optionsPreview = document.createElement('div');
-            optionsPreview.className = 'options-preview';
-            
-            // Display only the first 2-3 options
-            const displayLimit = Math.min(3, question.options.length);
-            
-            // Show how many correct answers there are
-            const correctCount = question.options.filter(opt => opt.isCorrect).length;
-            const countIndicator = document.createElement('div');
-            countIndicator.className = 'correct-count';
-            countIndicator.textContent = `${correctCount} correct ${correctCount === 1 ? 'answer' : 'answers'}`;
-            optionsPreview.appendChild(countIndicator);
-            
-            for (let i = 0; i < displayLimit; i++) {
-                const option = question.options[i];
-                if (!option) continue;
-                
-                const optionEl = document.createElement('div');
-                optionEl.className = `option ${option.isCorrect ? 'correct' : ''}`;
-                // Convert option text to string safely
-                const optionText = option.text === undefined || option.text === null ? '' : String(option.text);
-                optionEl.innerHTML = `
-                    <span class="option-marker">${option.isCorrect ? '☑' : '☐'}</span>
-                    <span class="option-text">${this.truncateText(optionText, 20)}</span>
-                `;
-                optionsPreview.appendChild(optionEl);
-            }
-            
-            if (question.options.length > displayLimit) {
-                const moreIndicator = document.createElement('div');
-                moreIndicator.className = 'more-options';
-                moreIndicator.textContent = `+ ${question.options.length - displayLimit} more`;
-                optionsPreview.appendChild(moreIndicator);
-            }
-            
-            card.appendChild(optionsPreview);
-        } else if (type === 'FIB' && question.correctAnswers && question.correctAnswers.length > 0) {
-            // Add fill in blank answers preview
-            const answersPreview = document.createElement('div');
-            answersPreview.className = 'fib-answers';
-            
-            // Check if we have formatted text or need to format the question text
-            if (question.formattedText) {
-                const formattedQuestion = document.createElement('div');
-                formattedQuestion.className = 'fib-formatted-question';
-                formattedQuestion.innerHTML = question.formattedText;
-                answersPreview.appendChild(formattedQuestion);
-            } else if (question.text) {
-                // Format the text to highlight blanks
-                const questionText = typeof question.text === 'string' ? question.text : String(question.text);
-                const formattedQuestion = document.createElement('div');
-                formattedQuestion.className = 'fib-formatted-question';
-                formattedQuestion.innerHTML = this.formatFIBQuestionText(questionText);
-                answersPreview.appendChild(formattedQuestion);
-            }
-            
-            const answersList = document.createElement('div');
-            answersList.className = 'fib-answers-list';
-            answersList.innerHTML = `<span>Answers:</span> ${question.correctAnswers.join(', ')}`;
-            answersPreview.appendChild(answersList);
-            
-            card.appendChild(answersPreview);
-        } else if (type === 'ESS') {
-            // Add essay indication
-            const essayIndicator = document.createElement('div');
-            essayIndicator.className = 'essay-indicator';
-            essayIndicator.innerHTML = '<i class="fas fa-pen"></i> Essay question';
-            card.appendChild(essayIndicator);
         }
         
-        // Add add button if not already selected
-        if (!this.questionProcessor.isQuestionSelected(question.id)) {
-            const addBtn = document.createElement('div');
-            addBtn.className = 'add-remove-btn add-btn';
-            addBtn.innerHTML = '<i class="fas fa-plus"></i>';
-            addBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.questionProcessor.addSelectedQuestion(question);
-                this.renderSelectedQuestions();
-                card.classList.add('is-selected');
-            });
-            card.appendChild(addBtn);
-        }
-    }
-    
-    // Helper method to format FIB question text (add this if not already present)
-    formatFIBQuestionText(text) {
-        if (!text) return '';
+        const questionText = displayText === undefined || displayText === null ? '' : String(displayText);
+        textSpan.textContent = this.truncateText(questionText, 40);
+        card.appendChild(textSpan);
         
-        // Replace underscores with highlighted spans
-        return text.replace(/_{2,}/g, '<span class="blank">_____</span>')
-                  .replace(/\s_+\s/g, ' <span class="blank">_____</span> ')
-                  .replace(/_+/g, '<span class="blank">_____</span>');
+        // Remove button
+        const removeBtn = document.createElement('i');
+        removeBtn.className = 'fas fa-times remove-selected';
+        removeBtn.addEventListener('click', () => {
+            this.questionProcessor.removeSelectedQuestion(question.id);
+            this.renderSelectedQuestions();
+            this.renderQuestions(); // Re-render all questions to update 'is-selected' class
+        });
+        card.appendChild(removeBtn);
+        
+        return card;
     }
 
     /**
@@ -813,7 +807,6 @@ class UIController {
         
         return safeText.substring(0, maxLength) + '...';
     }
-    
 }
 
 // Export the UIController class
