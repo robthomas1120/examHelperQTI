@@ -12,11 +12,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Create UI controller instance
     const uiController = new UIController(fileHandler, questionProcessor);
     
+    // Create QTI Export UI instance
+    const qtiExportUI = new QTIExportUI(questionProcessor);
+    
     // Expose instances to global scope for debugging (optional)
     window.app = {
         fileHandler,
         questionProcessor,
-        uiController
+        uiController,
+        qtiExportUI
     };
     
     // Handle sample file loading
