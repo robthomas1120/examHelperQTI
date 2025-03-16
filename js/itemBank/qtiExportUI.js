@@ -11,18 +11,15 @@ class QTIExportUI {
         this.initUI();
     }
     
-    /**
-     * Initialize UI elements and event listeners
-     */
     initUI() {
         // Reference the Convert to QTI button
         this.convertBtn = document.getElementById('convert-btn');
         
-        // Create modal dialog for QTI export
-        this.createExportModal();
-        
         // Attach event listener to the convert button
         this.attachEventHandlers();
+        
+        // We DON'T need to create the export modal anymore
+        // this.createExportModal(); // Comment out or remove this line
     }
     
     /**
@@ -304,8 +301,51 @@ class QTIExportUI {
             return;
         }
         
-        // Show the export modal
-        this.showExportModal();
+        // Instead of showing the modal, get values directly from the page
+        const quizTitle = document.getElementById('quiz-title').value.trim();
+        const quizDescription = document.getElementById('quiz-description').value.trim();
+        
+        // Validate title
+        if (!quizTitle) {
+            alert('Please enter a quiz title in the Quiz Details section.');
+            document.getElementById('quiz-title').focus();
+            return;
+        }
+        
+        // Proceed directly to export
+        this.directExport(quizTitle, quizDescription);
+    }
+    
+    // Add this new method to handle direct export
+    async directExport(quizTitle, quizDescription) {
+        // Show a loading indicator (you can use the existing loading container)
+        const loadingContainer = document.getElementById('loading-container');
+        if (loadingContainer) loadingContainer.classList.add('active');
+        
+        try {
+            // Generate QTI package
+            const zipBlob = await this.qtiExport.exportQTI(quizTitle, quizDescription);
+            
+            // Generate download filename
+            const filename = `${quizTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_qti.zip`;
+            
+            // Trigger download
+            this.downloadZipFile(zipBlob, filename);
+            
+            // Hide loading indicator
+            if (loadingContainer) loadingContainer.classList.remove('active');
+            
+            // Show success message
+            this.showSuccessMessage(`Successfully exported ${this.questionProcessor.getSelectedCount()} questions to QTI format.`);
+        } catch (error) {
+            console.error('Error exporting to QTI:', error);
+            
+            // Hide loading indicator
+            if (loadingContainer) loadingContainer.classList.remove('active');
+            
+            // Show error message
+            alert(`Error exporting to QTI: ${error.message}`);
+        }
     }
     
     /**
@@ -403,7 +443,7 @@ class QTIExportUI {
         a.click();
         document.body.removeChild(a);
         
-        // Clean up the object URL
+        // Clean up the object URL after download
         setTimeout(() => {
             URL.revokeObjectURL(url);
         }, 100);

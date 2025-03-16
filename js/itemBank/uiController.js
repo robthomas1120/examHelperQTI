@@ -34,7 +34,9 @@ class UIController {
             selectedCount: document.getElementById('selected-count'),
             clearSelectedBtn: document.getElementById('clear-selected-btn'),
             convertBtn: document.getElementById('convert-btn'),
-            loadingContainer: document.getElementById('loading-container')
+            loadingContainer: document.getElementById('loading-container'),
+            quizTitleInput: document.getElementById('quiz-title'),
+            quizDescriptionInput: document.getElementById('quiz-description')
         };
         
         // Sortable instances
@@ -59,9 +61,6 @@ class UIController {
         
         // Initialize question selection
         this.initQuestionSelection();
-        
-        // Initialize conversion button
-        this.elements.convertBtn.addEventListener('click', this.handleConversion.bind(this));
         
         // Initialize clear selected button
         this.elements.clearSelectedBtn.addEventListener('click', this.clearSelectedQuestions.bind(this));
@@ -106,20 +105,42 @@ class UIController {
             }
         });
         
-        // Trigger file input when clicking drop area
-        dropArea.addEventListener('click', () => {
-            // Only trigger if the file info is not visible
-            if (this.elements.fileInfo.classList.contains('hidden')) {
+        // Make sure we're only triggering the file input click when clicking on the label or drop area
+        // NOT when clicking on the file info area
+        dropArea.addEventListener('click', (e) => {
+            // Only trigger if the file info is not visible and the click isn't on the remove button
+            if (this.elements.fileInfo.classList.contains('hidden') && 
+                !e.target.closest('#removeFile')) {
+                
+                // Find if there's a label element being clicked
+                const isLabel = e.target.tagName === 'LABEL' || e.target.closest('label');
+                
+                // Only trigger if clicking directly on the drop area or specifically on the label
+                if (!isLabel && e.target !== dropArea) {
+                    return;
+                }
+                
+                // For label clicks, prevent default to avoid duplicate triggers
+                if (isLabel) {
+                    e.preventDefault();
+                }
+                
                 this.elements.fileInput.click();
             }
         });
+        
+        // Remove the direct click handler from the label element to prevent double triggering
+        const fileInputLabel = dropArea.querySelector('label[for="excelFile"]');
+        if (fileInputLabel) {
+            fileInputLabel.removeAttribute('for');
+        }
     }
 
     /**
      * Initialize file input
      */
     initFileInput() {
-        // Handle file selection
+        // Handle file selection - Make sure we only attach this once
         this.elements.fileInput.addEventListener('change', e => {
             const files = e.target.files;
             if (files.length) {
@@ -287,6 +308,12 @@ class UIController {
             this.elements.fileSize.textContent = fileInfo.formattedSize;
             this.elements.fileInfo.classList.remove('hidden');
             this.elements.dropArea.classList.add('file-selected');
+            
+            // Auto-fill quiz title based on file name
+            if (this.elements.quizTitleInput && !this.elements.quizTitleInput.value) {
+                const baseName = fileInfo.name.split('.')[0];
+                this.elements.quizTitleInput.value = baseName.replace(/_/g, ' ');
+            }
         } else {
             this.elements.fileInfo.classList.add('hidden');
             this.elements.dropArea.classList.remove('file-selected');
@@ -322,6 +349,14 @@ class UIController {
         
         // Hide the summary section
         this.elements.summarySection.classList.add('hidden');
+        
+        // Clear quiz title and description
+        if (this.elements.quizTitleInput) {
+            this.elements.quizTitleInput.value = '';
+        }
+        if (this.elements.quizDescriptionInput) {
+            this.elements.quizDescriptionInput.value = '';
+        }
     }
 
     /**
@@ -734,23 +769,6 @@ class UIController {
         this.questionProcessor.clearSelectedQuestions();
         this.renderSelectedQuestions();
         this.renderQuestions(); // Re-render to update 'is-selected' class
-    }
-
-    /**
-     * Handle conversion button click
-     */
-    handleConversion() {
-        const selectedQuestions = this.questionProcessor.getSelectedQuestions();
-        
-        if (selectedQuestions.length === 0) {
-            alert('Please select at least one question to convert.');
-            return;
-        }
-        
-        // Here you would implement the conversion logic
-        // This would typically convert the selected questions to QTI format
-        // For now, we'll just show an alert as a placeholder
-        alert(`Ready to convert ${selectedQuestions.length} questions to QTI format. This functionality is not yet implemented.`);
     }
 
     /**
