@@ -220,26 +220,66 @@ class ExcelHandler {
         
         // Table body
         tableHtml += '<tbody>';
+        let errors = [];
+        
+        // Identify "tagging" columns
+        const taggingColumns = columnIndices.filter(index => 
+            headers[index] && headers[index].toLowerCase().includes("tag")
+        );
+        
+        console.log("Detected tagging columns:", taggingColumns);
+        
         previewRows.forEach((row, rowIndex) => {
+            let rowStyle = "";
+            let rowErrors = [];
+        
             tableHtml += `<tr style="background-color: ${rowIndex % 2 === 0 ? 'white' : '#f9fafb'};">`;
+        
             columnIndices.forEach((colIndex, i) => {
-                const value = row[colIndex] !== undefined ? row[colIndex] : '';
-                
-                // Check if this is a tagging column (content might be "correct" or "incorrect")
-                const cellValue = value.toString();
+                const value = row[colIndex] !== undefined ? row[colIndex].toString().trim() : '';
                 let cellStyle = '';
-                
-                if (cellValue.toLowerCase() === 'correct') {
-                    cellStyle = 'color: #10b981; font-weight: 500;'; // Green color for correct
-                } else if (cellValue.toLowerCase() === 'incorrect') {
-                    cellStyle = 'color: #ef4444; font-weight: 500;'; // Red color for incorrect
+        
+                // Apply color styling for correct/incorrect
+                if (value.toLowerCase() === 'correct') {
+                    cellStyle = 'color: #10b981; font-weight: 500;'; // Green for correct
+                } else if (value.toLowerCase() === 'incorrect') {
+                    cellStyle = 'color: #ef4444; font-weight: 500;'; // Red for incorrect
                 }
-                
-                tableHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; ${cellStyle}">${cellValue}</td>`;
+        
+                // Validate tagging column values
+                if (taggingColumns.includes(colIndex) && !["correct", "incorrect"].includes(value.toLowerCase())) {
+                    rowErrors.push(`Row ${rowIndex + 1}, Column "${headers[colIndex]}" has invalid value "${value}"`);
+                    cellStyle += ' background-color: #fee2e2; color: #b91c1c; font-weight: 500;'; // Red highlight
+                    rowStyle = 'background-color: #ffedd5; border-left: 4px solid #f59e0b;';
+                }
+        
+                tableHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; ${cellStyle}">${value}</td>`;
             });
+        
             tableHtml += '</tr>';
+        
+            if (rowErrors.length > 0) {
+                errors.push(...rowErrors);
+            }
         });
+        
         tableHtml += '</tbody></table>';
+        
+        // Clear previous errors
+        document.querySelectorAll(".validation-errors-container").forEach(el => el.remove());
+        
+        // Add error summary
+        if (errors.length > 0) {
+            let errorHtml = '<div class="validation-errors-container">';
+            errorHtml += '<h3>Tagging Errors Found:</h3><ul>';
+            errors.forEach(error => {
+                errorHtml += `<li>${error}</li>`;
+            });
+            errorHtml += '</ul></div>';
+        
+            document.getElementById("csv-preview").insertAdjacentHTML("beforebegin", errorHtml);
+        }
+        
         
         // Add note if there are more rows
         if (rows.length > 10) {

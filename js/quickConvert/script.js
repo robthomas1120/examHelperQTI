@@ -238,66 +238,69 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {Boolean} isTFSheet - Whether this is a TF sheet
      */
     function displayCSVTable(headers, rows, columnIndices, isTFSheet = false) {
-        // Limit preview to 10 rows
-        const previewRows = rows.slice(0, 10);
-        
+        const validTaggingValues = ["correct", "incorrect"];
+        let errors = [];
+    
+        // Identify "tagging" columns
+        const taggingColumns = columnIndices.filter(index => 
+            headers[index] && headers[index].toLowerCase().includes("tag")
+        );
+    
         let tableHtml = '<table style="width: 100%; border-collapse: collapse;">';
-        
+    
         // Table header
         tableHtml += '<thead><tr>';
         headers.forEach(header => {
             tableHtml += `<th style="padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: left;">${header}</th>`;
         });
         tableHtml += '</tr></thead>';
-        
+    
         // Table body
         tableHtml += '<tbody>';
-        previewRows.forEach((row, rowIndex) => {
-            tableHtml += `<tr style="background-color: ${rowIndex % 2 === 0 ? 'white' : '#f9fafb'};">`;
+        rows.forEach((row, rowIndex) => {
+            let rowStyle = "";
+            let rowErrors = [];
+    
+            tableHtml += `<tr id="row-${rowIndex}" style="background-color: ${rowIndex % 2 === 0 ? 'white' : '#f9fafb'};">`;
+    
             columnIndices.forEach((colIndex, i) => {
-                const value = row[colIndex] !== undefined ? row[colIndex] : '';
-                
-                // Check if this is a tagging column (content might be "correct" or "incorrect")
-                const cellValue = value.toString();
+                const value = row[colIndex] ? row[colIndex].toString().trim() : '';
                 let cellStyle = '';
-                
-                // Handle correct/incorrect values
-                if (cellValue.toLowerCase() === 'correct') {
-                    cellStyle = 'color: #10b981; font-weight: 500;'; // Green color for correct
-                } else if (cellValue.toLowerCase() === 'incorrect') {
-                    cellStyle = 'color: #ef4444; font-weight: 500;'; // Red color for incorrect
-                } 
-                // Handle true/false values in the choice1 column
-                else if (isTFSheet && 
-                         headers[colIndex] && 
-                         headers[colIndex].toLowerCase().includes('choice')) {
-                    // Check for true values
-                    if (cellValue.toLowerCase() === 'true' || 
-                        cellValue === '1' || 
-                        cellValue.toLowerCase() === 't') {
-                        cellStyle = 'color: #10b981; font-weight: 500;'; // Green color for true
-                    }
-                    // Check for false values
-                    else if (cellValue.toLowerCase() === 'false' || 
-                             cellValue === '0' || 
-                             cellValue.toLowerCase() === 'f') {
-                        cellStyle = 'color: #ef4444; font-weight: 500;'; // Red color for false
-                    }
+    
+                // Validate tagging columns
+                if (taggingColumns.includes(colIndex) && !validTaggingValues.includes(value.toLowerCase())) {
+                    rowErrors.push(`Row ${rowIndex + 1}, Column "${headers[colIndex]}" has invalid value "${value}"`);
+                    cellStyle = 'background-color: #fee2e2; color: #b91c1c; font-weight: 500;';
+                    rowStyle = 'background-color: #ffedd5; border-left: 4px solid #f59e0b;';
                 }
-                
-                tableHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; ${cellStyle}">${cellValue}</td>`;
+    
+                tableHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; ${cellStyle}">${value}</td>`;
             });
+    
             tableHtml += '</tr>';
+    
+            if (rowErrors.length > 0) {
+                errors.push(...rowErrors);
+            }
         });
+    
         tableHtml += '</tbody></table>';
-        
-        // Add note if there are more rows
-        if (rows.length > 10) {
-            tableHtml += `<p style="margin-top: 10px; color: #718096; font-style: italic;">Showing 10 of ${rows.length} rows</p>`;
+    
+        // Add error summary
+        if (errors.length > 0) {
+            let errorHtml = '<div class="validation-errors-container">';
+            errorHtml += '<h3>Tagging Errors Found:</h3><ul>';
+            errors.forEach(error => {
+                errorHtml += `<li>${error}</li>`;
+            });
+            errorHtml += '</ul></div>';
+    
+            document.getElementById("csv-preview").insertAdjacentHTML("beforebegin", errorHtml);
         }
-        
-        csvPreview.innerHTML = tableHtml;
+    
+        document.getElementById("csv-preview").innerHTML = tableHtml;
     }
+    
     
     function removeFile() {
         currentFile = null;
