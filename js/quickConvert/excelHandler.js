@@ -248,7 +248,7 @@ class ExcelHandler {
         
                 // Validate tagging column values
                 if (taggingColumns.includes(colIndex) && !["correct", "incorrect"].includes(value.toLowerCase())) {
-                    rowErrors.push(`Row ${rowIndex + 1}, Column "${headers[colIndex]}" has invalid value "${value}"`);
+                    rowErrors.push(`Row: ${rowIndex + 1}, Column: "${headers[colIndex]}" has invalid value "${value}"`);
                     cellStyle += ' background-color: #fee2e2; color: #b91c1c; font-weight: 500;'; // Red highlight
                     rowStyle = 'background-color: #ffedd5; border-left: 4px solid #f59e0b;';
                 }
