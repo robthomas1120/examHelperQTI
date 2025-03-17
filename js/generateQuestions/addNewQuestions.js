@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
         questionsContainer.appendChild(questionEntry);
         updateQuestionNumbers();
         setupDragAndDrop();
+        setupButtonListeners();
         
         // Auto-focus the question text area
         const textArea = questionEntry.querySelector('textarea');
@@ -94,80 +95,138 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup drag and drop functionality for question reordering
     function setupDragAndDrop() {
         const questionEntries = document.querySelectorAll('.question-entry');
-        let draggedItem = null;
         
-        questionEntries.forEach(item => {
-            // Only add listeners once
-            if (item.getAttribute('data-drag-initialized') === 'true') {
-                return;
-            }
-            
-            item.setAttribute('data-drag-initialized', 'true');
-            
-            const moveHandle = item.querySelector('.move-question');
-            
-            // Use the move handle to initiate drag
-            if (moveHandle) {
-                moveHandle.addEventListener('mousedown', function() {
-                    item.setAttribute('draggable', 'true');
+        questionEntries.forEach(questionEntry => {
+            // Make question draggable when move button is clicked
+            const moveButton = questionEntry.querySelector('.move-question');
+            if (moveButton) {
+                moveButton.addEventListener('mousedown', function(e) {
+                    e.stopPropagation();
+                    questionEntry.setAttribute('draggable', 'true');
+                    
+                    // Add grab cursor to the question entry
+                    questionEntry.style.cursor = 'grabbing';
                 });
                 
-                moveHandle.addEventListener('mouseup', function() {
-                    item.setAttribute('draggable', 'false');
+                // Stop dragging when mouse is released
+                document.addEventListener('mouseup', function() {
+                    questionEntry.setAttribute('draggable', 'false');
+                    questionEntry.style.cursor = '';
                 });
             }
             
-            item.addEventListener('dragstart', function(e) {
-                draggedItem = item;
+            // Handle drag start
+            questionEntry.addEventListener('dragstart', function(e) {
+                e.dataTransfer.setData('text/plain', Array.from(questionsContainer.children).indexOf(questionEntry));
                 setTimeout(() => {
-                    item.classList.add('dragging');
+                    questionEntry.classList.add('dragging');
                 }, 0);
-                e.dataTransfer.setData('text/plain', ''); // Required for Firefox
             });
             
-            item.addEventListener('dragend', function() {
-                item.classList.remove('dragging');
-                draggedItem = null;
-                updateQuestionNumbers();
+            // Handle drag end
+            questionEntry.addEventListener('dragend', function() {
+                questionEntry.classList.remove('dragging');
+                questionEntry.style.cursor = '';
+                questionEntry.setAttribute('draggable', 'false');
+                
+                // Remove all drag-over classes
+                document.querySelectorAll('.drag-over').forEach(el => {
+                    el.classList.remove('drag-over');
+                });
+            });
+            
+            // Handle drag over
+            questionEntry.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                if (!questionEntry.classList.contains('dragging')) {
+                    questionEntry.classList.add('drag-over');
+                }
+            });
+            
+            // Handle drag leave
+            questionEntry.addEventListener('dragleave', function() {
+                questionEntry.classList.remove('drag-over');
+            });
+            
+            // Handle drop
+            questionEntry.addEventListener('drop', function(e) {
+                e.preventDefault();
+                const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                const toIndex = Array.from(questionsContainer.children).indexOf(questionEntry);
+                
+                if (fromIndex !== toIndex) {
+                    // Move the question
+                    const allQuestions = Array.from(questionsContainer.children);
+                    const questionToMove = allQuestions[fromIndex];
+                    
+                    if (fromIndex < toIndex) {
+                        // Moving down
+                        questionsContainer.insertBefore(questionToMove, allQuestions[toIndex + 1]);
+                    } else {
+                        // Moving up
+                        questionsContainer.insertBefore(questionToMove, allQuestions[toIndex]);
+                    }
+                    
+                    // Update question numbers
+                    updateQuestionNumbers();
+                }
+                
+                questionEntry.classList.remove('drag-over');
             });
         });
-        
-        // Add dragover and drop handlers to the container
-        if (!questionsContainer.getAttribute('data-drop-initialized')) {
-            questionsContainer.setAttribute('data-drop-initialized', 'true');
-            
-            questionsContainer.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                const afterElement = getDragAfterElement(questionsContainer, e.clientY);
-                if (draggedItem) {
-                    if (afterElement) {
-                        questionsContainer.insertBefore(draggedItem, afterElement);
-                    } else {
-                        questionsContainer.appendChild(draggedItem);
-                    }
-                }
-            });
-            
-            questionsContainer.addEventListener('drop', function(e) {
-                e.preventDefault();
-            });
-        }
-        
-        // Helper function to determine where to place the dragged item
-        function getDragAfterElement(container, y) {
-            const draggableElements = [...container.querySelectorAll('.question-entry:not(.dragging)')];
-            
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
+    }
+
+    // Function to add event listeners for buttons that add new elements
+    function setupButtonListeners() {
+        // Event delegation for add answer/option buttons
+        document.addEventListener('click', function(e) {
+            // Add answer option button for multiple answers
+            if (e.target.classList.contains('add-answer-btn')) {
+                const optionsContainer = e.target.closest('.options-container');
+                const newAnswerId = `answer${optionsContainer.querySelectorAll('.answer-entry').length + 1}-${generateUUID()}`;
                 
-                if (offset < 0 && offset > closest.offset) {
-                    return { offset: offset, element: child };
-                } else {
-                    return closest;
-                }
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
-        }
+                const answerEntry = document.createElement('div');
+                answerEntry.className = 'answer-entry';
+                answerEntry.innerHTML = `
+                    <input type="checkbox" id="${newAnswerId}">
+                    <label></label>
+                    <input type="text" placeholder="Answer ${optionsContainer.querySelectorAll('.answer-entry').length + 1}">
+                    <button type="button" class="remove-answer-btn"><i class="fas fa-times"></i></button>
+                `;
+                
+                // Insert before the add button
+                optionsContainer.insertBefore(answerEntry, e.target);
+            }
+            
+            // Add alternate answer button for fill in the blank
+            if (e.target.classList.contains('add-alternate-answer-btn')) {
+                const optionsContainer = e.target.closest('.options-container');
+                const alternateAnswersContainer = optionsContainer.querySelector('.alternate-answers-container');
+                
+                const altAnswerEntry = document.createElement('div');
+                altAnswerEntry.className = 'answer-entry';
+                altAnswerEntry.innerHTML = `
+                    <input type="text" placeholder="Alternate Answer">
+                    <button type="button" class="remove-answer-btn"><i class="fas fa-times"></i></button>
+                `;
+                
+                alternateAnswersContainer.appendChild(altAnswerEntry);
+            }
+            
+            // Remove answer button
+            if (e.target.classList.contains('remove-answer-btn') || (e.target.parentElement && e.target.parentElement.classList.contains('remove-answer-btn'))) {
+                const button = e.target.classList.contains('remove-answer-btn') ? e.target : e.target.parentElement;
+                const answerEntry = button.closest('.answer-entry');
+                answerEntry.remove();
+            }
+            
+            // Remove alternate answer button
+            if (e.target.classList.contains('remove-alt-answer-btn') || (e.target.parentElement && e.target.parentElement.classList.contains('remove-alt-answer-btn'))) {
+                const button = e.target.classList.contains('remove-alt-answer-btn') ? e.target : e.target.parentElement;
+                const altAnswerEntry = button.closest('.alt-answer-entry');
+                altAnswerEntry.remove();
+            }
+        });
     }
 
     // Document click handler for collapsing questions when clicking outside
@@ -216,38 +275,47 @@ document.addEventListener('DOMContentLoaded', function() {
             const questionType = questionEntry.querySelector('.question-type').textContent.trim();
             const newQuestionEntry = questionEntry.cloneNode(true);
             
-            // Clear any entered values in the clone
-            const textareas = newQuestionEntry.querySelectorAll('textarea');
-            textareas.forEach(textarea => {
-                textarea.value = '';
-            });
-            
-            const textInputs = newQuestionEntry.querySelectorAll('input[type="text"]');
-            textInputs.forEach(input => {
-                input.value = '';
-            });
-            
-            // Reset radio buttons and checkboxes
-            const radioButtons = newQuestionEntry.querySelectorAll('input[type="radio"]');
-            radioButtons.forEach(radio => {
-                radio.checked = false;
-            });
-            
-            const checkboxes = newQuestionEntry.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = false;
-            });
-            
-            // Add the cloned question to the container
-            questionsContainer.appendChild(newQuestionEntry);
-            updateQuestionNumbers();
-            setupDragAndDrop();
-            
-            // Focus the new question's textarea
-            const textarea = newQuestionEntry.querySelector('textarea');
-            if (textarea) {
-                textarea.focus();
+            // Generate new UUIDs for all inputs to avoid duplicate IDs
+            const radioGroups = newQuestionEntry.querySelectorAll('input[type="radio"]');
+            if (radioGroups.length > 0) {
+                const newGroupId = generateUUID();
+                radioGroups.forEach(radio => {
+                    radio.name = `option-group-${newGroupId}`;
+                    radio.id = `option${generateUUID()}`;
+                });
             }
+
+            // Copy textarea content and update preview
+            const originalTextarea = questionEntry.querySelector('textarea');
+            const newTextarea = newQuestionEntry.querySelector('textarea');
+            if (originalTextarea && newTextarea) {
+                const questionText = originalTextarea.value;
+                newTextarea.value = questionText;
+                const preview = questionText.substring(0, 80) + (questionText.length > 80 ? '...' : '');
+                newQuestionEntry.querySelector('.question-number').setAttribute('data-question-preview', preview);
+            }
+
+            // Copy text input values
+            const originalInputs = questionEntry.querySelectorAll('input[type="text"]');
+            const newInputs = newQuestionEntry.querySelectorAll('input[type="text"]');
+            for (let i = 0; i < originalInputs.length; i++) {
+                if (newInputs[i]) {
+                    newInputs[i].value = originalInputs[i].value;
+                }
+            }
+
+            // Copy checkbox/radio states
+            const originalCheckboxes = questionEntry.querySelectorAll('input[type="checkbox"], input[type="radio"]');
+            const newCheckboxes = newQuestionEntry.querySelectorAll('input[type="checkbox"], input[type="radio"]');
+            for (let i = 0; i < originalCheckboxes.length; i++) {
+                if (newCheckboxes[i]) {
+                    newCheckboxes[i].checked = originalCheckboxes[i].checked;
+                }
+            }
+            
+            // Insert after the original question and update numbers
+            questionEntry.after(newQuestionEntry);
+            updateQuestionNumbers();
         }
     });
 
@@ -295,16 +363,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Export as QTI functionality
-    exportQtiBtn.addEventListener('click', function() {
+    exportQtiBtn.addEventListener('click', async function() {
         if (validateQuiz()) {
-            // Prompt for filename
-            const quizTitle = document.getElementById('quiz-title').value || 'Untitled Quiz';
-            const defaultFilename = quizTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.qti';
-            const filename = prompt('Enter filename for export:', defaultFilename);
+            const filename = document.getElementById('quiz-title').value.trim() || 'quiz';
             
             if (filename) {
-                exportAsQTI(filename);
-                showSuccessMessage('Quiz exported successfully as QTI file!');
+                try {
+                    await exportAsQTI(filename);
+                } catch (error) {
+                    console.error('Error exporting quiz:', error);
+                    alert('Failed to export quiz. Please make sure all questions are properly filled out.');
+                }
             }
         }
     });
@@ -397,7 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            // Check if fill in the blank questions have all answers filled and the question contains ___
+            // Check if fill in the blank questions have all answers filled and the question contains EXACTLY ___
             if (questionType === 'Fill In The Blank') {
                 const answerEntries = questionEntries[i].querySelectorAll('.answer-entry');
                 
@@ -419,9 +488,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     return false;
                 }
                 
-                // Check if the question contains exactly three underscores (___)
+                // Check if the question contains exactly three underscores (___) as placeholder
                 if (!questionText.includes('___')) {
-                    alert(`Question ${i + 1}: Fill in the blank questions must contain at least one blank placeholder (___). Please add ___ where you want students to fill in the answer.`);
+                    alert(`Question ${i + 1}: Fill in the blank questions must contain the placeholder (___). Please add ___ where you want students to fill in the answer.`);
+                    return false;
+                }
+                
+                // Make sure the underscores are exactly three consecutive underscores
+                const matches = questionText.match(/_{3}/g) || [];
+                if (matches.length === 0) {
+                    alert(`Question ${i + 1}: Fill in the blank questions must contain exactly three consecutive underscores (___) as a placeholder.`);
+                    return false;
+                }
+                
+                // Check to prevent more than one set of triple underscores
+                if (matches.length > 1) {
+                    alert(`Question ${i + 1}: Fill in the blank questions should contain only one placeholder (___). Please use only one set of three underscores.`);
                     return false;
                 }
             }
@@ -440,31 +522,155 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Function to export quiz as QTI
-    function exportAsQTI(filename) {
-        // Gather all quiz data
-        const quizData = collectQuizData();
-        
-        // Generate QTI XML
-        const qtiXML = generateQTIXML(quizData);
-        
-        // Create a downloadable file
-        const blob = new Blob([qtiXML], { type: 'application/xml' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        
-        // Ensure filename has .qti extension
-        if (!filename.toLowerCase().endsWith('.qti')) {
-            filename = filename.replace(/\.xml$/i, '') + '.qti';
+    async function exportAsQTI(filename) {
+        try {
+            // Gather all quiz data
+            const quizData = collectQuizData();
+            
+            // Create JSZip instance
+            const zip = new JSZip();
+            
+            // Generate unique identifier for the quiz
+            const quizIdentifier = "question_" + generateUUID().substring(0, 8);
+            
+            // Create root folder in zip
+            const rootFolder = quizIdentifier;
+            
+            // Create questions XML with all questions
+            const questionsXML = generateQuestionsXML(quizData, quizIdentifier);
+            
+            // Create manifest XML
+            const manifestXML = generateManifestXML(quizIdentifier, quizData.title, quizData.description);
+            
+            // Create assessment meta XML
+            const assessmentMetaXML = generateAssessmentMetaXML(quizIdentifier, quizData.title, quizData.description, quizData.questions.length);
+            
+            // Add manifest at root level
+            zip.file("imsmanifest.xml", manifestXML);
+            
+            // Create folder for quiz files
+            const quizFolder = zip.folder(rootFolder);
+            
+            // Add assessment meta file
+            quizFolder.file("assessment_meta.xml", assessmentMetaXML);
+            
+            // Add questions file
+            quizFolder.file("questions.xml", questionsXML);
+            
+            // Generate zip file
+            const blob = await zip.generateAsync({ type: "blob" });
+            
+            // Create a downloadable file
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Ensure filename has .zip extension
+            if (!filename.toLowerCase().endsWith('.zip')) {
+                filename = filename.replace(/\.qti$/i, '') + '.zip';
+            }
+            
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showSuccessMessage('Quiz exported successfully as QTI ZIP file!');
+        } catch (error) {
+            console.error('Error exporting quiz:', error);
+            alert('Failed to export quiz. Please make sure all questions are properly filled out.');
         }
+    }
+    
+    // Function to generate manifest XML
+    function generateManifestXML(quizId, title, description) {
+        const safeTitle = escapeXML(title);
+        const safeDescription = escapeXML(description);
         
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<manifest identifier="${quizId}" xmlns="http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1" xmlns:lom="http://ltsc.ieee.org/xsd/imsccv1p1/LOM/resource" xmlns:imsmd="http://www.imsglobal.org/xsd/imsmd_v1p2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1 http://www.imsglobal.org/xsd/imscp_v1p1.xsd http://ltsc.ieee.org/xsd/imsccv1p1/LOM/resource http://www.imsglobal.org/xsd/imsmd_v1p2p4.xsd">
+  <metadata>
+    <schema>IMS Content</schema>
+    <schemaversion>1.1.3</schemaversion>
+    <imsmd:lom>
+      <imsmd:general>
+        <imsmd:title>
+          <imsmd:string>${safeTitle}</imsmd:string>
+        </imsmd:title>
+        <imsmd:description>
+          <imsmd:string>${safeDescription}</imsmd:string>
+        </imsmd:description>
+      </imsmd:general>
+    </imsmd:lom>
+  </metadata>
+  <organizations/>
+  <resources>
+    <resource identifier="${quizId}_assessment" type="imsqti_xmlv1p2">
+      <file href="${quizId}/assessment_meta.xml"/>
+      <file href="${quizId}/questions.xml"/>
+    </resource>
+  </resources>
+</manifest>`;
         
-        showSuccessMessage('Quiz exported successfully as QTI file!');
+        return xml;
+    }
+    
+    // Function to generate assessment meta XML
+    function generateAssessmentMetaXML(quizId, title, description, questionCount) {
+        const safeTitle = escapeXML(title);
+        const safeDescription = escapeXML(description);
+        
+        let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<quiz identifier="${quizId}" xmlns="http://www.imsglobal.org/xsd/ims_qtiasiv1p2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/ims_qtiasiv1p2 http://www.imsglobal.org/xsd/ims_qtiasiv1p2p1.xsd">
+  <title>${safeTitle}</title>
+  <description>${safeDescription}</description>
+  <duration>PT1H</duration>
+  <cc_profile_type>cc.exam.v0p1</cc_profile_type>
+  <questestinterop>
+    <assessment title="${safeTitle}" ident="${quizId}">
+      <metadatafield>
+        <fieldlabel>cc_maxattempts</fieldlabel>
+        <fieldentry>1</fieldentry>
+      </metadatafield>
+      <section ident="root_section">
+        <item_metadata>
+          <item_count>${questionCount}</item_count>
+        </item_metadata>
+      </section>
+    </assessment>
+  </questestinterop>
+</quiz>`;
+        
+        return xml;
+    }
+    
+    // Function to generate complete questions XML
+    function generateQuestionsXML(quizData, quizId) {
+        const safeTitle = escapeXML(quizData.title);
+        
+        let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<questestinterop xmlns="http://www.imsglobal.org/xsd/ims_qtiasiv1p2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/ims_qtiasiv1p2 http://www.imsglobal.org/xsd/ims_qtiasiv1p2p1.xsd">
+<assessment ident="${quizId}" title="${safeTitle}">
+  <qtimetadata>
+    <qtimetadatafield>
+      <fieldlabel>cc_maxattempts</fieldlabel>
+      <fieldentry>1</fieldentry>
+    </qtimetadatafield>
+  </qtimetadata>
+  <section ident="root_section">`;
+
+        // Add all question items
+        quizData.questions.forEach(question => {
+            xml += '\n    ' + generateQuestionXML(question);
+        });
+        
+        xml += `
+  </section>
+</assessment>
+</questestinterop>`;
+        
+        return xml;
     }
 
     // Function to collect all quiz data
@@ -521,6 +727,20 @@ document.addEventListener('DOMContentLoaded', function() {
                         questionData.options.push({
                             id: `q${index + 1}_ans${ansIndex + 1}`,
                             text: answerText,
+                            isCorrect: true
+                        });
+                    }
+                });
+                
+                // Collect alternate answers
+                const alternateAnswersContainer = entry.querySelector('.alternate-answers-container');
+                const alternateAnswerEntries = alternateAnswersContainer.querySelectorAll('.alt-answer-entry');
+                alternateAnswerEntries.forEach((altAnswerEntry, altAnsIndex) => {
+                    const altAnswerText = altAnswerEntry.querySelector('input[type="text"]').value.trim();
+                    if (altAnswerText) {
+                        questionData.options.push({
+                            id: `q${index + 1}_alt${altAnsIndex + 1}`,
+                            text: altAnswerText,
                             isCorrect: true
                         });
                     }
@@ -729,91 +949,90 @@ document.addEventListener('DOMContentLoaded', function() {
     function getQuestionTemplate(type) {
         const templates = {
             'multiple-choice': `
-                <div class="form-group">
-                    <label>Question:</label>
-                    <textarea placeholder="Enter your question here"></textarea>
-                </div>
-                <div class="form-group options-group">
-                    <label>Options: (exactly 4 required)</label>
+                <textarea placeholder="Enter your question here..."></textarea>
+                <div class="options-container">
                     <div class="option-entry">
-                        <input type="radio" name="correct-option">
+                        <input type="radio" name="option-group-${generateUUID()}" id="option1-${generateUUID()}">
+                        <label></label>
                         <input type="text" placeholder="Option 1">
                     </div>
                     <div class="option-entry">
-                        <input type="radio" name="correct-option">
+                        <input type="radio" name="option-group-${generateUUID()}" id="option2-${generateUUID()}">
+                        <label></label>
                         <input type="text" placeholder="Option 2">
                     </div>
                     <div class="option-entry">
-                        <input type="radio" name="correct-option">
+                        <input type="radio" name="option-group-${generateUUID()}" id="option3-${generateUUID()}">
+                        <label></label>
                         <input type="text" placeholder="Option 3">
                     </div>
                     <div class="option-entry">
-                        <input type="radio" name="correct-option">
+                        <input type="radio" name="option-group-${generateUUID()}" id="option4-${generateUUID()}">
+                        <label></label>
                         <input type="text" placeholder="Option 4">
                     </div>
                 </div>
             `,
             'multiple-answer': `
-                <div class="form-group">
-                    <label>Question:</label>
-                    <textarea placeholder="Enter your question here"></textarea>
-                </div>
-                <div class="form-group answers-group">
-                    <label>Answers:</label>
+                <textarea placeholder="Enter your question here..."></textarea>
+                <div class="options-container">
                     <div class="answer-entry">
-                        <input type="checkbox">
+                        <input type="checkbox" id="answer1-${generateUUID()}">
+                        <label></label>
                         <input type="text" placeholder="Answer 1">
                     </div>
-                    <div class="answer-entry">
-                        <input type="checkbox">
-                        <input type="text" placeholder="Answer 2">
-                    </div>
-                    <button type="button" class="add-answer">+ Add Answer</button>
-                </div>
-            `,
-            'fill-in-the-blank': `
-                <div class="form-group">
-                    <label>Question:</label>
-                    <textarea placeholder="Enter your question with ___ (three underscores) where the blank should be"></textarea>
-                    <div class="help-text">Use ___ (three underscores) to indicate where students should fill in the blank.</div>
-                </div>
-                <div class="form-group answers-group">
-                    <label>Acceptable Answers:</label>
-                    <div class="answer-entry">
-                        <input type="text" placeholder="Acceptable answer 1">
-                    </div>
-                    <button type="button" class="add-answer">+ Add Alternative Answer</button>
+                    <button type="button" class="add-answer-btn">+ Add Answer Option</button>
                 </div>
             `,
             'true-or-false': `
-                <div class="form-group">
-                    <label>Question:</label>
-                    <textarea placeholder="Enter your question here"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Correct Answer:</label>
-                    <div class="true-false-options">
-                        <input type="radio" name="correct-answer" value="true" id="true-option" required>
-                        <label for="true-option">True</label>
-                        <input type="radio" name="correct-answer" value="false" id="false-option">
-                        <label for="false-option">False</label>
+                <textarea placeholder="Enter your question here..."></textarea>
+                <div class="options-container">
+                    <div class="option-entry">
+                        <input type="radio" name="true-false-group-${generateUUID()}" id="true-${generateUUID()}" value="true">
+                        <label></label>
+                        <span>True</span>
+                    </div>
+                    <div class="option-entry">
+                        <input type="radio" name="true-false-group-${generateUUID()}" id="false-${generateUUID()}" value="false">
+                        <label></label>
+                        <span>False</span>
                     </div>
                 </div>
             `,
+            'fill-in-the-blank': `
+                <textarea placeholder="Enter your question here with ___ for the blank..."></textarea>
+                <div class="options-container">
+                    <div class="answer-entry">
+                        <input type="text" placeholder="Correct Answer">
+                    </div>
+                    <div class="alternate-answers">
+                        <p class="alt-answers-label">Alternative Answers (Optional):</p>
+                        <div class="alternate-answers-container">
+                        </div>
+                    </div>
+                    <button type="button" class="add-alternate-answer-btn">+ Add Alternate Answer</button>
+                </div>
+            `,
             'essay': `
-                <div class="form-group">
-                    <label>Question:</label>
-                    <textarea placeholder="Enter your question here"></textarea>
+                <textarea placeholder="Enter your question here..."></textarea>
+                <div class="essay-input">
                 </div>
             `
         };
-
+        
         return templates[type] || '';
     }
 
+    // Format question type for display
     function formatQuestionType(type) {
-        return type.replace('-', ' ').replace(/\w\S*/g, function(txt) {
-            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-        });
+        const typeMap = {
+            'multiple-choice': 'Multiple Choice',
+            'multiple-answer': 'Multiple Answer',
+            'true-or-false': 'True Or False',
+            'fill-in-the-blank': 'Fill In The Blank',
+            'essay': 'Essay'
+        };
+        
+        return typeMap[type] || type.charAt(0).toUpperCase() + type.slice(1).replace(/-/g, ' ');
     }
 });
