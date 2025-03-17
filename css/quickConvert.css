@@ -247,36 +247,7 @@ tr:hover {
 }
 
 /* Navigation styles */
-.nav-container {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 20px;
-}
 
-nav ul {
-    display: flex;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-nav li {
-    margin: 0 15px;
-}
-
-nav a {
-    text-decoration: none;
-    color: #718096;
-    font-weight: 500;
-    transition: color 0.3s ease;
-    padding: 5px 0;
-    border-bottom: 2px solid transparent;
-}
-
-nav a:hover, nav a.active {
-    color: #4a6cf7;
-    border-bottom-color: #4a6cf7;
-}
 
 /* Sheet navigation styles */
 .sheet-navigation {

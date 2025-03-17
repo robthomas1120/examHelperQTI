@@ -5,41 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QTI Converter</title>
     <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/nav-styles.css">
     <link rel="stylesheet" href="../css/quickConvert.css">
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/nav-styles.css">
+    <script src="../js/navbar.js"></script>
+    <script src="../js/modal.js"></script>
     <style>
-        /* Navigation styles */
-        .nav-container {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-        
-        nav ul {
-            display: flex;
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-        
-        nav li {
-            margin: 0 15px;
-        }
-        
-        nav a {
-            text-decoration: none;
-            color: #718096;
-            font-weight: 500;
-            transition: color 0.3s ease;
-            padding: 5px 0;
-            border-bottom: 2px solid transparent;
-        }
-        
-        nav a:hover, nav a.active {
-            color: #4a6cf7;
-            border-bottom-color: #4a6cf7;
-        }
+      
         
         /* Sheet navigation styles */
         .sheet-navigation {
@@ -72,26 +46,15 @@
             border-color: #4361ee;
         }
     </style>
+      
 </head>
 <body>
     <div class="container">
-        <header>
-            <div class="nav-container">
-                <nav>
-                    <ul>
-                        <li><a href="index.html">Home</a></li>
-                        <li><a href="quickConvert.html" class="active">Quick Convert</a></li>
-                        <li><a href="itemBank.html">Item Bank</a></li>
-                        <li><a href="qtiToPdf.html">QTI to PDF</a></li>
-                    </ul>
-                </nav>
-            </div>
-            <div class="logo">
-                <i class="fas fa-file-csv"></i>
-            </div>
+        <div class="header">
             <h1>CSV to QTI Converter</h1>
             <p>Convert CSV quiz files to QTI format for LMS import</p>
-        </header>
+        
+        </div>
 
         <main>
             <div class="upload-container">
