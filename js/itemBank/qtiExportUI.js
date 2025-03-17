@@ -301,6 +301,13 @@ class QTIExportUI {
             return;
         }
         
+        // Check if there are any validation errors in the file preview
+        if (window.excelFilePreview && window.excelFilePreview.hasErrors()) {
+            // Show error message
+            this.showErrorMessage('Please resolve all questionnaire issues before converting to QTI.');
+            return;
+        }
+        
         // Instead of showing the modal, get values directly from the page
         const quizTitle = document.getElementById('quiz-title').value.trim();
         const quizDescription = document.getElementById('quiz-description').value.trim();
@@ -314,6 +321,107 @@ class QTIExportUI {
         
         // Proceed directly to export
         this.directExport(quizTitle, quizDescription);
+    }
+    
+    /**
+     * Show error message
+     * @param {String} message - Error message to show
+     */
+    showErrorMessage(message) {
+        // Create toast message element
+        const toast = document.createElement('div');
+        toast.className = 'toast-message error-message';
+        toast.innerHTML = `
+            <div class="toast-icon">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <div class="toast-content">${message}</div>
+            <button class="toast-close"><i class="fas fa-times"></i></button>
+        `;
+        
+        // Add styles if not already present
+        this.addToastStyles();
+        
+        // Add close handler
+        const closeBtn = toast.querySelector('.toast-close');
+        closeBtn.addEventListener('click', () => {
+            document.body.removeChild(toast);
+        });
+        
+        // Add to document
+        document.body.appendChild(toast);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (document.body.contains(toast)) {
+                document.body.removeChild(toast);
+            }
+        }, 5000);
+    }
+    
+    /**
+     * Add toast message styles to document if not already present
+     */
+    addToastStyles() {
+        if (document.getElementById('qti-toast-styles')) return;
+        
+        const style = document.createElement('style');
+        style.id = 'qti-toast-styles';
+        style.textContent = `
+            .toast-message {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                display: flex;
+                align-items: center;
+                min-width: 300px;
+                max-width: 400px;
+                padding: 12px 15px;
+                border-radius: 6px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                z-index: 9999;
+                animation: slide-in 0.3s ease-out;
+                background-color: white;
+            }
+            
+            @keyframes slide-in {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            
+            .error-message {
+                border-left: 4px solid #ef4444;
+            }
+            
+            .toast-icon {
+                font-size: 1.5rem;
+                margin-right: 12px;
+                color: #ef4444;
+            }
+            
+            .toast-content {
+                flex: 1;
+                font-size: 0.95rem;
+                color: #1f2937;
+            }
+            
+            .toast-close {
+                background: none;
+                border: none;
+                color: #9ca3af;
+                cursor: pointer;
+                font-size: 0.9rem;
+                padding: 0;
+                margin-left: 10px;
+                transition: color 0.2s;
+            }
+            
+            .toast-close:hover {
+                color: #4b5563;
+            }
+        `;
+        
+        document.head.appendChild(style);
     }
     
     // Add this new method to handle direct export

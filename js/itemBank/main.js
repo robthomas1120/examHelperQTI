@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Create UI controller instance
     const uiController = new UIController(fileHandler, questionProcessor);
     
+    // Create Excel File Preview instance
+    const excelFilePreview = new ExcelFilePreview();
+    
     // Create QTI Export UI instance
     const qtiExportUI = new QTIExportUI(questionProcessor);
     
@@ -20,8 +23,12 @@ document.addEventListener('DOMContentLoaded', function() {
         fileHandler,
         questionProcessor,
         uiController,
-        qtiExportUI
+        qtiExportUI,
+        excelFilePreview
     };
+    
+    // Make excelFilePreview globally available for error checking
+    window.excelFilePreview = excelFilePreview;
     
     // Handle sample file loading
     document.getElementById('loadSampleBtn').addEventListener('click', async function(e) {

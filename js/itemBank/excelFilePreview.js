@@ -24,7 +24,10 @@ class ExcelFilePreview {
         this.editedData = null;  // Store edited data
         this.editedHeaders = null; // Store headers for edited data
         this.currentEditCell = null; // Track which cell is being edited
-
+        
+        // Track validation errors
+        this.hasValidationErrors = false;
+        
         // Bind methods
         this.handleDragOver = this.handleDragOver.bind(this);
         this.handleDragLeave = this.handleDragLeave.bind(this);
@@ -913,6 +916,9 @@ class ExcelFilePreview {
         if (this.downloadBtn) {
             this.downloadBtn.disabled = false;
         }
+        
+        // Update validation errors state
+        this.hasValidationErrors = errors.length > 0 || multipleCorrectErrors.length > 0 || singleCorrectMAErrors.length > 0;
     }
 
     /**
@@ -1004,12 +1010,32 @@ class ExcelFilePreview {
             this.editedData[row][originalCol] = newValue;
         }
         
+        // Update the original question data to persist changes
+        this.updateOriginalQuestionData(row, originalCol, newValue);
+        
         // Clear current edit
         this.currentEditCell = null;
         
         // Enable download button if not already enabled
         if (this.downloadBtn) {
             this.downloadBtn.disabled = false;
+        }
+        
+        // Re-validate and update error notifications
+        this.updateErrorNotifications();
+        
+        // Refresh the question display in the UI
+        this.refreshQuestionDisplay();
+    }
+    
+    /**
+     * Refresh the question display in the UI after edits
+     */
+    refreshQuestionDisplay() {
+        // If the app has a UI controller, refresh the questions
+        if (window.app && window.app.uiController) {
+            // Re-render the questions to reflect the changes
+            window.app.uiController.renderQuestions();
         }
     }
 
@@ -1293,7 +1319,7 @@ class ExcelFilePreview {
         
         document.head.appendChild(style);
     }
-    
+
     /**
      * Get the current file
      * @returns {File} - The current file
@@ -1308,6 +1334,163 @@ class ExcelFilePreview {
      */
     getQuestionData() {
         return this.questionData;
+    }
+
+    /**
+     * Check if there are any validation errors
+     * @returns {Boolean} - True if there are validation errors
+     */
+    hasErrors() {
+        return this.hasValidationErrors;
+    }
+    
+    /**
+     * Update the original question data to persist changes across tab switches
+     * @param {Number} row - Row index
+     * @param {Number} col - Column index
+     * @param {String} newValue - New cell value
+     */
+    updateOriginalQuestionData(row, col, newValue) {
+        // Only proceed if we have question data
+        if (!this.questionData || row >= this.questionData.length) {
+            return;
+        }
+        
+        // Update the original question data
+        if (this.questionData[row] && col < this.questionData[row].length) {
+            this.questionData[row][col] = newValue;
+        }
+        
+        // If we have a workbook, update the sheet data as well
+        if (this.workbook && this.currentSheetIndex !== undefined) {
+            const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
+            if (sheetName) {
+                const sheet = this.workbook.Sheets[sheetName];
+                if (sheet) {
+                    // Convert row/col to Excel cell reference (e.g., A1, B2)
+                    const cellRef = XLSX.utils.encode_cell({r: row + 1, c: col}); // +1 for header row
+                    
+                    // Update the cell in the sheet
+                    sheet[cellRef] = { t: 's', v: newValue };
+                }
+            }
+        }
+        
+        // If the app has a fileHandler instance, update its processed data
+        if (window.app && window.app.fileHandler && window.app.fileHandler.processedData) {
+            // Determine the question type from the current sheet
+            let questionType = null;
+            if (this.workbook && this.currentSheetIndex !== undefined) {
+                const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
+                if (sheetName) {
+                    // Try to determine question type from sheet name
+                    if (sheetName.includes('MC')) questionType = 'MC';
+                    else if (sheetName.includes('MA')) questionType = 'MA';
+                    else if (sheetName.includes('TF')) questionType = 'TF';
+                    else if (sheetName.includes('ESS')) questionType = 'ESS';
+                    else if (sheetName.includes('FIB')) questionType = 'FIB';
+                }
+            }
+            
+            // If we found a question type, update the corresponding data
+            if (questionType && window.app.fileHandler.processedData[questionType]) {
+                // Find and update the corresponding row in the processed data
+                for (let i = 0; i < window.app.fileHandler.processedData[questionType].length; i++) {
+                    const processedRow = window.app.fileHandler.processedData[questionType][i];
+                    // Check if this is the same row (simple heuristic - check first few cells)
+                    let isSameRow = true;
+                    for (let j = 0; j < Math.min(3, processedRow.length); j++) {
+                        if (j !== col && processedRow[j] !== this.questionData[row][j]) {
+                            isSameRow = false;
+                            break;
+                        }
+                    }
+                    
+                    if (isSameRow) {
+                        // Update the cell in the processed data
+                        window.app.fileHandler.processedData[questionType][i][col] = newValue;
+                        
+                        // Also update the corresponding question in the 'all' array
+                        for (let k = 0; k < window.app.fileHandler.processedData.all.length; k++) {
+                            const allQuestion = window.app.fileHandler.processedData.all[k];
+                            if (allQuestion.id === window.app.fileHandler.processedData[questionType][i].id) {
+                                // Update the data array in the 'all' question
+                                if (allQuestion.data && col < allQuestion.data.length) {
+                                    allQuestion.data[col] = newValue;
+                                }
+                                break;
+                            }
+                        }
+                        
+                        // Update the question processor data
+                        if (window.app && window.app.questionProcessor) {
+                            // Update the question processor's questions data
+                            window.app.questionProcessor.setQuestions(window.app.fileHandler.processedData);
+                            
+                            // Also update any selected questions that might be affected
+                            const selectedQuestions = window.app.questionProcessor.getSelectedQuestions();
+                            for (let s = 0; s < selectedQuestions.length; s++) {
+                                const selectedQ = selectedQuestions[s];
+                                if (selectedQ.id === window.app.fileHandler.processedData[questionType][i].id) {
+                                    // Update the data array in the selected question
+                                    if (selectedQ.data && col < selectedQ.data.length) {
+                                        selectedQ.data[col] = newValue;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Update error notifications after editing
+     */
+    updateErrorNotifications() {
+        // Get current table data
+        const table = this.previewElement.querySelector('table');
+        if (!table) return;
+        
+        // Get headers
+        const headerCells = table.querySelectorAll('thead th');
+        const headers = Array.from(headerCells).map(th => th.textContent);
+        
+        // Get rows
+        const rows = [];
+        const tableRows = table.querySelectorAll('tbody tr');
+        tableRows.forEach(tr => {
+            const rowData = [];
+            const cells = tr.querySelectorAll('td');
+            cells.forEach(td => {
+                rowData.push(td.textContent);
+            });
+            rows.push(rowData);
+        });
+        
+        // Get column indices
+        const columnIndices = [];
+        tableRows[0]?.querySelectorAll('td').forEach(td => {
+            const originalCol = parseInt(td.getAttribute('data-original-col'), 10);
+            if (!isNaN(originalCol)) {
+                columnIndices.push(originalCol);
+            }
+        });
+        
+        // Determine if this is a TF or MA sheet
+        const isTFSheet = this.workbook && 
+                         this.workbook.SheetNames[this.currentSheetIndex] && 
+                         this.workbook.SheetNames[this.currentSheetIndex].includes("TF");
+                         
+        const isMASheet = this.workbook && 
+                         this.workbook.SheetNames[this.currentSheetIndex] && 
+                         this.workbook.SheetNames[this.currentSheetIndex].includes("MA");
+        
+        // Re-display the table with updated validation
+        this.displayTable(headers, rows, columnIndices, isTFSheet, isMASheet);
     }
 }
 
