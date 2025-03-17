@@ -116,4 +116,17 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error loading sample file:', error);
         }
     });
+    
+    // Initialize Excel File Preview if it exists
+    if (window.excelFilePreview) {
+        window.excelFilePreview.initialize({
+            dropArea: document.getElementById('dropArea'),
+            fileInput: document.getElementById('excelFile'),
+            fileInfo: document.getElementById('fileInfo'),
+            fileName: document.getElementById('file-name'),
+            fileSize: document.getElementById('file-size'),
+            removeFileBtn: document.getElementById('removeFile'),
+            previewElement: document.getElementById('csv-preview')
+        });
+    }
 });
