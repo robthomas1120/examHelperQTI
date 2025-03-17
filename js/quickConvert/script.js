@@ -231,76 +231,165 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     /**
-     * Display CSV data in a table
-     * @param {Array} headers - Filtered headers
-     * @param {Array} rows - Data rows
-     * @param {Array} columnIndices - Indices of columns to include
-     * @param {Boolean} isTFSheet - Whether this is a TF sheet
-     */
-    function displayCSVTable(headers, rows, columnIndices, isTFSheet = false) {
-        const validTaggingValues = ["correct", "incorrect"];
-        let errors = [];
-    
-        // Identify "tagging" columns
-        const taggingColumns = columnIndices.filter(index => 
-            headers[index] && headers[index].toLowerCase().includes("tag")
-        );
-    
-        let tableHtml = '<table style="width: 100%; border-collapse: collapse;">';
-    
-        // Table header
-        tableHtml += '<thead><tr>';
-        headers.forEach(header => {
-            tableHtml += `<th style="padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: left;">${header}</th>`;
-        });
-        tableHtml += '</tr></thead>';
-    
-        // Table body
-        tableHtml += '<tbody>';
-        rows.forEach((row, rowIndex) => {
-            let rowStyle = "";
-            let rowErrors = [];
-    
-            tableHtml += `<tr id="row-${rowIndex}" style="background-color: ${rowIndex % 2 === 0 ? 'white' : '#f9fafb'};">`;
-    
-            columnIndices.forEach((colIndex, i) => {
-                const value = row[colIndex] ? row[colIndex].toString().trim() : '';
-                let cellStyle = '';
-    
-                // Validate tagging columns
-                if (taggingColumns.includes(colIndex) && !validTaggingValues.includes(value.toLowerCase())) {
-                    rowErrors.push(`Row ${rowIndex + 1}, Column "${headers[colIndex]}" has invalid value "${value}"`);
-                    cellStyle = 'background-color: #fee2e2; color: #b91c1c; font-weight: 500;';
-                    rowStyle = 'background-color: #ffedd5; border-left: 4px solid #f59e0b;';
+ * Display CSV data in a table with improved validation
+ * @param {Array} headers - Filtered headers
+ * @param {Array} rows - Data rows
+ * @param {Array} columnIndices - Indices of columns to include
+ * @param {Boolean} isTFSheet - Whether this is a TF sheet
+ */
+function displayCSVTable(headers, rows, columnIndices, isTFSheet = false) {
+    const validTaggingValues = ["correct", "incorrect"];
+    let errors = [];
+    let multipleCorrectErrors = [];
+
+    // Identify "tagging" columns based on header names
+    const taggingColumns = columnIndices.filter(index => 
+        headers[index] && headers[index].toLowerCase().includes("tag")
+    );
+
+    console.log("Detected tagging columns:", taggingColumns);
+
+    // Find option-tag column pairs
+    // Assuming the structure is [option1, tag1, option2, tag2, ...]
+    const tagPairs = [];
+    for (let i = 0; i < columnIndices.length; i++) {
+        if (taggingColumns.includes(columnIndices[i])) {
+            // This is a tag column, check if the previous column is an option
+            const tagColIndex = columnIndices[i];
+            const optionColIndex = columnIndices[i-1]; // Assuming the option is always the previous column
+            
+            if (optionColIndex !== undefined) {
+                tagPairs.push({
+                    tagColIndex: tagColIndex,
+                    optionColIndex: optionColIndex
+                });
+            }
+        }
+    }
+
+    // Determine if this is an MC (Multiple Choice) tab or question type
+    const isMCType = headers.some(header => header && header.includes("MC")) || 
+                     (rows.length > 0 && rows[0].length > 0 && rows[0][0] === "MC");
+
+    let tableHtml = '<table style="width: 100%; border-collapse: collapse;">';
+
+    // Table header
+    tableHtml += '<thead><tr>';
+    headers.forEach(header => {
+        tableHtml += `<th style="padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: left;">${header}</th>`;
+    });
+    tableHtml += '</tr></thead>';
+
+    // Table body
+    tableHtml += '<tbody>';
+    rows.forEach((row, rowIndex) => {
+        let rowErrors = [];
+        let isMultipleCorrect = false;
+        let rowStyle = "";
+
+        // For MC questions, check how many "correct" values exist in the row
+        if (isMCType || (row.length > 0 && row[0] === "MC")) {
+            let correctCount = 0;
+            
+            // Count the number of "correct" values in tagging columns
+            taggingColumns.forEach(colIndex => {
+                const value = row[colIndex] ? row[colIndex].toString().trim().toLowerCase() : '';
+                if (value === 'correct') {
+                    correctCount++;
                 }
-    
-                tableHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; ${cellStyle}">${value}</td>`;
             });
-    
-            tableHtml += '</tr>';
-    
-            if (rowErrors.length > 0) {
-                errors.push(...rowErrors);
+
+            // If there are multiple correct answers, flag this row
+            if (correctCount > 1) {
+                isMultipleCorrect = true;
+                rowStyle = 'border-left: 6px solid #f97316;'; // Orange highlight on the left side
+                multipleCorrectErrors.push({
+                    row: rowIndex + 1,
+                    count: correctCount
+                });
+            }
+        }
+
+        // Check for tagging errors
+        tagPairs.forEach(pair => {
+            const optionValue = row[pair.optionColIndex] ? row[pair.optionColIndex].toString().trim() : '';
+            const tagValue = row[pair.tagColIndex] ? row[pair.tagColIndex].toString().trim() : '';
+            
+            // Only validate if the option has a value but the tag is invalid
+            if (optionValue && !validTaggingValues.includes(tagValue.toLowerCase())) {
+                rowErrors.push(`Row ${rowIndex + 1}, Column "${headers[pair.tagColIndex]}" has invalid value "${tagValue}" for option "${optionValue}"`);
             }
         });
-    
-        tableHtml += '</tbody></table>';
-    
-        // Add error summary
-        if (errors.length > 0) {
-            let errorHtml = '<div class="validation-errors-container">';
-            errorHtml += '<h3>Tagging Errors Found:</h3><ul>';
-            errors.forEach(error => {
-                errorHtml += `<li>${error}</li>`;
-            });
-            errorHtml += '</ul></div>';
-    
-            document.getElementById("csv-preview").insertAdjacentHTML("beforebegin", errorHtml);
+
+        tableHtml += `<tr id="row-${rowIndex}" style="background-color: ${rowIndex % 2 === 0 ? 'white' : '#f9fafb'}; ${rowStyle}">`;
+
+        columnIndices.forEach((colIndex, i) => {
+            const value = row[colIndex] ? row[colIndex].toString().trim() : '';
+            let cellStyle = '';
+
+            // Apply cell styling based on content
+            if (value.toLowerCase() === 'correct') {
+                cellStyle = 'color: #10b981; font-weight: 500;'; // Green for correct
+            } else if (value.toLowerCase() === 'incorrect') {
+                cellStyle = 'color: #ef4444; font-weight: 500;'; // Red for incorrect
+            }
+
+            // Add error highlighting for tag cells with errors
+            if (taggingColumns.includes(colIndex)) {
+                // Find the corresponding option column
+                const optionColIndex = tagPairs.find(p => p.tagColIndex === colIndex)?.optionColIndex;
+                const optionValue = optionColIndex !== undefined ? (row[optionColIndex] ? row[optionColIndex].toString().trim() : '') : '';
+                
+                // Highlight cell if option exists but tag is invalid
+                if (optionValue && !validTaggingValues.includes(value.toLowerCase())) {
+                    cellStyle += ' background-color: #fee2e2; color: #b91c1c; font-weight: 500;'; // Red highlight
+                }
+            }
+
+            tableHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; ${cellStyle}">${value}</td>`;
+        });
+
+        tableHtml += '</tr>';
+
+        if (rowErrors.length > 0) {
+            errors.push(...rowErrors);
         }
-    
-        document.getElementById("csv-preview").innerHTML = tableHtml;
+    });
+
+    tableHtml += '</tbody></table>';
+
+    // Clear previous errors
+    document.querySelectorAll(".validation-errors-container").forEach(el => el.remove());
+    document.querySelectorAll(".multiple-correct-container").forEach(el => el.remove());
+
+    // Add multiple correct answers warning if needed
+    if (multipleCorrectErrors.length > 0) {
+        let mcErrorHtml = '<div class="multiple-correct-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
+        mcErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Correct Answers Found:</h3><ul style="margin: 0; padding-left: 20px;">';
+        
+        multipleCorrectErrors.forEach(error => {
+            mcErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: Contains ${error.count} Correct Answers. Multiple Choice Questions are only limited to 1 correct answer.</li>`;
+        });
+        
+        mcErrorHtml += '</ul></div>';
+
+        document.getElementById("csv-preview").insertAdjacentHTML("beforebegin", mcErrorHtml);
     }
-    
+
+    // Add validation error summary
+    if (errors.length > 0) {
+        let errorHtml = '<div class="validation-errors-container">';
+        errorHtml += '<h3>Tagging Errors Found:</h3><ul>';
+        errors.forEach(error => {
+            errorHtml += `<li>${error}</li>`;
+        });
+        errorHtml += '</ul></div>';
+
+        document.getElementById("csv-preview").insertAdjacentHTML("beforebegin", errorHtml);
+    }
+
+    document.getElementById("csv-preview").innerHTML = tableHtml;
+}
     
     function removeFile() {
         currentFile = null;
