@@ -245,3 +245,112 @@ th {
 tr:hover {
     background-color: rgba(74, 108, 247, 0.05);
 }
+
+/* Navigation styles */
+.nav-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+nav ul {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+nav li {
+    margin: 0 15px;
+}
+
+nav a {
+    text-decoration: none;
+    color: #718096;
+    font-weight: 500;
+    transition: color 0.3s ease;
+    padding: 5px 0;
+    border-bottom: 2px solid transparent;
+}
+
+nav a:hover, nav a.active {
+    color: #4a6cf7;
+    border-bottom-color: #4a6cf7;
+}
+
+/* Sheet navigation styles */
+.sheet-navigation {
+    margin-top: 15px;
+    padding: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    background-color: #f5f7fa;
+    border-radius: 5px;
+    flex-wrap: wrap;
+}
+
+.sheet-button {
+    padding: 8px 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+}
+
+.sheet-button[data-active="true"] {
+    background-color: #4361ee;
+    color: white;
+    border-color: #3a56d4;
+    box-shadow: 0 2px 4px rgba(67, 97, 238, 0.3);
+}
+
+.sheet-button:hover:not([data-active="true"]) {
+    background-color: #f0f4ff;
+    border-color: #4361ee;
+    transform: translateY(-2px);
+}
+
+/* Cell color styles for correct/incorrect values */
+.cell-correct {
+    background-color: #d1fae5 !important;
+    color: #047857 !important;
+    font-weight: 500;
+}
+
+.cell-incorrect {
+    background-color: #fee2e2 !important;
+    color: #b91c1c !important;
+    font-weight: 500;
+}
+
+/* Validation errors container */
+.validation-errors-container {
+    margin-bottom: 15px;
+    padding: 12px 15px;
+    background-color: #fee2e2;
+    border-radius: 6px;
+    border: 1px solid #f87171;
+}
+
+.validation-errors-container h3 {
+    margin: 0 0 10px 0;
+    color: #b91c1c;
+    font-size: 1rem;
+}
+
+.validation-errors-container ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.validation-errors-container li {
+    color: #7f1d1d;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+}
+
+        

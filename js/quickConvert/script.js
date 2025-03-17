@@ -16,6 +16,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Variables
     let currentFile = null;
+    let questionData = null;
+    
+    // Initialize Excel Handler
+    if (!window.excelHandler) {
+        window.excelHandler = new ExcelHandler();
+    }
     
     // Event Listeners
     dropArea.addEventListener('dragover', handleDragOver);
@@ -52,8 +58,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function triggerFileInput() {
-        fileInput.click();
+    function triggerFileInput(e) {
+        // Only trigger file input if not clicking on file info or remove button
+        if (fileInfo.classList.contains('hidden') || 
+            (!e.target.closest('#fileInfo') && !e.target.closest('#removeFile'))) {
+            fileInput.click();
+        }
     }
     
     function handleFileSelect(e) {
@@ -90,6 +100,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Read and preview file
         previewFile(file);
         
+        // Set default title from filename if empty
+        if (!quizTitle.value) {
+            const baseName = file.name.split('.')[0];
+            quizTitle.value = baseName.replace(/_/g, ' ');
+        }
+        
         // Validate form
         validateForm();
     }
@@ -103,132 +119,27 @@ document.addEventListener('DOMContentLoaded', function() {
         return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
     }
     
-    function previewFile(file) {
+    async function previewFile(file) {
         csvPreview.innerHTML = '<p>Loading preview...</p>';
         
         const fileExtension = file.name.split('.').pop().toLowerCase();
         
-        if (fileExtension === 'csv') {
-            previewCSV(file);
-        } else if (['xls', 'xlsx'].includes(fileExtension)) {
-            previewExcel(file);
-        } else {
-            csvPreview.innerHTML = '<p class="placeholder-text">Unsupported file format</p>';
+        try {
+            if (fileExtension === 'csv') {
+                await previewCSV(file);
+            } else if (['xls', 'xlsx'].includes(fileExtension)) {
+                // Use enhanced Excel handler
+                questionData = await window.excelHandler.processExcelFile(file);
+            } else {
+                csvPreview.innerHTML = '<p class="placeholder-text">Unsupported file format</p>';
+            }
+        } catch (error) {
+            console.error('Error previewing file:', error);
+            csvPreview.innerHTML = `<p class="error-text">Error previewing file: ${error.message}</p>`;
         }
     }
     
     function previewCSV(file) {
-        const reader = new FileReader();
-        
-        reader.onload = function(e) {
-            const content = e.target.result;
-            
-            Papa.parse(content, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    displayPreview(results.data, results.meta.fields);
-                },
-                error: function(error) {
-                    csvPreview.innerHTML = `<p class="error">Error parsing CSV: ${error.message}</p>`;
-                }
-            });
-        };
-        
-        reader.readAsText(file);
-    }
-    
-    function previewExcel(file) {
-        const reader = new FileReader();
-        
-        reader.onload = function(e) {
-            try {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                
-                // Get first sheet
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                
-                // Convert to JSON
-                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                
-                if (jsonData.length > 0) {
-                    const headers = jsonData[0];
-                    const rows = jsonData.slice(1);
-                    
-                    // Convert to format for display
-                    const formattedData = rows.map(row => {
-                        const rowData = {};
-                        headers.forEach((header, index) => {
-                            rowData[header] = row[index] || '';
-                        });
-                        return rowData;
-                    });
-                    
-                    displayPreview(formattedData, headers);
-                } else {
-                    csvPreview.innerHTML = '<p>No data found in Excel file</p>';
-                }
-            } catch (error) {
-                csvPreview.innerHTML = `<p class="error">Error parsing Excel file: ${error.message}</p>`;
-            }
-        };
-        
-        reader.readAsArrayBuffer(file);
-    }
-    
-    function displayPreview(data, headers) {
-        if (!data || data.length === 0 || !headers || headers.length === 0) {
-            csvPreview.innerHTML = '<p>No data found in file or invalid format</p>';
-            return;
-        }
-        
-        // Limit preview to 10 rows
-        const previewData = data.slice(0, 10);
-        
-        let tableHtml = '<table>';
-        
-        // Table header
-        tableHtml += '<thead><tr>';
-        headers.forEach(header => {
-            tableHtml += `<th>${header}</th>`;
-        });
-        tableHtml += '</tr></thead>';
-        
-        // Table body
-        tableHtml += '<tbody>';
-        previewData.forEach(row => {
-            tableHtml += '<tr>';
-            headers.forEach(header => {
-                tableHtml += `<td>${row[header] !== undefined ? row[header] : ''}</td>`;
-            });
-            tableHtml += '</tr>';
-        });
-        tableHtml += '</tbody></table>';
-        
-        // Add note if there are more rows
-        if (data.length > 10) {
-            tableHtml += `<p class="preview-note">Showing 10 of ${data.length} rows</p>`;
-        }
-        
-        csvPreview.innerHTML = tableHtml;
-    }
-    
-    function removeFile() {
-        currentFile = null;
-        fileInput.value = '';
-        fileInfo.classList.add('hidden');
-        csvPreview.innerHTML = '<p class="placeholder-text">CSV content will appear here after upload</p>';
-        validateForm();
-    }
-    
-    function validateForm() {
-        // Enable convert button only if file is selected and quiz title is provided
-        convertBtn.disabled = !currentFile || !quizTitle.value.trim();
-    }
-    
-    // Parse CSV file and return array of question data
-    function parseCSVFile(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             
@@ -236,27 +147,49 @@ document.addEventListener('DOMContentLoaded', function() {
                 const content = e.target.result;
                 
                 Papa.parse(content, {
-                    header: false,
                     skipEmptyLines: true,
-                    dynamicTyping: false, // Keep everything as strings
                     complete: function(results) {
-                        // Validate and clean the data
-                        const cleanedData = results.data.filter(row => {
-                            // Ensure row is an array and has at least two elements (type and question text)
-                            return Array.isArray(row) && row.length >= 2 && row[0];
-                        }).map(row => {
-                            // Convert all values to strings
-                            return row.map(cell => {
-                                if (cell === null || cell === undefined) {
-                                    return '';
-                                }
-                                return String(cell);
-                            });
-                        });
+                        // Skip the first row - use header: true to do this automatically
+                        const data = results.data;
                         
-                        resolve(cleanedData);
+                        if (data.length < 2) {
+                            csvPreview.innerHTML = '<p>No data found in CSV file or invalid format</p>';
+                            reject(new Error('No valid data found'));
+                            return;
+                        }
+                        
+                        // Get headers from the first row
+                        const headers = data[0];
+                        
+                        // Get data rows (skip first row)
+                        const rows = data.slice(1);
+                        
+                        // Filter out empty rows
+                        const nonEmptyRows = rows.filter(row => 
+                            row.some(cell => cell !== null && cell !== undefined && cell !== '')
+                        );
+                        
+                        // Find non-empty columns
+                        const nonEmptyColumnIndices = findNonEmptyColumnIndices(headers, nonEmptyRows);
+                        
+                        // Filter headers to only include non-empty columns
+                        const filteredHeaders = nonEmptyColumnIndices.map(index => headers[index] || `Column ${index + 1}`);
+                        
+                        // Check if this is a TF (True/False) sheet based on headers or content
+                        const isTFSheet = file.name.toLowerCase().includes('tf') || 
+                                         headers.some(h => h && h.toLowerCase().includes('true') || h.toLowerCase().includes('false')) ||
+                                         rows.some(row => row[0] === 'TF');
+                        
+                        // Display table with filtered headers and rows
+                        displayCSVTable(filteredHeaders, nonEmptyRows, nonEmptyColumnIndices, isTFSheet);
+                        
+                        // Save for later use in conversion
+                        questionData = results.data.slice(1); // Skip the first row for conversion
+                        
+                        resolve();
                     },
                     error: function(error) {
+                        csvPreview.innerHTML = `<p class="error-text">Error parsing CSV: ${error.message}</p>`;
                         reject(error);
                     }
                 });
@@ -270,69 +203,121 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Parse Excel file and return array of question data
-    function parseExcelFile(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
+    /**
+     * Find indices of non-empty columns
+     * @param {Array} headers - Header row
+     * @param {Array} rows - Data rows
+     * @returns {Array} - Array of column indices that contain data
+     */
+    function findNonEmptyColumnIndices(headers, rows) {
+        const indices = [];
+        
+        // Check each column
+        for (let colIndex = 0; colIndex < headers.length; colIndex++) {
+            // Check if any row has data in this column
+            const hasData = rows.some(row => {
+                return row[colIndex] !== undefined && 
+                       row[colIndex] !== null && 
+                       row[colIndex].toString().trim() !== '';
+            });
             
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    
-                    // Get first sheet
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    
-                    // Convert to array format (not using headers)
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                    
-                    // Validate and clean the data
-                    const cleanedData = jsonData.filter(row => {
-                        // Ensure row is an array and has at least two elements (type and question text)
-                        return Array.isArray(row) && row.length >= 2 && row[0];
-                    }).map(row => {
-                        // Convert all values to strings
-                        return row.map(cell => {
-                            if (cell === null || cell === undefined) {
-                                return '';
-                            }
-                            return String(cell);
-                        });
-                    });
-                    
-                    resolve(cleanedData);
-                } catch (error) {
-                    reject(error);
-                }
-            };
-            
-            reader.onerror = function(e) {
-                reject(e);
-            };
-            
-            reader.readAsArrayBuffer(file);
-        });
+            // Include header columns that have data
+            if (hasData) {
+                indices.push(colIndex);
+            }
+        }
+        
+        return indices;
     }
     
-    // Count questions by type
-    function countQuestionTypes(questions) {
-        const counts = {
-            MC: 0,  // Multiple Choice
-            MA: 0,  // Multiple Answer
-            TF: 0,  // True/False
-            ESS: 0, // Essay
-            FIB: 0, // Fill in Blank
-            total: questions.length
-        };
+    /**
+     * Display CSV data in a table
+     * @param {Array} headers - Filtered headers
+     * @param {Array} rows - Data rows
+     * @param {Array} columnIndices - Indices of columns to include
+     * @param {Boolean} isTFSheet - Whether this is a TF sheet
+     */
+    function displayCSVTable(headers, rows, columnIndices, isTFSheet = false) {
+        // Limit preview to 10 rows
+        const previewRows = rows.slice(0, 10);
         
-        questions.forEach(question => {
-            const type = question[0]?.toUpperCase();
-            if (counts.hasOwnProperty(type)) {
-                counts[type]++;
-            }
+        let tableHtml = '<table style="width: 100%; border-collapse: collapse;">';
+        
+        // Table header
+        tableHtml += '<thead><tr>';
+        headers.forEach(header => {
+            tableHtml += `<th style="padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: left;">${header}</th>`;
         });
+        tableHtml += '</tr></thead>';
         
-        return counts;
+        // Table body
+        tableHtml += '<tbody>';
+        previewRows.forEach((row, rowIndex) => {
+            tableHtml += `<tr style="background-color: ${rowIndex % 2 === 0 ? 'white' : '#f9fafb'};">`;
+            columnIndices.forEach((colIndex, i) => {
+                const value = row[colIndex] !== undefined ? row[colIndex] : '';
+                
+                // Check if this is a tagging column (content might be "correct" or "incorrect")
+                const cellValue = value.toString();
+                let cellStyle = '';
+                
+                // Handle correct/incorrect values
+                if (cellValue.toLowerCase() === 'correct') {
+                    cellStyle = 'color: #10b981; font-weight: 500;'; // Green color for correct
+                } else if (cellValue.toLowerCase() === 'incorrect') {
+                    cellStyle = 'color: #ef4444; font-weight: 500;'; // Red color for incorrect
+                } 
+                // Handle true/false values in the choice1 column
+                else if (isTFSheet && 
+                         headers[colIndex] && 
+                         headers[colIndex].toLowerCase().includes('choice')) {
+                    // Check for true values
+                    if (cellValue.toLowerCase() === 'true' || 
+                        cellValue === '1' || 
+                        cellValue.toLowerCase() === 't') {
+                        cellStyle = 'color: #10b981; font-weight: 500;'; // Green color for true
+                    }
+                    // Check for false values
+                    else if (cellValue.toLowerCase() === 'false' || 
+                             cellValue === '0' || 
+                             cellValue.toLowerCase() === 'f') {
+                        cellStyle = 'color: #ef4444; font-weight: 500;'; // Red color for false
+                    }
+                }
+                
+                tableHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; ${cellStyle}">${cellValue}</td>`;
+            });
+            tableHtml += '</tr>';
+        });
+        tableHtml += '</tbody></table>';
+        
+        // Add note if there are more rows
+        if (rows.length > 10) {
+            tableHtml += `<p style="margin-top: 10px; color: #718096; font-style: italic;">Showing 10 of ${rows.length} rows</p>`;
+        }
+        
+        csvPreview.innerHTML = tableHtml;
+    }
+    
+    function removeFile() {
+        currentFile = null;
+        questionData = null;
+        fileInput.value = '';
+        fileInfo.classList.add('hidden');
+        csvPreview.innerHTML = '<p class="placeholder-text">CSV content will appear here after upload</p>';
+        
+        // Remove sheet navigation if it exists
+        const sheetNav = document.querySelector('.sheet-navigation');
+        if (sheetNav) {
+            sheetNav.remove();
+        }
+        
+        validateForm();
+    }
+    
+    function validateForm() {
+        // Enable convert button only if file is selected and quiz title is provided
+        convertBtn.disabled = !currentFile || !quizTitle.value.trim();
     }
     
     // Handle file conversion
@@ -343,25 +328,17 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Check if we have question data
+        if (!questionData || !questionData.length) {
+            alert('No valid question data found in the file');
+            return;
+        }
+        
         // Show a loading state
         convertBtn.disabled = true;
         convertBtn.innerHTML = '<i class="fas fa-spin fa-spinner"></i> Converting...';
         
         try {
-            // Parse the file to get data
-            let questionData = [];
-            const fileExtension = currentFile.name.split('.').pop().toLowerCase();
-            
-            if (fileExtension === 'csv') {
-                // Parse CSV
-                questionData = await parseCSVFile(currentFile);
-            } else if (['xls', 'xlsx'].includes(fileExtension)) {
-                // Parse Excel
-                questionData = await parseExcelFile(currentFile);
-            } else {
-                throw new Error('Unsupported file format');
-            }
-            
             // Count questions by type
             const questionTypes = countQuestionTypes(questionData);
             const totalQuestions = questionData.length;
@@ -413,6 +390,29 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show error message
             alert(`Error converting file: ${error.message}`);
         }
+    }
+    
+    // Count questions by type
+    function countQuestionTypes(questions) {
+        const counts = {
+            MC: 0,  // Multiple Choice
+            MA: 0,  // Multiple Answer
+            TF: 0,  // True/False
+            ESS: 0, // Essay
+            FIB: 0, // Fill in Blank
+            total: questions.length
+        };
+        
+        questions.forEach(question => {
+            if (!Array.isArray(question) || !question.length) return;
+            
+            const type = question[0]?.toString().toUpperCase();
+            if (counts.hasOwnProperty(type)) {
+                counts[type]++;
+            }
+        });
+        
+        return counts;
     }
     
     // Handle download button click

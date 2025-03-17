@@ -40,6 +40,37 @@
             color: #4a6cf7;
             border-bottom-color: #4a6cf7;
         }
+        
+        /* Sheet navigation styles */
+        .sheet-navigation {
+            margin-top: 15px;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            background-color: #f5f7fa;
+            border-radius: 5px;
+        }
+        
+        .sheet-button {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .sheet-button[data-active="true"] {
+            background-color: #4361ee;
+            color: white;
+        }
+        
+        .sheet-button:hover:not([data-active="true"]) {
+            background-color: #f0f4ff;
+            border-color: #4361ee;
+        }
     </style>
 </head>
 <body>
@@ -136,7 +167,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- QTI Converter code -->
     <script src="../js/quickConvert/qtiConverter.js"></script>
-    <!-- Your custom script -->
+    <!-- Excel Handler -->
+    <script src="../js/quickConvert/excelHandler.js"></script>
+    <!-- Your custom script - load this last -->
     <script src="../js/quickConvert/script.js"></script>
 </body>
 </html>
