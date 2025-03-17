@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Questions</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/generateQuestions.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .center-plus {
+            display: block;
+            margin: 0 auto;
+        }
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .question-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .question-controls button {
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">
+                <a href="index.html">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Quiz Converter</span>
+                </a>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="quickConvert.html">Quick Convert</a></li>
+                    <li><a href="itemBank.html" class="active">Item Bank</a></li>
+                    <li><a href="generateQuestions.html">Generate Questions</a></li>
+                    <li><a href="qtiToPdf.html">QTI to PDF</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <section class="quiz-details">
+            <h2><i class="fas fa-clipboard-list"></i> Quiz Details</h2>
+            <div class="form-group">
+                <label for="quiz-title">Quiz Title:</label>
+                <input type="text" id="quiz-title" placeholder="Enter quiz title">
+            </div>
+            <div class="form-group">
+                <label for="quiz-instructions">Quiz Instructions (optional):</label>
+                <textarea id="quiz-instructions" placeholder="Enter quiz instructions"></textarea>
+            </div>
+        </section>
+        <section id="question-section" class="question-section">
+            <h2>Create Your Questions</h2>
+            <div id="questions-container"></div>
+            <button type="button" id="add-question-btn" class="center-plus">+</button>
+            <div id="question-type-dropdown" class="dropdown-content" style="display:none;">
+                <button class="dropdown-item" data-type="multiple-choice">Multiple Choice</button>
+                <button class="dropdown-item" data-type="multiple-answer">Multiple Answer</button>
+                <button class="dropdown-item" data-type="essay">Essay</button>
+                <button class="dropdown-item" data-type="fill-in-the-blank">Fill in the Blank</button>
+            </div>
+        </section>
+    </main>
+    <script src="../js/generateQuestions/main.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const questionsContainer = document.getElementById('questions-container');
+        const addQuestionBtn = document.getElementById('add-question-btn');
+        const questionTypeDropdown = document.getElementById('question-type-dropdown');
+
+        addQuestionBtn.addEventListener('click', function() {
+            questionTypeDropdown.style.display = questionTypeDropdown.style.display === 'none' ? 'block' : 'none';
+        });
+
+        questionTypeDropdown.addEventListener('click', function(event) {
+            const questionType = event.target.getAttribute('data-type');
+            if (questionType) {
+                const questionSection = document.createElement('div');
+                questionSection.className = 'question-entry';
+                questionSection.innerHTML = getQuestionTemplate(questionType);
+                questionsContainer.appendChild(questionSection);
+                questionTypeDropdown.style.display = 'none';
+            }
+        });
+
+        function getQuestionTemplate(type) {
+            switch (type) {
+                case 'multiple-choice':
+                    return `
+                        <div class="question-header">
+                            <span class="question-number">1</span>
+                            <span class="question-type">Multiple Choice</span>
+                            <div class="question-controls">
+                                <button class="copy-question">&#128203;</button>
+                                <button class="delete-question">&#128465;</button>
+                                <button class="move-question">&#8597;</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Question:</label>
+                            <textarea placeholder="Enter your question here"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Options:</label>
+                            <div class="option-entry">
+                                <input type="radio" name="correct-option" required>
+                                <input type="text" placeholder="Option 1">
+                            </div>
+                            <div class="option-entry">
+                                <input type="radio" name="correct-option">
+                                <input type="text" placeholder="Option 2">
+                            </div>
+                            <div class="option-entry">
+                                <input type="radio" name="correct-option">
+                                <input type="text" placeholder="Option 3">
+                            </div>
+                            <div class="option-entry">
+                                <input type="radio" name="correct-option">
+                                <input type="text" placeholder="Option 4">
+                            </div>
+                        </div>
+                    `;
+                case 'multiple-answer':
+                    return `
+                        <div class="question-header">
+                            <span class="question-number">1</span>
+                            <span class="question-type">Multiple Answer</span>
+                            <div class="question-controls">
+                                <button class="copy-question">&#128203;</button>
+                                <button class="delete-question">&#128465;</button>
+                                <button class="move-question">&#8597;</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Question:</label>
+                            <textarea placeholder="Enter your question here"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Answers:</label>
+                            <div class="answer-entry">
+                                <input type="checkbox">
+                                <input type="text" placeholder="Answer 1">
+                                <button type="button" class="remove-answer">&times;</button>
+                            </div>
+                            <button type="button" class="add-answer">Add Answer</button>
+                        </div>
+                    `;
+                case 'fill-in-the-blank':
+                    return `
+                        <div class="question-header">
+                            <span class="question-number">1</span>
+                            <span class="question-type">Fill in the Blank</span>
+                            <div class="question-controls">
+                                <button class="copy-question">&#128203;</button>
+                                <button class="delete-question">&#128465;</button>
+                                <button class="move-question">&#8597;</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Question:</label>
+                            <textarea placeholder="Enter your question here"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Answers:</label>
+                            <div class="answer-entry">
+                                <input type="text" placeholder="Answer 1">
+                                <button type="button" class="remove-answer">&times;</button>
+                            </div>
+                            <button type="button" class="add-answer">Add Answer</button>
+                        </div>
+                    `;
+                case 'essay':
+                    return `
+                        <div class="question-header">
+                            <span class="question-number">1</span>
+                            <span class="question-type">Essay</span>
+                            <div class="question-controls">
+                                <button class="copy-question">&#128203;</button>
+                                <button class="delete-question">&#128465;</button>
+                                <button class="move-question">&#8597;</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Question:</label>
+                            <textarea placeholder="Enter your question here"></textarea>
+                        </div>
+                    `;
+            }
+        }
+    });
+    </script>
+</body>
+</html>
