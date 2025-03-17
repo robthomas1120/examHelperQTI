@@ -34,11 +34,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function addQuestion(type) {
         const questionNumber = questionsContainer.querySelectorAll('.question-entry').length + 1;
         const questionEntry = document.createElement('div');
-        questionEntry.className = 'question-entry';
-        questionEntry.setAttribute('draggable', 'true');
+        questionEntry.className = 'question-entry expanded';
+        questionEntry.setAttribute('draggable', 'false');
         questionEntry.innerHTML = `
             <div class="question-header">
-                <span class="question-number">${questionNumber}</span>
+                <span class="question-number" data-question-preview=""></span>
                 <span class="question-type">${formatQuestionType(type)}</span>
                 <div class="question-controls">
                     <button type="button" class="copy-question" title="Duplicate Question"><i class="fas fa-copy"></i></button>
@@ -51,6 +51,10 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         
+        // Set question number text
+        const questionNumberSpan = questionEntry.querySelector('.question-number');
+        questionNumberSpan.textContent = questionNumber;
+        
         questionsContainer.appendChild(questionEntry);
         updateQuestionNumbers();
         setupDragAndDrop();
@@ -59,24 +63,31 @@ document.addEventListener('DOMContentLoaded', function() {
         const textArea = questionEntry.querySelector('textarea');
         if (textArea) {
             textArea.focus();
+            
+            // Store the question text for preview when collapsed
+            const questionNumberElement = questionEntry.querySelector('.question-number');
+            textArea.addEventListener('input', function() {
+                const questionText = this.value.trim();
+                questionNumberElement.setAttribute('data-question-preview', questionText.substring(0, 80) + (questionText.length > 80 ? '...' : ''));
+            });
         }
         
-        // Store the question text for preview when collapsed
-        const questionHeader = questionEntry.querySelector('.question-header');
-        textArea.addEventListener('input', function() {
-            const questionText = this.value.trim();
-            questionHeader.setAttribute('data-question-preview', questionText.substring(0, 50) + (questionText.length > 50 ? '...' : ''));
-        });
+        // Remove any unwanted elements (like cbv)
+        const cbvElements = questionEntry.querySelectorAll('.cbv');
+        cbvElements.forEach(el => el.remove());
     }
 
     // Update question numbers for all questions
     function updateQuestionNumbers() {
         const questionEntries = questionsContainer.querySelectorAll('.question-entry');
         questionEntries.forEach((entry, index) => {
-            const questionNumber = entry.querySelector('.question-number');
-            if (questionNumber) {
-                questionNumber.textContent = (index + 1).toString();
-            }
+            const questionNumberElement = entry.querySelector('.question-number');
+            // Store the question preview text before updating the number
+            const previewText = questionNumberElement.getAttribute('data-question-preview') || '';
+            // Update the question number
+            questionNumberElement.textContent = index + 1;
+            // Restore the question preview text
+            questionNumberElement.setAttribute('data-question-preview', previewText);
         });
     }
 
@@ -166,7 +177,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Don't collapse if clicking on add question button or its dropdown
         const isAddQuestionClick = e.target.closest('#add-question-btn') || 
-                                 e.target.closest('#question-type-dropdown');
+                                 e.target.closest('#question-type-dropdown') ||
+                                 e.target.closest('#export-qti-btn');
         
         if (isAddQuestionClick) {
             return;
@@ -176,15 +188,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const allQuestionEntries = document.querySelectorAll('.question-entry');
         allQuestionEntries.forEach(entry => {
             const content = entry.querySelector('.question-content');
+            const questionHeader = entry.querySelector('.question-header');
+            const textarea = entry.querySelector('textarea');
             
             // If this is the clicked entry, expand it
             if (entry === clickedQuestionEntry) {
                 content.style.display = 'block';
                 entry.classList.add('expanded');
             } else {
-                // Otherwise collapse it
+                // Otherwise collapse it and update the preview text
                 content.style.display = 'none';
                 entry.classList.remove('expanded');
+                
+                // Update the preview text if it's not already set
+                if (textarea && (!questionHeader.querySelector('.question-number').getAttribute('data-question-preview') || questionHeader.querySelector('.question-number').getAttribute('data-question-preview') === '')) {
+                    const questionText = textarea.value.trim();
+                    questionHeader.querySelector('.question-number').setAttribute('data-question-preview', questionText.substring(0, 80) + (questionText.length > 80 ? '...' : ''));
+                }
             }
         });
     });
@@ -242,23 +262,30 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target.classList.contains('add-answer')) {
             const answersGroup = e.target.closest('.form-group');
             const questionType = e.target.closest('.question-entry').querySelector('.question-type').textContent.trim();
-            const newAnswer = document.createElement('div');
-            newAnswer.className = 'answer-entry';
+            
+            // Don't add more options for multiple choice
+            if (questionType === 'Multiple Choice') {
+                return;
+            }
+            
+            const newEntry = document.createElement('div');
             
             if (questionType === 'Multiple Answer') {
-                newAnswer.innerHTML = `
+                newEntry.className = 'answer-entry';
+                newEntry.innerHTML = `
                     <input type="checkbox">
-                    <input type="text" placeholder="New Answer">
+                    <input type="text" placeholder="New answer">
                     <button type="button" class="remove-answer">&times;</button>
                 `;
-            } else {
-                newAnswer.innerHTML = `
-                    <input type="text" placeholder="New Answer">
+            } else if (questionType === 'Fill In The Blank') {
+                newEntry.className = 'answer-entry';
+                newEntry.innerHTML = `
+                    <input type="text" placeholder="Alternative answer">
                     <button type="button" class="remove-answer">&times;</button>
                 `;
             }
             
-            answersGroup.insertBefore(newAnswer, e.target);
+            answersGroup.insertBefore(newEntry, e.target);
         }
 
         if (e.target.classList.contains('remove-answer')) {
@@ -272,12 +299,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (validateQuiz()) {
             // Prompt for filename
             const quizTitle = document.getElementById('quiz-title').value || 'Untitled Quiz';
-            const defaultFilename = quizTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.xml';
+            const defaultFilename = quizTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.qti';
             const filename = prompt('Enter filename for export:', defaultFilename);
             
             if (filename) {
                 exportAsQTI(filename);
-                showSuccessMessage('Quiz exported as QTI successfully!');
+                showSuccessMessage('Quiz exported successfully as QTI file!');
             }
         }
     });
@@ -285,6 +312,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to validate the quiz before export
     function validateQuiz() {
         const questionEntries = questionsContainer.querySelectorAll('.question-entry');
+        
+        // Check if title and description are filled
+        const quizTitle = document.getElementById('quiz-title').value.trim();
+        if (!quizTitle) {
+            alert('Please enter a quiz title before proceeding.');
+            document.getElementById('quiz-title').focus();
+            return false;
+        }
+        
+        const quizDescription = document.getElementById('quiz-description') || document.getElementById('quiz-instructions');
+        if (quizDescription && !quizDescription.value.trim()) {
+            alert('Please enter quiz instructions before proceeding.');
+            quizDescription.focus();
+            return false;
+        }
         
         if (questionEntries.length === 0) {
             alert('Please add at least one question before proceeding.');
@@ -299,10 +341,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
 
-            // Check if multiple choice questions have all options filled and one selected
+            // Check if multiple choice questions have exactly 4 options filled and one selected
             const questionType = questionEntries[i].querySelector('.question-type').textContent.trim();
             if (questionType === 'Multiple Choice') {
                 const optionEntries = questionEntries[i].querySelectorAll('.option-entry');
+                
+                // Check if there are exactly 4 options
+                if (optionEntries.length !== 4) {
+                    alert(`Question ${i + 1}: Multiple choice questions must have exactly 4 options.`);
+                    return false;
+                }
+                
                 let hasEmptyOption = false;
                 
                 optionEntries.forEach((option) => {
@@ -348,7 +397,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            // Check if fill in the blank questions have all answers filled
+            // Check if fill in the blank questions have all answers filled and the question contains ___
             if (questionType === 'Fill In The Blank') {
                 const answerEntries = questionEntries[i].querySelectorAll('.answer-entry');
                 
@@ -367,6 +416,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (hasEmptyAnswer) {
                     alert(`Question ${i + 1}: All fill in the blank answers must be filled in.`);
+                    return false;
+                }
+                
+                // Check if the question contains exactly three underscores (___)
+                if (!questionText.includes('___')) {
+                    alert(`Question ${i + 1}: Fill in the blank questions must contain at least one blank placeholder (___). Please add ___ where you want students to fill in the answer.`);
+                    return false;
+                }
+            }
+            
+            // Check if true or false questions have a selected answer
+            if (questionType === 'True Or False') {
+                const hasSelectedOption = Array.from(questionEntries[i].querySelectorAll('input[type="radio"]')).some(radio => radio.checked);
+                if (!hasSelectedOption) {
+                    alert(`Question ${i + 1}: Please select either True or False as the correct answer.`);
                     return false;
                 }
             }
@@ -388,11 +452,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
+        
+        // Ensure filename has .qti extension
+        if (!filename.toLowerCase().endsWith('.qti')) {
+            filename = filename.replace(/\.xml$/i, '') + '.qti';
+        }
+        
         a.download = filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        
+        showSuccessMessage('Quiz exported successfully as QTI file!');
     }
 
     // Function to collect all quiz data
@@ -400,7 +472,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const questionEntries = questionsContainer.querySelectorAll('.question-entry');
         const quizData = {
             title: document.getElementById('quiz-title').value || 'Untitled Quiz',
-            description: document.getElementById('quiz-description').value || '',
+            description: document.getElementById('quiz-description') ? document.getElementById('quiz-description').value : '',
             questions: []
         };
 
@@ -441,7 +513,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                     }
                 });
-            } else if (questionType === 'Fill in the Blank') {
+            } else if (questionType === 'Fill In The Blank') {
                 const answerEntries = entry.querySelectorAll('.answer-entry');
                 answerEntries.forEach((answerEntry, ansIndex) => {
                     const answerText = answerEntry.querySelector('input[type="text"]').value.trim();
@@ -452,6 +524,21 @@ document.addEventListener('DOMContentLoaded', function() {
                             isCorrect: true
                         });
                     }
+                });
+            } else if (questionType === 'True Or False') {
+                const trueOption = entry.querySelector('input[value="true"]');
+                const falseOption = entry.querySelector('input[value="false"]');
+                
+                questionData.options.push({
+                    id: `q${index + 1}_true`,
+                    text: 'True',
+                    isCorrect: trueOption && trueOption.checked
+                });
+                
+                questionData.options.push({
+                    id: `q${index + 1}_false`,
+                    text: 'False',
+                    isCorrect: falseOption && falseOption.checked
                 });
             } else if (questionType === 'Essay') {
                 // Essay questions don't have options/answers, but we'll add a placeholder
@@ -505,10 +592,15 @@ document.addEventListener('DOMContentLoaded', function() {
             xml += '<resprocessing><outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>';
             
             question.options.forEach(option => {
+                xml += '<respcondition>';
                 if (option.isCorrect) {
-                    xml += '<respcondition continue="No"><conditionvar><varequal respident="response1">' + option.id + '</varequal></conditionvar>';
-                    xml += '<setvar action="Set" varname="SCORE">100</setvar></respcondition>';
+                    xml += '<conditionvar><varequal respident="response1">' + option.id + '</varequal></conditionvar>';
+                    xml += '<setvar action="Set" varname="SCORE">100</setvar>';
+                } else {
+                    xml += '<conditionvar><not><varequal respident="response1">' + option.id + '</varequal></not></conditionvar>';
+                    xml += '<setvar action="Set" varname="SCORE">0</setvar>';
                 }
+                xml += '</respcondition>';
             });
             
             xml += '</resprocessing></item>';
@@ -525,31 +617,71 @@ document.addEventListener('DOMContentLoaded', function() {
             xml += '</render_choice></response_lid></presentation>';
             xml += '<resprocessing><outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>';
             
-            // Count correct answers
-            const correctCount = question.options.filter(opt => opt.isCorrect).length;
-            const pointsPerCorrect = 100 / correctCount;
+            // For multiple answer, all correct answers must be selected
+            xml += '<respcondition>';
+            xml += '<conditionvar>';
             
-            question.options.forEach(option => {
-                if (option.isCorrect) {
-                    xml += '<respcondition><conditionvar><varequal respident="response1">' + option.id + '</varequal></conditionvar>';
-                    xml += '<setvar action="Add" varname="SCORE">' + pointsPerCorrect + '</setvar></respcondition>';
-                }
+            const correctOptions = question.options.filter(opt => opt.isCorrect);
+            const incorrectOptions = question.options.filter(opt => !opt.isCorrect);
+            
+            correctOptions.forEach(option => {
+                xml += '<varequal respident="response1">' + option.id + '</varequal>';
             });
             
+            incorrectOptions.forEach(option => {
+                xml += '<not><varequal respident="response1">' + option.id + '</varequal></not>';
+            });
+            
+            xml += '</conditionvar>';
+            xml += '<setvar action="Set" varname="SCORE">100</setvar>';
+            xml += '</respcondition>';
+            
             xml += '</resprocessing></item>';
-        } else if (question.type === 'Fill in the Blank') {
+        } else if (question.type === 'Fill In The Blank') {
             xml += '<item ident="' + question.id + '" title="' + escapeXML(question.text) + '">';
             xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>fill_in_multiple_blanks_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
             xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
             xml += '<response_str ident="response1" rcardinality="Single"><render_fib>';
-            xml += '<response_label ident="answer1"/>';
+            xml += '<response_label ident="answer1"><material><mattext texttype="text/html">Fill in the blank</mattext></material></response_label>';
             xml += '</render_fib></response_str></presentation>';
             xml += '<resprocessing><outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>';
             
+            // For fill in the blank, any of the provided answers is acceptable
+            xml += '<respcondition>';
+            xml += '<conditionvar>';
+            
             question.options.forEach(option => {
-                xml += '<respcondition><conditionvar><varequal respident="response1" case="No">' + escapeXML(option.text) + '</varequal></conditionvar>';
-                xml += '<setvar action="Set" varname="SCORE">100</setvar></respcondition>';
+                xml += '<varequal respident="response1">' + escapeXML(option.text) + '</varequal>';
             });
+            
+            xml += '</conditionvar>';
+            xml += '<setvar action="Set" varname="SCORE">100</setvar>';
+            xml += '</respcondition>';
+            
+            xml += '</resprocessing></item>';
+        } else if (question.type === 'True Or False') {
+            xml += '<item ident="' + question.id + '" title="' + escapeXML(question.text) + '">';
+            xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>true_false_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+            xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
+            xml += '<response_lid ident="response1" rcardinality="Single"><render_choice>';
+            
+            // Add True and False options
+            xml += '<response_label ident="' + question.id + '_true"><material><mattext texttype="text/html">True</mattext></material></response_label>';
+            xml += '<response_label ident="' + question.id + '_false"><material><mattext texttype="text/html">False</mattext></material></response_label>';
+            
+            xml += '</render_choice></response_lid></presentation>';
+            xml += '<resprocessing><outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>';
+            
+            // Determine which option is correct
+            const correctOption = question.options.find(opt => opt.isCorrect);
+            const correctValue = correctOption ? correctOption.text : 'True'; // Default to True if not found
+            
+            xml += '<respcondition>';
+            xml += '<conditionvar>';
+            xml += '<varequal respident="response1">' + question.id + '_' + correctValue.toLowerCase() + '</varequal>';
+            xml += '</conditionvar>';
+            xml += '<setvar action="Set" varname="SCORE">100</setvar>';
+            xml += '</respcondition>';
             
             xml += '</resprocessing></item>';
         } else if (question.type === 'Essay') {
@@ -557,9 +689,8 @@ document.addEventListener('DOMContentLoaded', function() {
             xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>essay_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
             xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
             xml += '<response_str ident="response1" rcardinality="Single"><render_fib>';
-            xml += '<response_label ident="answer1"/>';
+            xml += '<response_label ident="answer1"><material><mattext texttype="text/html">Essay response</mattext></material></response_label>';
             xml += '</render_fib></response_str></presentation>';
-            xml += '<resprocessing><outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes></resprocessing>';
             xml += '</item>';
         }
         
@@ -602,10 +733,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     <label>Question:</label>
                     <textarea placeholder="Enter your question here"></textarea>
                 </div>
-                <div class="form-group">
-                    <label>Options:</label>
+                <div class="form-group options-group">
+                    <label>Options: (exactly 4 required)</label>
                     <div class="option-entry">
-                        <input type="radio" name="correct-option" required>
+                        <input type="radio" name="correct-option">
                         <input type="text" placeholder="Option 1">
                     </div>
                     <div class="option-entry">
@@ -627,17 +758,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     <label>Question:</label>
                     <textarea placeholder="Enter your question here"></textarea>
                 </div>
-                <div class="form-group">
-                    <label>Answers: (select all correct answers)</label>
+                <div class="form-group answers-group">
+                    <label>Answers:</label>
                     <div class="answer-entry">
                         <input type="checkbox">
                         <input type="text" placeholder="Answer 1">
-                        <button type="button" class="remove-answer">&times;</button>
                     </div>
                     <div class="answer-entry">
                         <input type="checkbox">
                         <input type="text" placeholder="Answer 2">
-                        <button type="button" class="remove-answer">&times;</button>
                     </div>
                     <button type="button" class="add-answer">+ Add Answer</button>
                 </div>
@@ -645,21 +774,36 @@ document.addEventListener('DOMContentLoaded', function() {
             'fill-in-the-blank': `
                 <div class="form-group">
                     <label>Question:</label>
-                    <textarea placeholder="Enter your question here (use ___ for blanks)"></textarea>
+                    <textarea placeholder="Enter your question with ___ (three underscores) where the blank should be"></textarea>
+                    <div class="help-text">Use ___ (three underscores) to indicate where students should fill in the blank.</div>
                 </div>
-                <div class="form-group">
+                <div class="form-group answers-group">
                     <label>Acceptable Answers:</label>
                     <div class="answer-entry">
-                        <input type="text" placeholder="Answer 1">
-                        <button type="button" class="remove-answer">&times;</button>
+                        <input type="text" placeholder="Acceptable answer 1">
                     </div>
                     <button type="button" class="add-answer">+ Add Alternative Answer</button>
+                </div>
+            `,
+            'true-or-false': `
+                <div class="form-group">
+                    <label>Question:</label>
+                    <textarea placeholder="Enter your question here"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Correct Answer:</label>
+                    <div class="true-false-options">
+                        <input type="radio" name="correct-answer" value="true" id="true-option" required>
+                        <label for="true-option">True</label>
+                        <input type="radio" name="correct-answer" value="false" id="false-option">
+                        <label for="false-option">False</label>
+                    </div>
                 </div>
             `,
             'essay': `
                 <div class="form-group">
                     <label>Question:</label>
-                    <textarea placeholder="Enter your essay question here"></textarea>
+                    <textarea placeholder="Enter your question here"></textarea>
                 </div>
             `
         };

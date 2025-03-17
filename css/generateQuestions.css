@@ -186,64 +186,52 @@ button i {
 .question-header {
     display: flex;
     align-items: center;
-    padding: 15px;
-    border-bottom: 1px solid var(--border-color);
+    padding: 12px 15px;
     background-color: var(--light-gray);
+    border-bottom: 1px solid var(--border-color);
     border-radius: 10px 10px 0 0;
-    cursor: pointer;
+    position: relative;
 }
 
 .question-number {
     font-weight: bold;
-    font-size: 1.2rem;
-    margin-right: 10px;
-    min-width: 30px;
-    color: var(--primary-color);
+    margin-right: 5px;
+    flex-shrink: 0;
+}
+
+.question-number::after {
+    content: attr(data-question-preview);
+    display: inline;
+    margin-left: 8px;
+    font-style: italic;
+    font-weight: normal;
+    color: var(--text-secondary);
 }
 
 .question-type {
+    color: var(--text-secondary);
+    margin-left: 10px;
     flex-grow: 1;
-    font-weight: 500;
-    color: var(--text-color);
 }
 
 .question-controls {
     display: flex;
+    align-items: center;
     gap: 8px;
+    margin-left: auto;
 }
 
-.question-controls button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 5px;
-    border-radius: 4px;
-    transition: background-color 0.2s;
+.question-controls > *:not(button) {
+    display: none;
 }
 
-.question-controls button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+.question-entry:not(.expanded) .question-header {
+    border-bottom: none;
+    border-radius: 10px;
 }
 
-.copy-question, .move-question {
-    color: var(--text-color);
-    opacity: 0.7;
-}
-
-.copy-question:hover {
-    color: var(--info-color);
-    opacity: 1;
-}
-
-.move-question:hover {
-    color: var(--warning-color);
-    opacity: 1;
-    cursor: grab;
-}
-
-.delete-question {
-    color: var(--danger-color);
-    font-size: 1.2rem;
+.question-entry:not(.expanded) .question-header .question-type {
+    display: none;
 }
 
 .question-content {
@@ -267,21 +255,37 @@ button i {
     cursor: grabbing;
 }
 
-.question-entry:not(.expanded) .question-header::after {
-    content: attr(data-question-preview);
-    display: inline-block;
-    margin-left: 10px;
-    font-style: italic;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 60%;
+.question-entry {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 25px;
+    background-color: white;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.question-entry:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.question-entry .question-header {
+    padding: 12px 15px;
+    background-color: var(--light-gray);
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 10px 10px 0 0;
+    display: flex;
+    align-items: center;
+    position: relative;
 }
 
 .question-entry:not(.expanded) .question-header {
     border-bottom: none;
     border-radius: 10px;
+}
+
+.question-entry:not(.expanded) .question-header .question-type {
+    display: none;
 }
 
 .question-entry.drag-over {
@@ -366,21 +370,6 @@ button i {
     background-color: var(--primary-dark);
     transform: translateY(-2px);
     box-shadow: 0 6px 12px rgba(74, 108, 247, 0.4);
-}
-
-/* Question Entry Styling */
-.question-entry {
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 25px;
-    background-color: white;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
-}
-
-.question-entry:hover {
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
 }
 
 /* Option Entry Styling */
@@ -550,4 +539,28 @@ button i {
     nav li {
         margin: 5px 10px;
     }
+}
+
+.help-text {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 5px;
+    font-style: italic;
+}
+
+.true-false-options {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.true-false-options label {
+    margin-left: 3px;
+    margin-right: 10px;
+    font-weight: normal;
+}
+
+.true-false-options input[type="radio"] {
+    margin: 0;
 }
