@@ -68,7 +68,6 @@
     </style>
 </head>
 <body>
-   
 
     <main>
         <div class="container">
@@ -113,6 +112,16 @@
                 <div class="form-group">
                     <label for="quiz-description">Quiz Description (optional):</label>
                     <textarea id="quiz-description" placeholder="Enter quiz description"></textarea>
+                </div>
+            </section>
+
+            <!-- Insert the CSV Preview component here -->
+            <section class="preview-section">
+                <div class="card">
+                    <h2><i class="fas fa-table"></i> CSV Preview</h2>
+                    <div id="csv-preview">
+                        <p class="placeholder-text">CSV content will appear here after upload</p>
+                    </div>
                 </div>
             </section>
 
@@ -246,5 +255,6 @@
     <script src="../js/itemBank/qtiExport.js"></script>
     <script src="../js/itemBank/qtiExportUI.js"></script>
     <script src="../js/itemBank/main.js"></script>
+    <script src="../js/itemBank/excelFilePreview.js"></script>
 </body>
 </html>

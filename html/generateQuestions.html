@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Questions - Quiz Converter</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/generateQuestions.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .center-plus {
+            display: block;
+            margin: 0 auto;
+        }
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .question-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .question-controls button {
+            margin: 0 5px;
+        }
+
+         /* Additional styles for quiz details */
+         .quiz-details {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .quiz-details h2 {
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+            color: #4a6cf7;
+            display: flex;
+            align-items: center;
+        }
+        
+        .quiz-details h2 i {
+            margin-right: 10px;
+        }
+        
+        .quiz-details .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .quiz-details label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #2d3748;
+        }
+        
+        .quiz-details input, 
+        .quiz-details textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .quiz-details input:focus, 
+        .quiz-details textarea:focus {
+            outline: none;
+            border-color: #4a6cf7;
+            box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.2);
+        }
+        
+        .quiz-details textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">
+                <a href="index.html">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Quiz Converter</span>
+                </a>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="quickConvert.html">Quick Convert</a></li>
+                    <li><a href="itemBank.html">Item Bank</a></li>
+                    <li><a href="generateQuestions.html" class="active">Generate Questions</a></li>
+                    <li><a href="qtiToPdf.html">QTI to PDF</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <section class="page-header">
+                <h1>Generate Questions</h1>
+                <p>Create custom questions, organize them, and export to QTI format.</p>
+            </section>
+
+            <section class="quiz-details">
+                <h2><i class="fas fa-clipboard-list"></i> Quiz Details</h2>
+                <div class="form-group">
+                    <label for="quiz-title">Quiz Title:</label>
+                    <input type="text" id="quiz-title" placeholder="Enter quiz title" required>
+                </div>
+                <div class="form-group">
+                    <label for="quiz-instructions">Quiz Instructions (optional):</label>
+                    <textarea id="quiz-instructions" placeholder="Enter quiz instructions" required></textarea>
+                </div>
+            </section>
+
+            <section class="question-container">
+                <h2><i class="fas fa-question-circle"></i> Questions</h2>
+                <div id="questions-container">
+                    <!-- Questions will be added here dynamically -->
+                </div>
+                <button id="add-question-btn" class="center-plus" title="Add a Question">+</button>
+                <div id="question-type-dropdown" class="dropdown-content" style="display: none;">
+                    <button class="dropdown-item" data-type="multiple-choice">Multiple Choice</button>
+                    <button class="dropdown-item" data-type="multiple-answer">Multiple Answer</button>
+                    <button class="dropdown-item" data-type="true-or-false">True or False</button>
+                    <button class="dropdown-item" data-type="fill-in-the-blank">Fill in the Blank</button>
+                    <button class="dropdown-item" data-type="essay">Essay</button>
+                </div>
+            </section>
+
+            <!-- Export Button Section -->
+            <section class="action-buttons">
+                <button id="export-qti-btn" class="action-btn export-btn">
+                    <i class="fas fa-file-export"></i> Export as QTI
+                </button>
+            </section>
+
+            <!-- Success Message -->
+            <div id="success-message" class="success-message">
+                <i class="fas fa-check-circle"></i>
+                <span id="success-text">Operation completed successfully!</span>
+            </div>
+        </div>
+    </main>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="../js/generateQuestions/addNewQuestions.js"></script>
+</body>
+</html>

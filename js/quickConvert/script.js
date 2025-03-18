@@ -130,6 +130,8 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (['xls', 'xlsx'].includes(fileExtension)) {
                 // Use enhanced Excel handler
                 questionData = await window.excelHandler.processExcelFile(file);
+                // Validate form after processing
+                validateForm();
             } else {
                 csvPreview.innerHTML = '<p class="placeholder-text">Unsupported file format</p>';
             }
@@ -149,44 +151,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 Papa.parse(content, {
                     skipEmptyLines: true,
                     complete: function(results) {
-                        // Skip the first row - use header: true to do this automatically
-                        const data = results.data;
-                        
-                        if (data.length < 2) {
-                            csvPreview.innerHTML = '<p>No data found in CSV file or invalid format</p>';
-                            reject(new Error('No valid data found'));
-                            return;
+                        // Process CSV data with our Excel handler
+                        try {
+                            // Convert Papa Parse results to a format our Excel handler can use
+                            window.excelHandler.questionData = results.data;
+                            window.excelHandler.editedData = JSON.parse(JSON.stringify(results.data));
+                            
+                            // Display the data
+                            window.excelHandler.displayData();
+                            
+                            // Process the data
+                            questionData = window.excelHandler.processQuestionData();
+                            
+                            // Validate form
+                            validateForm();
+                            
+                            resolve();
+                        } catch (error) {
+                            console.error('Error processing CSV data:', error);
+                            csvPreview.innerHTML = `<p class="error-text">Error processing CSV data: ${error.message}</p>`;
+                            reject(error);
                         }
-                        
-                        // Get headers from the first row
-                        const headers = data[0];
-                        
-                        // Get data rows (skip first row)
-                        const rows = data.slice(1);
-                        
-                        // Filter out empty rows
-                        const nonEmptyRows = rows.filter(row => 
-                            row.some(cell => cell !== null && cell !== undefined && cell !== '')
-                        );
-                        
-                        // Find non-empty columns
-                        const nonEmptyColumnIndices = findNonEmptyColumnIndices(headers, nonEmptyRows);
-                        
-                        // Filter headers to only include non-empty columns
-                        const filteredHeaders = nonEmptyColumnIndices.map(index => headers[index] || `Column ${index + 1}`);
-                        
-                        // Check if this is a TF (True/False) sheet based on headers or content
-                        const isTFSheet = file.name.toLowerCase().includes('tf') || 
-                                         headers.some(h => h && h.toLowerCase().includes('true') || h.toLowerCase().includes('false')) ||
-                                         rows.some(row => row[0] === 'TF');
-                        
-                        // Display table with filtered headers and rows
-                        displayCSVTable(filteredHeaders, nonEmptyRows, nonEmptyColumnIndices, isTFSheet);
-                        
-                        // Save for later use in conversion
-                        questionData = results.data.slice(1); // Skip the first row for conversion
-                        
-                        resolve();
                     },
                     error: function(error) {
                         csvPreview.innerHTML = `<p class="error-text">Error parsing CSV: ${error.message}</p>`;
@@ -203,216 +188,162 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    /**
-     * Find indices of non-empty columns
-     * @param {Array} headers - Header row
-     * @param {Array} rows - Data rows
-     * @returns {Array} - Array of column indices that contain data
-     */
-    function findNonEmptyColumnIndices(headers, rows) {
-        const indices = [];
-        
-        // Check each column
-        for (let colIndex = 0; colIndex < headers.length; colIndex++) {
-            // Check if any row has data in this column
-            const hasData = rows.some(row => {
-                return row[colIndex] !== undefined && 
-                       row[colIndex] !== null && 
-                       row[colIndex].toString().trim() !== '';
-            });
-            
-            // Include header columns that have data
-            if (hasData) {
-                indices.push(colIndex);
-            }
-        }
-        
-        return indices;
-    }
-    
-    /**
-     * Display CSV data in a table
-     * @param {Array} headers - Filtered headers
-     * @param {Array} rows - Data rows
-     * @param {Array} columnIndices - Indices of columns to include
-     * @param {Boolean} isTFSheet - Whether this is a TF sheet
-     */
-    function displayCSVTable(headers, rows, columnIndices, isTFSheet = false) {
-        // Limit preview to 10 rows
-        const previewRows = rows.slice(0, 10);
-        
-        let tableHtml = '<table style="width: 100%; border-collapse: collapse;">';
-        
-        // Table header
-        tableHtml += '<thead><tr>';
-        headers.forEach(header => {
-            tableHtml += `<th style="padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: left;">${header}</th>`;
-        });
-        tableHtml += '</tr></thead>';
-        
-        // Table body
-        tableHtml += '<tbody>';
-        previewRows.forEach((row, rowIndex) => {
-            tableHtml += `<tr style="background-color: ${rowIndex % 2 === 0 ? 'white' : '#f9fafb'};">`;
-            columnIndices.forEach((colIndex, i) => {
-                const value = row[colIndex] !== undefined ? row[colIndex] : '';
-                
-                // Check if this is a tagging column (content might be "correct" or "incorrect")
-                const cellValue = value.toString();
-                let cellStyle = '';
-                
-                // Handle correct/incorrect values
-                if (cellValue.toLowerCase() === 'correct') {
-                    cellStyle = 'color: #10b981; font-weight: 500;'; // Green color for correct
-                } else if (cellValue.toLowerCase() === 'incorrect') {
-                    cellStyle = 'color: #ef4444; font-weight: 500;'; // Red color for incorrect
-                } 
-                // Handle true/false values in the choice1 column
-                else if (isTFSheet && 
-                         headers[colIndex] && 
-                         headers[colIndex].toLowerCase().includes('choice')) {
-                    // Check for true values
-                    if (cellValue.toLowerCase() === 'true' || 
-                        cellValue === '1' || 
-                        cellValue.toLowerCase() === 't') {
-                        cellStyle = 'color: #10b981; font-weight: 500;'; // Green color for true
-                    }
-                    // Check for false values
-                    else if (cellValue.toLowerCase() === 'false' || 
-                             cellValue === '0' || 
-                             cellValue.toLowerCase() === 'f') {
-                        cellStyle = 'color: #ef4444; font-weight: 500;'; // Red color for false
-                    }
-                }
-                
-                tableHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; ${cellStyle}">${cellValue}</td>`;
-            });
-            tableHtml += '</tr>';
-        });
-        tableHtml += '</tbody></table>';
-        
-        // Add note if there are more rows
-        if (rows.length > 10) {
-            tableHtml += `<p style="margin-top: 10px; color: #718096; font-style: italic;">Showing 10 of ${rows.length} rows</p>`;
-        }
-        
-        csvPreview.innerHTML = tableHtml;
-    }
-    
     function removeFile() {
-        currentFile = null;
-        questionData = null;
+        // Clear file input
         fileInput.value = '';
+        
+        // Hide file info
         fileInfo.classList.add('hidden');
+        
+        // Clear preview
         csvPreview.innerHTML = '<p class="placeholder-text">CSV content will appear here after upload</p>';
         
-        // Remove sheet navigation if it exists
-        const sheetNav = document.querySelector('.sheet-navigation');
-        if (sheetNav) {
-            sheetNav.remove();
-        }
+        // Clear current file
+        currentFile = null;
+        questionData = null;
         
-        validateForm();
+        // Disable convert button
+        convertBtn.disabled = true;
+        
+        // Hide results section
+        resultsSection.classList.add('hidden');
     }
     
     function validateForm() {
-        // Enable convert button only if file is selected and quiz title is provided
-        convertBtn.disabled = !currentFile || !quizTitle.value.trim();
+        // Check if we have a file, title, and description
+        const isValid = currentFile && 
+                       quizTitle.value.trim() !== '' && 
+                       quizDescription.value.trim() !== '';
+        
+        // Check for validation errors in the Excel handler
+        const hasValidationErrors = window.excelHandler && window.excelHandler.hasValidationErrors;
+        
+        // Only enable the convert button if all conditions are met
+        convertBtn.disabled = !isValid || hasValidationErrors;
+        
+        // Add error notification if there are validation errors
+        if (hasValidationErrors) {
+            // Check if notification already exists
+            let notification = document.querySelector('.validation-notification');
+            if (!notification) {
+                notification = document.createElement('div');
+                notification.className = 'validation-notification';
+                notification.style = 'margin-top: 10px; padding: 8px 12px; background-color: #fee2e2; border-radius: 4px; color: #b91c1c; font-size: 14px;';
+                notification.innerHTML = '<i class="fas fa-exclamation-circle"></i> Please fix all validation errors before converting.';
+                
+                // Insert after convert button
+                convertBtn.parentNode.insertBefore(notification, convertBtn.nextSibling);
+            }
+        } else {
+            // Remove notification if it exists
+            const notification = document.querySelector('.validation-notification');
+            if (notification) {
+                notification.remove();
+            }
+        }
+        
+        return isValid && !hasValidationErrors;
     }
     
-    // Handle file conversion
-    async function handleConversion() {
-        // Check if we have both file and title
-        if (!currentFile || !quizTitle.value.trim()) {
-            alert('Please upload a file and provide a quiz title');
+    function handleConversion() {
+        // Validate form before conversion
+        if (!validateForm()) {
+            // Show error message if validation fails
+            const hasValidationErrors = window.excelHandler && window.excelHandler.hasValidationErrors;
+            
+            if (hasValidationErrors) {
+                // Scroll to error container to make it visible
+                const errorContainer = document.getElementById('error-container');
+                if (errorContainer) {
+                    errorContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                alert('Please fix all validation errors before converting.');
+            } else {
+                alert('Please fill in all required fields.');
+            }
+            
             return;
         }
-        
-        // Check if we have question data
-        if (!questionData || !questionData.length) {
-            alert('No valid question data found in the file');
-            return;
-        }
-        
-        // Show a loading state
-        convertBtn.disabled = true;
-        convertBtn.innerHTML = '<i class="fas fa-spin fa-spinner"></i> Converting...';
         
         try {
-            // Count questions by type
-            const questionTypes = countQuestionTypes(questionData);
-            const totalQuestions = questionData.length;
-            
-            // Convert to QTI
+            // Create QTI converter
             const converter = new QTIConverter();
-            const zipBlob = await converter.convert(questionData, quizTitle.value, quizDescription.value);
             
-            // Store the blob for download
-            const qtiZipUrl = URL.createObjectURL(zipBlob);
-            downloadBtn.setAttribute('data-url', qtiZipUrl);
-            downloadBtn.setAttribute('data-filename', `${quizTitle.value.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_qti.zip`);
+            // Set quiz metadata
+            converter.setQuizTitle(quizTitle.value.trim());
+            converter.setQuizDescription(quizDescription.value.trim());
+            
+            // Convert questions
+            converter.addQuestions(questionData);
+            
+            // Generate QTI package
+            const zipBlob = converter.generateQTIPackage();
+            
+            // Create download URL
+            const downloadUrl = URL.createObjectURL(zipBlob);
+            
+            // Set download button attributes
+            downloadBtn.setAttribute('data-url', downloadUrl);
+            downloadBtn.setAttribute('data-filename', `${quizTitle.value.trim().replace(/\s+/g, '_')}_qti.zip`);
             
             // Show results section
             resultsSection.classList.remove('hidden');
             
-            // Update conversion summary
-            conversionSummary.innerHTML = `
-                <div class="alert-success">
-                    <i class="fas fa-check-circle"></i>
-                    Successfully converted ${currentFile.name} to QTI format!
-                </div>
-                <p><strong>Quiz Title:</strong> ${quizTitle.value}</p>
-                ${quizDescription.value ? `<p><strong>Description:</strong> ${quizDescription.value}</p>` : ''}
-                <p><strong>Total Questions:</strong> ${totalQuestions}</p>
-                <p><strong>Question Types:</strong></p>
-                <ul>
-                    <li>Multiple Choice: ${questionTypes.MC}</li>
-                    <li>Multiple Answer: ${questionTypes.MA}</li>
-                    <li>True/False: ${questionTypes.TF}</li>
-                    <li>Essay: ${questionTypes.ESS}</li>
-                    <li>Fill in Blank: ${questionTypes.FIB}</li>
-                </ul>
-            `;
+            // Display conversion summary
+            const summary = countQuestionTypes(questionData);
+            let summaryHtml = '<h3>Conversion Complete</h3>';
+            summaryHtml += '<p>The following questions have been converted:</p>';
+            summaryHtml += '<ul>';
             
-            // Update UI to show completion
-            convertBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Convert to QTI';
-            convertBtn.disabled = false;
+            for (const type in summary) {
+                if (summary[type] > 0) {
+                    const typeName = getQuestionTypeName(type);
+                    summaryHtml += `<li>${typeName}: ${summary[type]}</li>`;
+                }
+            }
+            
+            summaryHtml += '</ul>';
+            conversionSummary.innerHTML = summaryHtml;
             
             // Scroll to results
             resultsSection.scrollIntoView({ behavior: 'smooth' });
         } catch (error) {
-            console.error('Conversion error:', error);
-            
-            // Update UI to show error
-            convertBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Convert to QTI';
-            convertBtn.disabled = false;
-            
-            // Show error message
-            alert(`Error converting file: ${error.message}`);
+            console.error('Error during conversion:', error);
+            alert(`Error during conversion: ${error.message}`);
         }
     }
     
-    // Count questions by type
     function countQuestionTypes(questions) {
         const counts = {
-            MC: 0,  // Multiple Choice
-            MA: 0,  // Multiple Answer
-            TF: 0,  // True/False
-            ESS: 0, // Essay
-            FIB: 0, // Fill in Blank
-            total: questions.length
+            MC: 0,
+            MA: 0,
+            TF: 0,
+            ESS: 0,
+            FIB: 0
         };
         
-        questions.forEach(question => {
-            if (!Array.isArray(question) || !question.length) return;
-            
-            const type = question[0]?.toString().toUpperCase();
-            if (counts.hasOwnProperty(type)) {
-                counts[type]++;
-            }
-        });
+        // Count questions by type
+        if (questions && questions.all) {
+            questions.all.forEach(question => {
+                if (counts[question.type] !== undefined) {
+                    counts[question.type]++;
+                }
+            });
+        }
         
         return counts;
+    }
+    
+    function getQuestionTypeName(type) {
+        const typeNames = {
+            MC: 'Multiple Choice',
+            MA: 'Multiple Answer',
+            TF: 'True/False',
+            ESS: 'Essay',
+            FIB: 'Fill in the Blank'
+        };
+        
+        return typeNames[type] || type;
     }
     
     // Handle download button click
@@ -421,19 +352,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const filename = this.getAttribute('data-filename');
         
         if (url && filename) {
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            // Create temporary link
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
             
-            // Clean up the object URL after download
-            setTimeout(() => {
-                URL.revokeObjectURL(url);
-            }, 100);
-        } else {
-            alert('No file available for download');
+            // Append to body
+            document.body.appendChild(link);
+            
+            // Trigger click
+            link.click();
+            
+            // Clean up
+            document.body.removeChild(link);
         }
     });
 });
