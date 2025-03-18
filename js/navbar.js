@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   <ul>
                       <li><a href="index.html">Home</a></li>
                       <li><a href="quickConvert.html">Quick Convert</a></li>
+                      <li><a href="generateQuestions.html">Generate Questions</a></li>
                       <li><a href="itemBank.html">Item Bank</a></li>
                       <li><a href="qtiToPdf.html">QTI to PDF</a></li>
                   </ul>
