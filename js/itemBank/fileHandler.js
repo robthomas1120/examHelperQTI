@@ -124,42 +124,72 @@ class FileHandler {
     }
 
     /**
-     * Process sheet data to identify question types
-     * @param {Array} data - Raw data from the sheet
-     * @returns {Object} - Data organized by question type
+     * Parse Excel file
+     * @param {File} file - The Excel file
+     * @returns {Promise} - Resolves with parsed data
      */
-    processSheetData(data) {
-        const processedData = {
-            MC: [],
-            MA: [],
-            TF: [],
-            ESS: [],
-            FIB: []
-        };
-        
-        // First, check if this is a structured file with question types in headers
-        const headers = data[0] || [];
-        const hasStructuredHeader = headers.length > 0 && 
-                                  (headers.includes('Question') || 
-                                   headers.includes('Choice1') || 
-                                   headers.includes('tagging'));
-
-        // Skip the header row if it exists
-        const startRow = hasStructuredHeader ? 1 : 0;
-                
-        // Process the data
-        for (let i = startRow; i < data.length; i++) {
-            const row = data[i];
-            if (!row || row.length === 0) continue;
+    parseExcel(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
             
-            // Check for patterns in the data to determine question type
-            const questionType = this.identifyQuestionType(row);
-            if (questionType) {
-                processedData[questionType].push(row);
-            }
-        }
-        
-        return processedData;
+            reader.onload = (event) => {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const processedData = {};
+                    
+                    // Check if we have multiple sheets or just one
+                    if (workbook.SheetNames.length > 1) {
+                        // Process each sheet
+                        workbook.SheetNames.forEach(sheetName => {
+                            // Skip the Instructions sheet
+                            if (sheetName.toLowerCase() === 'instructions') return;
+                            
+                            const sheet = workbook.Sheets[sheetName];
+                            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                            
+                            // Remove any rows where the first cell is empty or just "Question"
+                            const filteredData = jsonData.filter(row => {
+                                if (!row || row.length === 0) return false;
+                                const firstCell = row[0] ? row[0].toString().trim() : '';
+                                return firstCell !== '' && firstCell.toLowerCase() !== 'question' && firstCell.toLowerCase() !== 'questions';
+                            });
+                            
+                            // Determine question type from sheet name
+                            const questionType = this.getQuestionTypeFromSheetName(sheetName);
+                            if (questionType) {
+                                processedData[questionType] = filteredData;
+                            }
+                        });
+                    } else {
+                        // Single sheet - try to process by row type
+                        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                        
+                        // Remove any rows where the first cell is empty or just "Question"
+                        const filteredData = jsonData.filter(row => {
+                            if (!row || row.length === 0) return false;
+                            const firstCell = row[0] ? row[0].toString().trim() : '';
+                            return firstCell !== '' && firstCell.toLowerCase() !== 'question';
+                        });
+                        
+                        const processedSingleSheet = this.processSheetData(filteredData);
+                        Object.assign(processedData, processedSingleSheet);
+                    }
+                    
+                    resolve(processedData);
+                } catch (error) {
+                    reject(new Error('Failed to parse Excel file: ' + error.message));
+                }
+            };
+            
+            reader.onerror = () => {
+                reject(new Error('Failed to read the file'));
+            };
+            
+            reader.readAsArrayBuffer(file);
+        });
     }
 
     /**

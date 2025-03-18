@@ -205,7 +205,10 @@ class UIController {
             group: {
                 name: 'questions',
                 pull: 'clone',
-                put: false
+                put: function(to, from, dragEl) {
+                    // Only allow dropping if it's a selected question being dragged back
+                    return dragEl.classList.contains('selected-question-card');
+                }
             },
             sort: false,
             animation: 150,
@@ -224,12 +227,65 @@ class UIController {
                     if (question) {
                         this.questionProcessor.addSelectedQuestion(question);
                         this.renderSelectedQuestions();
+                        
+                        // Also update available questions to show it's selected
+                        this.updateAvailableQuestionStatus(questionId, true);
                     }
                     
                     // Remove the clone from the selected container
                     if (evt.item.parentNode) {
                         evt.item.parentNode.removeChild(evt.item);
                     }
+                }
+            },
+            onAdd: (evt) => {
+                // Handle when a selected question is dragged back
+                if (evt.from.id === 'selected-questions-container') {
+                    const questionId = evt.item.getAttribute('data-id');
+                    // Extract the original ID from the selectedId format "sel_originalId"
+                    const originalId = questionId.startsWith('sel_') ? questionId.substring(4) : questionId;
+                    
+                    // Remove from selected questions
+                    this.questionProcessor.removeSelectedQuestion(originalId);
+                    this.renderSelectedQuestions();
+                    
+                    // Update available question status to show it's not selected
+                    this.updateAvailableQuestionStatus(originalId, false);
+                    
+                    // Remove the dragged clone
+                    if (evt.item.parentNode) {
+                        evt.item.parentNode.removeChild(evt.item);
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Update the visual status of an available question
+     * @param {String} questionId - Question ID
+     * @param {Boolean} isSelected - Whether the question is selected
+     */
+    updateAvailableQuestionStatus(questionId, isSelected) {
+        // Find the question card in all available containers
+        const questionCards = document.querySelectorAll(`.question-card[data-id="${questionId}"]`);
+        
+        questionCards.forEach(card => {
+            if (isSelected) {
+                card.classList.add('is-selected');
+            } else {
+                card.classList.remove('is-selected');
+            }
+        });
+        
+        // Update + button visibility
+        questionCards.forEach(card => {
+            const addBtn = card.querySelector('.add-btn');
+            if (addBtn) {
+                if (isSelected) {
+                    addBtn.style.display = 'none';
+                } else {
+                    addBtn.style.display = 'flex';
                 }
             }
         });
@@ -242,7 +298,7 @@ class UIController {
         this.sortableInstances.selected = new Sortable(this.elements.selectedQuestionsContainer, {
             group: {
                 name: 'questions',
-                pull: false
+                pull: true  // Allow dragging from selected to available
             },
             animation: 150,
             ghostClass: 'sortable-ghost',
@@ -254,6 +310,22 @@ class UIController {
                 
                 this.questionProcessor.updateSelectedQuestionOrder(newOrder);
                 this.updateSelectedCount();
+            },
+            onRemove: (evt) => {
+                // When item is removed from selected questions
+                const questionId = evt.item.getAttribute('data-id');
+                // Extract the original ID from the selectedId format "sel_originalId"
+                const originalId = questionId.startsWith('sel_') ? questionId.substring(4) : questionId;
+                
+                // If it was dragged to an available questions container, handle that separately in onAdd above
+                // Otherwise, we still need to remove it from the selection
+                if (!evt.to.classList.contains('question-list')) {
+                    this.questionProcessor.removeSelectedQuestion(originalId);
+                    this.renderSelectedQuestions();
+                    
+                    // Update available question status to show it's not selected
+                    this.updateAvailableQuestionStatus(originalId, false);
+                }
             }
         });
     }
@@ -408,8 +480,14 @@ class UIController {
     renderQuestionsByType(type, container) {
         const questions = this.questionProcessor.getQuestionsByType(type);
         
+        // Clear container first
+        container.innerHTML = '';
+        
+        // Add the "Add All" button
+        this.addAddAllButton(type, container);
+        
         if (questions.length === 0) {
-            container.innerHTML = `
+            container.innerHTML += `
                 <div class="no-questions">
                     <i class="fas fa-info-circle"></i>
                     <p>No ${this.getQuestionTypeName(type)} questions found</p>
@@ -418,7 +496,23 @@ class UIController {
             return;
         }
         
-        questions.forEach((question, index) => {
+        // Filter out invalid questions
+        const validQuestions = questions.filter(question => {
+            // Skip if question doesn't have required properties
+            if (!question.id || !question.text) return false;
+            
+            // Skip if the question appears to be a summary or metadata
+            if (typeof question.text === 'object' || 
+                Array.isArray(question.text) || 
+                question.id.includes('summary') || 
+                question.id.includes('count')) {
+                return false;
+            }
+            
+            return true;
+        });
+        
+        validQuestions.forEach((question, index) => {
             const formattedQuestion = this.questionProcessor.formatQuestionForDisplay(question);
             const card = this.createQuestionCard(formattedQuestion, index + 1);
             container.appendChild(card);
@@ -438,35 +532,71 @@ class UIController {
         card.setAttribute('draggable', 'true');
         
         // Mark as selected if in selected questions
-        if (this.questionProcessor.isQuestionSelected(question.id)) {
+        const isSelected = this.questionProcessor.isQuestionSelected(question.id);
+        if (isSelected) {
             card.classList.add('is-selected');
         }
         
-        // Add question type badge
-        const typeBadge = document.createElement('div');
-        typeBadge.className = `question-type ${question.type}`;
-        typeBadge.textContent = question.type;
-        card.appendChild(typeBadge);
+        // Create a flexbox container for better layout control
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'question-content-container';
+        contentContainer.style.cssText = 'display: flex; flex: 1; align-items: center; min-width: 0;';
         
         // Add question number
         const questionNumber = document.createElement('div');
         questionNumber.className = 'question-number';
         questionNumber.textContent = index;
-        card.appendChild(questionNumber);
+        questionNumber.style.cssText = 'margin-right: 10px; flex-shrink: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background-color: #f3f4f6; border-radius: 50%; font-size: 12px; font-weight: 500;';
+        contentContainer.appendChild(questionNumber);
         
-        // Add question title - ensure text is a string
+        // Add question type badge
+        const typeBadge = document.createElement('div');
+        typeBadge.className = `question-type ${question.type}`;
+        typeBadge.textContent = question.type;
+        typeBadge.style.cssText = 'margin-right: 10px; flex-shrink: 0; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; background-color: #e5e7eb;';
+        contentContainer.appendChild(typeBadge);
+        
+        // Add question title with proper text truncation
         const questionTitle = document.createElement('div');
         questionTitle.className = 'question-title';
         // Convert question text to string to avoid truncateText issues
         const questionText = question.text === undefined || question.text === null ? '' : String(question.text);
         questionTitle.textContent = this.truncateText(questionText, 60);
-        card.appendChild(questionTitle);
+        questionTitle.style.cssText = 'flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px;';
+        contentContainer.appendChild(questionTitle);
         
-        // Add type-specific content
-        this.addTypeSpecificContent(card, question);
+        // Add content container to card
+        card.appendChild(contentContainer);
+        
+        // Add add button if not already selected
+        const addBtn = document.createElement('div');
+        addBtn.className = 'add-remove-btn add-btn';
+        addBtn.innerHTML = '<i class="fas fa-plus"></i>';
+        addBtn.style.cssText = 'flex-shrink: 0; margin-left: 10px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background-color: #4a6cf7; color: white; border-radius: 50%; cursor: pointer;';
+        
+        if (isSelected) {
+            addBtn.style.display = 'none';
+        }
+        
+        addBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.questionProcessor.addSelectedQuestion(question);
+            this.renderSelectedQuestions();
+            card.classList.add('is-selected');
+            addBtn.style.display = 'none';
+        });
+        card.appendChild(addBtn);
+        
+        // Add styles for selected state
+        if (isSelected) {
+            card.style.cssText = 'display: flex; align-items: center; padding: 10px 15px; margin-bottom: 10px; background-color: #f0f4ff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); cursor: grab; transition: all 0.2s ease; border-left: 3px solid #4a6cf7;';
+        } else {
+            card.style.cssText = 'display: flex; align-items: center; padding: 10px 15px; margin-bottom: 10px; background-color: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); cursor: grab; transition: all 0.2s ease;';
+        }
         
         return card;
     }
+
 
     /**
      * Check if text is a metadata field
@@ -488,6 +618,166 @@ class UIController {
                lowerText.includes('choice1b') ||
                lowerText.includes('choice2a') ||
                lowerText.includes('choice2b');
+    }
+
+    /**
+     * Add "Add All" button to question type tab
+     * @param {String} type - Question type
+     * @param {HTMLElement} container - Container to add button to
+     */
+    addAddAllButton(type, container) {
+        // Check if we have questions of this type
+        const questions = this.questionProcessor.getQuestionsByType(type);
+        if (questions.length === 0) return;
+
+        // Create Add All button
+        const addAllButton = document.createElement('button');
+        addAllButton.className = 'add-all-btn';
+        addAllButton.innerHTML = '<i class="fas fa-plus"></i> Add All';
+        addAllButton.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background-color: #4a6cf7;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 15px;
+            transition: background-color 0.3s ease;
+        `;
+
+        // Add hover effect
+        addAllButton.addEventListener('mouseenter', () => {
+            addAllButton.style.backgroundColor = '#3451b2';
+        });
+
+        addAllButton.addEventListener('mouseleave', () => {
+            addAllButton.style.backgroundColor = '#4a6cf7';
+        });
+
+        // Add click handler
+        addAllButton.addEventListener('click', () => {
+            this.addAllQuestionsOfType(type);
+        });
+
+        // Add button to the top of the container
+        container.insertBefore(addAllButton, container.firstChild);
+    }
+
+    /**
+     * Add all questions of a specific type to selected questions
+     * @param {String} type - Question type
+     */
+    addAllQuestionsOfType(type) {
+        // Get all questions of this type
+        const questions = this.questionProcessor.getQuestionsByType(type);
+        
+        // Add each question to selected questions if not already selected
+        let addedCount = 0;
+        questions.forEach(question => {
+            if (!this.questionProcessor.isQuestionSelected(question.id)) {
+                this.questionProcessor.addSelectedQuestion(question);
+                addedCount++;
+            }
+        });
+        
+        // Render selected questions
+        this.renderSelectedQuestions();
+        
+        // Re-render the questions in the tab to update their "selected" status
+        this.renderQuestionsByType(type, this.elements[`${type.toLowerCase()}Container`]);
+        
+        // Show feedback message
+        this.showNotification(`Added ${addedCount} ${this.getQuestionTypeName(type)} questions to selection.`, 'success');
+    }
+
+    /**
+     * Show notification message
+     * @param {String} message - Message to show
+     * @param {String} type - Message type (success, error, info)
+     */
+    showNotification(message, type = 'info') {
+        // Check if a notification container already exists
+        let notificationContainer = document.querySelector('.notification-container');
+        
+        if (!notificationContainer) {
+            // Create notification container
+            notificationContainer = document.createElement('div');
+            notificationContainer.className = 'notification-container';
+            notificationContainer.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                z-index: 1000;
+            `;
+            document.body.appendChild(notificationContainer);
+        }
+        
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.style.cssText = `
+            background-color: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+            color: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-top: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            max-width: 300px;
+            animation: slideIn 0.3s ease;
+        `;
+        
+        // Add icon
+        const icon = document.createElement('i');
+        icon.className = `fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}`;
+        icon.style.marginRight = '12px';
+        notification.appendChild(icon);
+        
+        // Add message
+        const messageSpan = document.createElement('span');
+        messageSpan.textContent = message;
+        notification.appendChild(messageSpan);
+        
+        // Add notification to container
+        notificationContainer.appendChild(notification);
+        
+        // Add slideIn animation to the document if it doesn't exist
+        if (!document.getElementById('notification-animation-style')) {
+            const style = document.createElement('style');
+            style.id = 'notification-animation-style';
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            notification.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+                
+                // Remove container if empty
+                if (notificationContainer.children.length === 0) {
+                    document.body.removeChild(notificationContainer);
+                }
+            }, 300);
+        }, 3000);
     }
 
     /**
@@ -704,20 +994,28 @@ class UIController {
         const card = document.createElement('div');
         card.className = 'selected-question-card';
         card.setAttribute('data-id', question.selectedId);
+        card.setAttribute('draggable', 'true');
+        
+        // Create content container for better layout
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'question-content-container';
+        contentContainer.style.cssText = 'display: flex; flex: 1; align-items: center; min-width: 0;';
         
         // Question number
         const numberSpan = document.createElement('div');
         numberSpan.className = 'question-number';
         numberSpan.textContent = index;
-        card.appendChild(numberSpan);
+        numberSpan.style.cssText = 'margin-right: 10px; flex-shrink: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background-color: #f3f4f6; border-radius: 50%; font-size: 12px; font-weight: 500;';
+        contentContainer.appendChild(numberSpan);
         
         // Question type badge
         const typeBadge = document.createElement('span');
         typeBadge.className = `question-type-badge ${question.type}`;
         typeBadge.textContent = question.type;
-        card.appendChild(typeBadge);
+        typeBadge.style.cssText = 'margin-right: 10px; flex-shrink: 0; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; background-color: #e5e7eb;';
+        contentContainer.appendChild(typeBadge);
         
-        // Question text - ensure it's a string
+        // Question text
         const textSpan = document.createElement('span');
         textSpan.className = 'question-text';
         
@@ -736,17 +1034,33 @@ class UIController {
         
         const questionText = displayText === undefined || displayText === null ? '' : String(displayText);
         textSpan.textContent = this.truncateText(questionText, 40);
-        card.appendChild(textSpan);
+        textSpan.style.cssText = 'flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px;';
+        contentContainer.appendChild(textSpan);
+        
+        // Add content container to card
+        card.appendChild(contentContainer);
+        
+        // Add a hint about dragging back
+        card.setAttribute('title', 'Drag back to Available Questions to remove');
         
         // Remove button
         const removeBtn = document.createElement('i');
         removeBtn.className = 'fas fa-times remove-selected';
+        removeBtn.style.cssText = 'flex-shrink: 0; cursor: pointer; color: #ef4444; margin-left: 10px; font-size: 14px; padding: 5px;';
         removeBtn.addEventListener('click', () => {
-            this.questionProcessor.removeSelectedQuestion(question.id);
+            // Extract the original ID from the selectedId format "sel_originalId"
+            const originalId = question.id;
+            
+            this.questionProcessor.removeSelectedQuestion(originalId);
             this.renderSelectedQuestions();
-            this.renderQuestions(); // Re-render all questions to update 'is-selected' class
+            
+            // Update available question status
+            this.updateAvailableQuestionStatus(originalId, false);
         });
         card.appendChild(removeBtn);
+        
+        // Add overall styles
+        card.style.cssText = 'display: flex; align-items: center; padding: 10px 15px; margin-bottom: 10px; background-color: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); cursor: grab; transition: all 0.2s ease;';
         
         return card;
     }
