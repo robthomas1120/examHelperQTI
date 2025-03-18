@@ -183,14 +183,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add answer option button for multiple answers
             if (e.target.classList.contains('add-answer-btn')) {
                 const optionsContainer = e.target.closest('.options-container');
-                const newAnswerId = `answer${optionsContainer.querySelectorAll('.answer-entry').length + 1}-${generateUUID()}`;
+                const newAnswerId = `answer-${generateUUID()}`;
                 
                 const answerEntry = document.createElement('div');
                 answerEntry.className = 'answer-entry';
                 answerEntry.innerHTML = `
                     <input type="checkbox" id="${newAnswerId}">
-                    <label></label>
-                    <input type="text" placeholder="Answer ${optionsContainer.querySelectorAll('.answer-entry').length + 1}">
+                    <label for="${newAnswerId}"></label>
+                    <input type="text" placeholder="Answer">
                     <button type="button" class="remove-answer-btn"><i class="fas fa-times"></i></button>
                 `;
                 
@@ -203,11 +203,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const optionsContainer = e.target.closest('.options-container');
                 const alternateAnswersContainer = optionsContainer.querySelector('.alternate-answers-container');
                 
+                // Create a single input field for the alternate answer
                 const altAnswerEntry = document.createElement('div');
-                altAnswerEntry.className = 'answer-entry';
+                altAnswerEntry.className = 'alt-answer-entry';
+                
+                // Simplified HTML structure with just one input field
                 altAnswerEntry.innerHTML = `
                     <input type="text" placeholder="Alternate Answer">
-                    <button type="button" class="remove-answer-btn"><i class="fas fa-times"></i></button>
+                    <button type="button" class="remove-alt-answer-btn"><i class="fas fa-times"></i></button>
                 `;
                 
                 alternateAnswersContainer.appendChild(altAnswerEntry);
@@ -316,6 +319,19 @@ document.addEventListener('DOMContentLoaded', function() {
             // Insert after the original question and update numbers
             questionEntry.after(newQuestionEntry);
             updateQuestionNumbers();
+            
+            // Set up event listeners for the new question
+            const newQuestionTextarea = newQuestionEntry.querySelector('textarea');
+            if (newQuestionTextarea) {
+                const questionNumberElement = newQuestionEntry.querySelector('.question-number');
+                newQuestionTextarea.addEventListener('input', function() {
+                    const questionText = this.value.trim();
+                    questionNumberElement.setAttribute('data-question-preview', questionText.substring(0, 80) + (questionText.length > 80 ? '...' : ''));
+                });
+            }
+            
+            // Make sure drag and drop works for the new question
+            setupDragAndDrop();
         }
     });
 
@@ -977,9 +993,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 <textarea placeholder="Enter your question here..."></textarea>
                 <div class="options-container">
                     <div class="answer-entry">
-                        <input type="checkbox" id="answer1-${generateUUID()}">
-                        <label></label>
-                        <input type="text" placeholder="Answer 1">
+                        ${(() => {
+                            const uuid = generateUUID();
+                            return `
+                                <input type="checkbox" id="answer1-${uuid}">
+                                <label for="answer1-${uuid}"></label>
+                                <input type="text" placeholder="Answer">
+                                <button type="button" class="remove-answer-btn"><i class="fas fa-times"></i></button>
+                            `;
+                        })()}
                     </div>
                     <button type="button" class="add-answer-btn">+ Add Answer Option</button>
                 </div>
@@ -1000,7 +1022,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `,
             'fill-in-the-blank': `
-                <textarea placeholder="Enter your question here with ___ for the blank..."></textarea>
+                <textarea placeholder="Type your question below. Use three underscores (__) to mark each blank space."></textarea>
                 <div class="options-container">
                     <div class="answer-entry">
                         <input type="text" placeholder="Correct Answer">

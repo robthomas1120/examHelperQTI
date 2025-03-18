@@ -373,7 +373,7 @@ button i {
 }
 
 /* Option Entry Styling */
-.option-entry, .answer-entry {
+.option-entry, .answer-entry, .alt-answer-entry {
     display: flex;
     align-items: center;
     margin-bottom: 12px;
@@ -383,7 +383,7 @@ button i {
     transition: background-color 0.2s;
 }
 
-.option-entry:hover, .answer-entry:hover {
+.option-entry:hover, .answer-entry:hover, .alt-answer-entry:hover {
     background-color: #eef2f7;
 }
 
@@ -397,7 +397,8 @@ button i {
 }
 
 .option-entry input[type="text"],
-.answer-entry input[type="text"] {
+.answer-entry input[type="text"],
+.alt-answer-entry input[type="text"] {
     flex-grow: 1;
     border: 1px solid var(--border-color);
     border-radius: 4px;
