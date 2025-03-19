@@ -19,36 +19,29 @@ class QTIToPDFUI {
      * Initialize UI element references
      */
     initElements() {
+        // Main container
         this.elements = {
-            // File upload elements
+            container: document.getElementById('qti-to-pdf-container'),
             dropArea: document.getElementById('qti-drop-area'),
             fileInput: document.getElementById('qti-file-input'),
             fileInfo: document.getElementById('qti-file-info'),
-            fileName: document.getElementById('qti-file-name'),
-            fileSize: document.getElementById('qti-file-size'),
+            fileNameDisplay: document.getElementById('qti-file-name'),
+            fileSizeDisplay: document.getElementById('qti-file-size'),
             removeFileBtn: document.getElementById('qti-remove-file'),
-            
-            // Option elements
-            titleInput: document.getElementById('qti-doc-title'),
+            titleInput: document.getElementById('qti-title-input'),
             includeAnswers: document.getElementById('qti-include-answers'),
-            includeImages: document.getElementById('qti-include-images'),
-            includePageNumbers: document.getElementById('qti-include-page-numbers'),
             paperSize: document.getElementById('qti-paper-size'),
-            
-            // Preview and conversion elements
-            previewArea: document.getElementById('qti-preview'),
             convertBtn: document.getElementById('qti-convert-btn'),
-            downloadBtn: document.getElementById('qti-download-btn'),
-            downloadAnswerKeyBtn: document.getElementById('qti-download-answer-key-btn'),
-            
-            // Status and results elements
+            previewArea: document.getElementById('qti-preview'),
             resultsSection: document.getElementById('qti-results-section'),
             conversionSummary: document.getElementById('qti-conversion-summary'),
+            downloadBtn: document.getElementById('qti-download-btn'),
+            downloadAnswerKeyBtn: document.getElementById('qti-download-answer-key-btn'),
             loadingOverlay: document.getElementById('qti-loading-overlay')
         };
         
-        // Create elements if they don't exist yet (for integration)
-        if (!this.elements.dropArea) {
+        // If elements don't exist, create them
+        if (!this.elements.container) {
             this.createUIElements();
         }
     }
@@ -89,8 +82,8 @@ class QTIToPDFUI {
             <div class="qti-options-section">
                 <h3>PDF Options</h3>
                 <div class="form-group">
-                    <label for="qti-doc-title">Document Title:</label>
-                    <input type="text" id="qti-doc-title" placeholder="Enter document title">
+                    <label for="qti-title-input">Document Title:</label>
+                    <input type="text" id="qti-title-input" placeholder="Enter document title">
                 </div>
                 
                 <div class="form-group">
@@ -99,14 +92,6 @@ class QTIToPDFUI {
                         <div class="checkbox-item">
                             <input type="checkbox" id="qti-include-answers" checked>
                             <label for="qti-include-answers">Generate Answer Key</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="qti-include-images" checked>
-                            <label for="qti-include-images">Include Images</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="qti-include-page-numbers" checked>
-                            <label for="qti-include-page-numbers">Include Page Numbers</label>
                         </div>
                     </div>
                 </div>
@@ -290,8 +275,8 @@ class QTIToPDFUI {
         this.currentFile = file;
         
         // Update file info display
-        this.elements.fileName.textContent = file.name;
-        this.elements.fileSize.textContent = this.formatFileSize(file.size);
+        this.elements.fileNameDisplay.textContent = file.name;
+        this.elements.fileSizeDisplay.textContent = this.formatFileSize(file.size);
         this.elements.fileInfo.classList.remove('hidden');
         
         // Set default title from filename
@@ -460,8 +445,6 @@ class QTIToPDFUI {
             const options = {
                 title: this.elements.titleInput.value.trim(),
                 includeAnswers: false, // Always exclude answers from the exam PDF
-                includeImages: this.elements.includeImages.checked,
-                includePageNumbers: this.elements.includePageNumbers.checked,
                 paperSize: this.elements.paperSize.value
             };
             
@@ -483,8 +466,6 @@ class QTIToPDFUI {
                 const answerKeyOptions = {
                     title: this.elements.titleInput.value.trim() + " - Answer Key",
                     includeAnswers: true, // Include answers in the answer key
-                    includeImages: this.elements.includeImages.checked,
-                    includePageNumbers: this.elements.includePageNumbers.checked,
                     paperSize: this.elements.paperSize.value
                 };
                 
@@ -601,7 +582,6 @@ class QTIToPDFUI {
                 <p><strong>Title:</strong> ${this.elements.titleInput.value}</p>
                 <p><strong>Paper Size:</strong> ${paperSize}</p>
                 <p><strong>Answer Key Generated:</strong> ${this.elements.includeAnswers.checked ? 'Yes' : 'No'}</p>
-                <p><strong>Page Numbers Included:</strong> ${this.elements.includePageNumbers.checked ? 'Yes' : 'No'}</p>
             `;
             
             // Show download answer key button if answer key was generated

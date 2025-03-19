@@ -17,8 +17,6 @@ document.addEventListener('DOMContentLoaded', function() {
         removeFileBtn: document.getElementById('removeFile'),
         titleInput: document.getElementById('documentTitle'),
         includeAnswers: document.getElementById('includeAnswers'),
-        includeImages: document.getElementById('includeImages'),
-        includePageNumbers: document.getElementById('includePageNumbers'),
         paperSize: document.getElementById('paperSize'),
         previewArea: document.getElementById('qti-preview'),
         convertBtn: document.getElementById('convertBtn'),
@@ -298,8 +296,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const options = {
                 title: elements.titleInput.value.trim(),
                 includeAnswers: elements.includeAnswers.checked,
-                includeImages: elements.includeImages.checked,
-                includePageNumbers: elements.includePageNumbers.checked,
                 paperSize: elements.paperSize.value
             };
 
@@ -390,7 +386,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p><strong>Title:</strong> ${elements.titleInput.value}</p>
                 <p><strong>Paper Size:</strong> ${paperSizeText}</p>
                 <p><strong>Answers Included:</strong> ${elements.includeAnswers.checked ? 'Yes' : 'No'}</p>
-                <p><strong>Page Numbers Included:</strong> ${elements.includePageNumbers.checked ? 'Yes' : 'No'}</p>
             `;
 
             // Scroll to results
@@ -637,8 +632,7 @@ class QTIToPDFConverter {
         this.questions = [];
         this.title = "Exam";
         this.includeAnswers = true;
-        this.includeImages = true;
-        this.includePageNumbers = true;
+        this.includeImages = false;
         this.paperSize = "a4"; // Default paper size
         
         // Paper size configurations
@@ -683,8 +677,6 @@ class QTIToPDFConverter {
     setOptions(options) {
         if (options.title) this.title = options.title;
         if (options.includeAnswers !== undefined) this.includeAnswers = options.includeAnswers;
-        if (options.includeImages !== undefined) this.includeImages = options.includeImages;
-        if (options.includePageNumbers !== undefined) this.includePageNumbers = options.includePageNumbers;
         if (options.paperSize) this.paperSize = options.paperSize;
     }
 
@@ -1150,10 +1142,8 @@ class QTIToPDFConverter {
                 pdf.addPage();
                 y = margin.top;
                 
-                // Add page number if enabled
-                if (this.includePageNumbers) {
-                    this.addPageNumber(pdf);
-                }
+                // Always add page number
+                this.addPageNumber(pdf);
             }
             
             // Question number and text
@@ -1188,10 +1178,8 @@ class QTIToPDFConverter {
                         pdf.addPage();
                         y = margin.top;
                         
-                        // Add page number if enabled
-                        if (this.includePageNumbers) {
-                            this.addPageNumber(pdf);
-                        }
+                        // Always add page number
+                        this.addPageNumber(pdf);
                     }
                     
                     // Option letter (A, B, C, etc.)
@@ -1254,11 +1242,6 @@ class QTIToPDFConverter {
                     if (y > paperConfig.height - margin.bottom - 15) {
                         pdf.addPage();
                         y = margin.top;
-                        
-                        // Add page number if enabled
-                        if (this.includePageNumbers) {
-                            this.addPageNumber(pdf);
-                        }
                     }
                     
                     // Draw a line for writing
@@ -1275,10 +1258,8 @@ class QTIToPDFConverter {
                     pdf.addPage();
                     y = margin.top;
                     
-                    // Add page number if enabled
-                    if (this.includePageNumbers) {
-                        this.addPageNumber(pdf);
-                    }
+                    // Always add page number
+                    this.addPageNumber(pdf);
                 }
                 
                 // Add some space instead of drawing a line
@@ -1301,10 +1282,8 @@ class QTIToPDFConverter {
                     pdf.addPage();
                     y = margin.top;
                     
-                    // Add page number if enabled
-                    if (this.includePageNumbers) {
-                        this.addPageNumber(pdf);
-                    }
+                    // Always add page number
+                    this.addPageNumber(pdf);
                 }
                 
                 // Display options normally
@@ -1316,10 +1295,8 @@ class QTIToPDFConverter {
                         pdf.addPage();
                         y = margin.top;
                         
-                        // Add page number if enabled
-                        if (this.includePageNumbers) {
-                            this.addPageNumber(pdf);
-                        }
+                        // Always add page number
+                        this.addPageNumber(pdf);
                     }
                     
                     // Option letter (A, B, C, etc.)
@@ -1389,17 +1366,15 @@ class QTIToPDFConverter {
             y += 5;
         }
         
-        // Add page number to the last page if enabled
-        if (this.includePageNumbers) {
-            this.addPageNumber(pdf);
-        }
+        // Add page number to the last page
+        this.addPageNumber(pdf);
         
         // Return the PDF as a blob
         return pdf.output("blob");
     }
 
     /**
-     * Add page number to the current page
+     * Add page number to PDF
      * @param {jsPDF} pdf - PDF document
      */
     addPageNumber(pdf) {

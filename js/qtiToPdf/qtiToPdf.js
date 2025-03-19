@@ -11,8 +11,7 @@ class QTIToPDFConverter {
         this.questions = [];
         this.title = "Exam";
         this.includeAnswers = true;
-        this.includeImages = true;
-        this.includePageNumbers = true;
+        this.includeImages = false;
         this.paperSize = "a4"; // Default paper size
         
         // Paper size configurations
@@ -58,7 +57,6 @@ class QTIToPDFConverter {
         if (options.title) this.title = options.title;
         if (options.includeAnswers !== undefined) this.includeAnswers = options.includeAnswers;
         if (options.includeImages !== undefined) this.includeImages = options.includeImages;
-        if (options.includePageNumbers !== undefined) this.includePageNumbers = options.includePageNumbers;
         if (options.paperSize) this.paperSize = options.paperSize;
     }
 
@@ -452,10 +450,8 @@ class QTIToPDFConverter {
                 pdf.addPage();
                 y = margin.top;
                 
-                // Add page number if enabled
-                if (this.includePageNumbers) {
-                    this.addPageNumber(pdf);
-                }
+                // Always add page number
+                this.addPageNumber(pdf);
             }
             
             // Question number and text
@@ -490,10 +486,8 @@ class QTIToPDFConverter {
                         pdf.addPage();
                         y = margin.top;
                         
-                        // Add page number if enabled
-                        if (this.includePageNumbers) {
-                            this.addPageNumber(pdf);
-                        }
+                        // Always add page number
+                        this.addPageNumber(pdf);
                     }
                     
                     // Option letter (A, B, C, etc.)
@@ -570,10 +564,8 @@ class QTIToPDFConverter {
                         pdf.addPage();
                         y = margin.top;
                         
-                        // Add page number if enabled
-                        if (this.includePageNumbers) {
-                            this.addPageNumber(pdf);
-                        }
+                        // Always add page number
+                        this.addPageNumber(pdf);
                     }
                     
                     // Draw a line for writing
@@ -590,10 +582,8 @@ class QTIToPDFConverter {
                     pdf.addPage();
                     y = margin.top;
                     
-                    // Add page number if enabled
-                    if (this.includePageNumbers) {
-                        this.addPageNumber(pdf);
-                    }
+                    // Always add page number
+                    this.addPageNumber(pdf);
                 }
                 
                 // Add some space instead of drawing a line
@@ -613,26 +603,11 @@ class QTIToPDFConverter {
             y += 5;
         }
         
-        // Add page number to the last page if enabled
-        if (this.includePageNumbers) {
-            this.addPageNumber(pdf);
-        }
+        // Add page number to the last page
+        this.addPageNumber(pdf);
         
         // Return the PDF as a blob
         return pdf.output("blob");
-    }
-
-    /**
-     * Add page number to the current page
-     * @param {jsPDF} pdf - PDF document
-     */
-    addPageNumber(pdf) {
-        const pageNum = pdf.internal.getNumberOfPages();
-        const paperConfig = this.paperSizes[this.paperSize] || this.paperSizes.a4;
-        
-        pdf.setFontSize(8);
-        pdf.setFont("helvetica", "normal");
-        pdf.text(`Page ${pageNum}`, paperConfig.width / 2, paperConfig.height - 10, { align: "center" });
     }
 
     /**
@@ -684,6 +659,15 @@ class QTIToPDFConverter {
         const textarea = document.createElement("textarea");
         textarea.innerHTML = html;
         return textarea.value;
+    }
+
+    addPageNumber(pdf) {
+        const pageNum = pdf.internal.getNumberOfPages();
+        const paperConfig = this.paperSizes[this.paperSize] || this.paperSizes.a4;
+        
+        pdf.setFontSize(8);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`Page ${pageNum}`, paperConfig.width / 2, paperConfig.height - 10, { align: "center" });
     }
 }
 
