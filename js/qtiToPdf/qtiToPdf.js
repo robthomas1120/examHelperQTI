@@ -406,29 +406,12 @@ class QTIToPDFConverter {
     }
 
     /**
-     * Generate PDF with extracted questions
-     * @returns {Promise<Blob>} - PDF blob
+     * Generate PDF from QTI questions
+     * @returns {Blob} PDF as blob
      */
-    async generatePDF() {
-        // Get paper size configuration
-        const paperConfig = this.paperSizes[this.paperSize] || this.paperSizes.a4;
-        
-        // Create new PDF document
-        const pdf = new this.jspdf({
-            orientation: paperConfig.orientation,
-            unit: paperConfig.unit,
-            format: [paperConfig.width, paperConfig.height]
-        });
-        
-        // Set metadata
-        pdf.setProperties({
-            title: this.title,
-            subject: "QTI Exam",
-            author: "QTI to PDF Converter",
-            creator: "QTI to PDF Converter"
-        });
-        
-        // Margin settings
+    generatePDF() {
+        // Configure paper size
+        const paperConfig = this.paperSizes[this.paperSize];
         const margin = {
             top: 20,
             right: 20,
@@ -436,10 +419,17 @@ class QTIToPDFConverter {
             left: 20
         };
         
-        // Available width for content
+        // Calculate content width
         const contentWidth = paperConfig.width - margin.left - margin.right;
         
-        // Current Y position
+        // Create PDF document
+        const pdf = new this.jspdf({
+            orientation: paperConfig.orientation,
+            unit: 'mm',
+            format: [paperConfig.width, paperConfig.height]
+        });
+        
+        // Set initial y position
         let y = margin.top;
         
         // Add university header
@@ -504,115 +494,127 @@ class QTIToPDFConverter {
                 pdf.addPage();
                 y = margin.top;
                 
-                // Always add page number
+                // Add page number
                 this.addPageNumber(pdf);
             }
             
             // Question number and text
             pdf.setFontSize(12);
             pdf.setFont("helvetica", "bold");
-            pdf.text(`${i + 1}. `, margin.left, y);
+            const questionNumber = i + 1;
             
-            // Question text (indented)
-            const questionIndent = margin.left + 7;
-            pdf.setFont("helvetica", "normal");
-            
-            // Check if question text contains HTML, and clean it
-            const cleanedText = this.cleanHtml(question.text);
-            
-            // Split long text to fit page width
-            const textLines = pdf.splitTextToSize(cleanedText, contentWidth - 7);
-            pdf.text(textLines, questionIndent, y);
-            
-            // Move down based on number of lines
-            y += textLines.length * 5 + 5;
-            
-            // Process answer options based on question type
-            if (question.type.includes("multiple_choice") || question.type.includes("multiple_answers")) {
-                pdf.setFontSize(10);
+            // Handle true/false questions differently
+            if (question.type.includes("true_false")) {
+                // For true/false questions, show as statement with underline after the number
+                pdf.text(`${questionNumber}. _____ ${this.cleanHtml(question.text)}`, margin.left, y);
+                y += 8;
                 
-                // Draw options
-                for (let j = 0; j < question.options.length; j++) {
-                    const option = question.options[j];
-                    
-                    // Check if we need a new page
-                    if (y > paperConfig.height - margin.bottom - 20) {
-                        pdf.addPage();
-                        y = margin.top;
-                        
-                        // Always add page number
-                        this.addPageNumber(pdf);
-                    }
-                    
-                    // Option letter (A, B, C, etc.)
-                    const optionLetter = String.fromCharCode(65 + j);
-                    
-                    // Draw checkbox/circle for the option
-                    if (question.type.includes("multiple_choice")) {
-                        pdf.circle(margin.left + 3, y - 1.5, 1.5, 'S');
-                    } else if (question.type.includes("multiple_answers")) {
-                        // Draw a square for multiple answer questions
-                        pdf.rect(margin.left + 2, y - 3, 3, 3, 'S');
-                    }
-                    
-                    // If including answers and this is the correct answer
-                    if (this.includeAnswers && option.correct) {
-                        if (question.type.includes("multiple_choice")) {
-                            // Fill the circle for correct answer
-                            pdf.circle(margin.left + 3, y - 1.5, 0.8, 'F');
-                        } else if (question.type.includes("multiple_answers")) {
-                            // Draw an X in the square for correct answer
-                            pdf.setLineWidth(0.3);
-                            pdf.line(margin.left + 2, y - 3, margin.left + 5, y);
-                            pdf.line(margin.left + 5, y - 3, margin.left + 2, y);
-                            pdf.setLineWidth(0.2);
-                        }
-                    }
-                    
-                    // Option text
-                    const optionText = `${optionLetter}. ${this.cleanHtml(option.text)}`;
-                    const optionIndent = margin.left + 7;
-                    
-                    // Split long option text
-                    const optionLines = pdf.splitTextToSize(optionText, contentWidth - 10);
-                    pdf.text(optionLines, optionIndent, y);
-                    
-                    // Move down based on number of lines
-                    y += optionLines.length * 5 + 3;
-                }
-            } else if (question.type.includes("true_false")) {
-                // For true/false questions, add one underline before the question number
-                // Go back to the question number position
-                const questionY = y - textLines.length * 5 - 5; // Go back to the question number position
-                
-                // Draw one underline before the question number
-                pdf.setDrawColor(0, 0, 0);
-                pdf.setLineWidth(0.5);
-                
-                // Calculate the position for the underline (before the question number)
-                const underlineX = margin.left - 15;
-                const underlineWidth = 12;
-                
-                // Draw one underline
-                pdf.line(underlineX, questionY, underlineX + underlineWidth, questionY);
-                
-                // If including answers, indicate the correct answer
+                // If including answers, show the correct answer
                 if (this.includeAnswers) {
-                    // Find the correct answer
-                    const correctAnswer = question.options.find(option => option.correct);
-                    if (correctAnswer) {
-                        pdf.setFontSize(10);
-                        pdf.setTextColor(70, 130, 180); // Steel Blue color for answers
-                        pdf.text(`Answer: ${correctAnswer.text}`, margin.left, y);
-                        pdf.setTextColor(0, 0, 0); // Reset to black
+                    pdf.setFont("helvetica", "italic");
+                    
+                    // Find the correct option
+                    const correctOption = question.options.find(option => option.correct);
+                    const correctAnswer = correctOption ? correctOption.text : "Unknown";
+                    
+                    pdf.text(`Answer: ${correctAnswer}`, margin.left + 20, y);
+                    pdf.setFont("helvetica", "normal");
+                    y += 8;
+                }
+            } else {
+                // For all other question types
+                pdf.text(`${questionNumber}. `, margin.left, y);
+                
+                // Question text (indented)
+                const questionIndent = margin.left + 7;
+                pdf.setFont("helvetica", "normal");
+                
+                // Check if question text contains HTML, and clean it
+                const cleanedText = this.cleanHtml(question.text);
+                
+                // Split long text to fit page width
+                const textLines = pdf.splitTextToSize(cleanedText, contentWidth - 7);
+                pdf.text(textLines, questionIndent, y);
+                
+                // Move down based on number of lines
+                y += textLines.length * 5 + 5;
+                
+                // Process answer options based on question type
+                if (question.type.includes("multiple_choice") || question.type.includes("multiple_answers")) {
+                    pdf.setFontSize(10);
+                    
+                    // Draw options
+                    for (let j = 0; j < question.options.length; j++) {
+                        const option = question.options[j];
+                        
+                        // Check if we need a new page
+                        if (y > paperConfig.height - margin.bottom - 20) {
+                            pdf.addPage();
+                            y = margin.top;
+                            
+                            // Always add page number
+                            this.addPageNumber(pdf);
+                        }
+                        
+                        // Option letter (A, B, C, etc.)
+                        const optionLetter = String.fromCharCode(65 + j);
+                        
+                        // Draw checkbox/circle for the option
+                        if (question.type.includes("multiple_choice")) {
+                            pdf.circle(margin.left + 3, y - 1.5, 1.5, 'S');
+                        } else if (question.type.includes("multiple_answers")) {
+                            // Draw a square for multiple answer questions
+                            pdf.rect(margin.left + 2, y - 3, 3, 3, 'S');
+                        }
+                        
+                        // If including answers and this is the correct answer
+                        if (this.includeAnswers && option.correct) {
+                            if (question.type.includes("multiple_choice")) {
+                                // Fill the circle for correct answer
+                                pdf.circle(margin.left + 3, y - 1.5, 0.8, 'F');
+                            } else if (question.type.includes("multiple_answers")) {
+                                // Draw an X in the square for correct answer
+                                pdf.setLineWidth(0.3);
+                                pdf.line(margin.left + 2, y - 3, margin.left + 5, y);
+                                pdf.line(margin.left + 5, y - 3, margin.left + 2, y);
+                                pdf.setLineWidth(0.2);
+                            }
+                        }
+                        
+                        // Option text
+                        const optionText = `${optionLetter}. ${this.cleanHtml(option.text)}`;
+                        const optionIndent = margin.left + 7;
+                        
+                        // Split long option text
+                        const optionLines = pdf.splitTextToSize(optionText, contentWidth - 10);
+                        pdf.text(optionLines, optionIndent, y);
+                        
+                        // Move down based on number of lines
+                        y += optionLines.length * 5 + 3;
+                    }
+                } else if (question.type.includes("essay")) {
+                    // Add blank lines for essay response
+                    pdf.setDrawColor(200, 200, 200);
+                    
+                    for (let j = 0; j < 10; j++) {
+                        // Check if we need a new page
+                        if (y > paperConfig.height - margin.bottom - 15) {
+                            pdf.addPage();
+                            y = margin.top;
+                            
+                            // Always add page number
+                            this.addPageNumber(pdf);
+                        }
+                        
+                        // Draw a line for writing
+                        pdf.line(margin.left, y + 4, paperConfig.width - margin.right, y + 4);
                         y += 8;
                     }
-                }
-            } else if (question.type.includes("essay")) {
-                // Add blank lines for essay response
-                pdf.setDrawColor(200, 200, 200);
-                
-                for (let j = 0; j < 10; j++) {
+                    
+                    pdf.setDrawColor(0, 0, 0);
+                } else if (question.type.includes("short_answer") || question.type.includes("fill_in")) {
+                    // Add blank space for short answer - no underlines
+                    
                     // Check if we need a new page
                     if (y > paperConfig.height - margin.bottom - 15) {
                         pdf.addPage();
@@ -622,39 +624,22 @@ class QTIToPDFConverter {
                         this.addPageNumber(pdf);
                     }
                     
-                    // Draw a line for writing
-                    pdf.line(margin.left, y + 4, paperConfig.width - margin.right, y + 4);
+                    // Add some space instead of drawing a line
                     y += 8;
-                }
-                
-                pdf.setDrawColor(0, 0, 0);
-            } else if (question.type.includes("short_answer") || question.type.includes("fill_in")) {
-                // Add blank space for short answer - no underlines
-                
-                // Check if we need a new page
-                if (y > paperConfig.height - margin.bottom - 15) {
-                    pdf.addPage();
-                    y = margin.top;
                     
-                    // Always add page number
-                    this.addPageNumber(pdf);
+                    // Show correct answer if enabled
+                    if (this.includeAnswers && question.correctAnswer) {
+                        pdf.setFontSize(10);
+                        pdf.setTextColor(70, 130, 180); // Steel Blue color for answers
+                        pdf.text(`Answer: ${question.correctAnswer}`, margin.left, y);
+                        pdf.setTextColor(0, 0, 0); // Reset to black
+                        y += 8;
+                    }
                 }
                 
-                // Add some space instead of drawing a line
-                y += 8;
-                
-                // Show correct answer if enabled
-                if (this.includeAnswers && question.correctAnswer) {
-                    pdf.setFontSize(10);
-                    pdf.setTextColor(70, 130, 180); // Steel Blue color for answers
-                    pdf.text(`Answer: ${question.correctAnswer}`, margin.left, y);
-                    pdf.setTextColor(0, 0, 0); // Reset to black
-                    y += 8;
-                }
+                // Add extra space between questions
+                y += 5;
             }
-            
-            // Add extra space between questions
-            y += 5;
         }
         
         // Add page number to the last page
