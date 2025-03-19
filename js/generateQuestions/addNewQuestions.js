@@ -36,6 +36,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const questionEntry = document.createElement('div');
         questionEntry.className = 'question-entry expanded';
         questionEntry.setAttribute('draggable', 'false');
+        
+        // Generate a unique ID for this question's radio group
+        const radioGroupId = `question-${generateUUID()}`;
+        questionEntry.dataset.radioGroupId = radioGroupId;
+        
         questionEntry.innerHTML = `
             <div class="question-header">
                 <span class="question-number" data-question-preview=""></span>
@@ -47,7 +52,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
             <div class="question-content">
-                ${getQuestionTemplate(type)}
+                ${getQuestionTemplate(type, radioGroupId)}
             </div>
         `;
         
@@ -178,10 +183,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to add event listeners for buttons that add new elements
     function setupButtonListeners() {
-        // Event delegation for add answer/option buttons
-        document.addEventListener('click', function(e) {
+        // Remove existing click listener to prevent multiple bindings
+        document.removeEventListener('click', handleButtonClicks);
+        
+        // Add the click listener
+        document.addEventListener('click', handleButtonClicks);
+        
+        // Handle button clicks for add/remove options
+        function handleButtonClicks(e) {
             // Add answer option button for multiple answers
             if (e.target.classList.contains('add-answer-btn')) {
+                e.stopPropagation(); // Prevent event bubbling
+                
                 const optionsContainer = e.target.closest('.options-container');
                 const newAnswerId = `answer${optionsContainer.querySelectorAll('.answer-entry').length + 1}-${generateUUID()}`;
                 
@@ -200,6 +213,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Add alternate answer button for fill in the blank
             if (e.target.classList.contains('add-alternate-answer-btn')) {
+                e.stopPropagation(); // Prevent event bubbling
+                
                 const optionsContainer = e.target.closest('.options-container');
                 const alternateAnswersContainer = optionsContainer.querySelector('.alternate-answers-container');
                 
@@ -226,7 +241,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const altAnswerEntry = button.closest('.alt-answer-entry');
                 altAnswerEntry.remove();
             }
-        });
+        }
     }
 
     // Document click handler for collapsing questions when clicking outside
@@ -365,15 +380,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Export as QTI functionality
     exportQtiBtn.addEventListener('click', async function() {
         if (validateQuiz()) {
-            const filename = document.getElementById('quiz-title').value.trim() || 'quiz';
+            // Get the quiz title from the input field
+            const quizTitle = document.getElementById('quiz-title').value.trim();
             
-            if (filename) {
-                try {
-                    await exportAsQTI(filename);
-                } catch (error) {
-                    console.error('Error exporting quiz:', error);
-                    alert('Failed to export quiz. Please make sure all questions are properly filled out.');
-                }
+            // Format the filename as v2samplequiz_qti instead of using the time
+            const filename = quizTitle ? quizTitle.toLowerCase().replace(/\s+/g, '') + '_qti' : 'v2samplequiz_qti';
+            
+            try {
+                await exportAsQTI(filename);
+            } catch (error) {
+                console.error('Error exporting quiz:', error);
+                alert('Failed to export quiz. Please make sure all questions are properly filled out.');
             }
         }
     });
@@ -531,10 +548,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const zip = new JSZip();
             
             // Generate unique identifier for the quiz
-            const quizIdentifier = "question_" + generateUUID().substring(0, 8);
-            
-            // Create root folder in zip
-            const rootFolder = quizIdentifier;
+            const quizIdentifier = "qti_export_" + generateUUID().substring(0, 7);
             
             // Create questions XML with all questions
             const questionsXML = generateQuestionsXML(quizData, quizIdentifier);
@@ -549,7 +563,7 @@ document.addEventListener('DOMContentLoaded', function() {
             zip.file("imsmanifest.xml", manifestXML);
             
             // Create folder for quiz files
-            const quizFolder = zip.folder(rootFolder);
+            const quizFolder = zip.folder(quizIdentifier);
             
             // Add assessment meta file
             quizFolder.file("assessment_meta.xml", assessmentMetaXML);
@@ -565,9 +579,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const a = document.createElement('a');
             a.href = url;
             
-            // Ensure filename has .zip extension
+            // Ensure filename has .zip extension but don't add it if it already has _qti suffix
             if (!filename.toLowerCase().endsWith('.zip')) {
-                filename = filename.replace(/\.qti$/i, '') + '.zip';
+                filename = filename + '.zip';
             }
             
             a.download = filename;
@@ -587,64 +601,114 @@ document.addEventListener('DOMContentLoaded', function() {
     function generateManifestXML(quizId, title, description) {
         const safeTitle = escapeXML(title);
         const safeDescription = escapeXML(description);
+        const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
         
         let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<manifest identifier="${quizId}" xmlns="http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1" xmlns:lom="http://ltsc.ieee.org/xsd/imsccv1p1/LOM/resource" xmlns:imsmd="http://www.imsglobal.org/xsd/imsmd_v1p2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1 http://www.imsglobal.org/xsd/imscp_v1p1.xsd http://ltsc.ieee.org/xsd/imsccv1p1/LOM/resource http://www.imsglobal.org/xsd/imsmd_v1p2p4.xsd">
-  <metadata>
-    <schema>IMS Content</schema>
-    <schemaversion>1.1.3</schemaversion>
-    <imsmd:lom>
-      <imsmd:general>
-        <imsmd:title>
-          <imsmd:string>${safeTitle}</imsmd:string>
-        </imsmd:title>
-        <imsmd:description>
-          <imsmd:string>${safeDescription}</imsmd:string>
-        </imsmd:description>
-      </imsmd:general>
-    </imsmd:lom>
-  </metadata>
-  <organizations/>
-  <resources>
-    <resource identifier="${quizId}_assessment" type="imsqti_xmlv1p2">
-      <file href="${quizId}/assessment_meta.xml"/>
-      <file href="${quizId}/questions.xml"/>
-    </resource>
-  </resources>
+<manifest identifier="${quizId}_manifest" xmlns="http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1" xmlns:lom="http://ltsc.ieee.org/xsd/imsccv1p1/LOM/resource" xmlns:imsmd="http://www.imsglobal.org/xsd/imsmd_v1p2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1 http://www.imsglobal.org/xsd/imscp_v1p1.xsd http://ltsc.ieee.org/xsd/imsccv1p1/LOM/resource http://www.imsglobal.org/profile/cc/ccv1p0/LOM/ccv1p0_lomresource_v1p0.xsd http://www.imsglobal.org/xsd/imsmd_v1p2 http://www.imsglobal.org/xsd/imsmd_v1p2p2.xsd">
+<metadata>
+  <schema>IMS Content</schema>
+  <schemaversion>1.1.3</schemaversion>
+  <imsmd:lom>
+    <imsmd:general>
+      <imsmd:title>
+        <imsmd:string>${safeTitle}</imsmd:string>
+      </imsmd:title>
+    </imsmd:general>
+    <imsmd:lifeCycle>
+      <imsmd:contribute>
+        <imsmd:date>
+          <imsmd:dateTime>${today}</imsmd:dateTime>
+        </imsmd:date>
+      </imsmd:contribute>
+    </imsmd:lifeCycle>
+    <imsmd:rights>
+      <imsmd:copyrightAndOtherRestrictions>
+        <imsmd:value>yes</imsmd:value>
+      </imsmd:copyrightAndOtherRestrictions>
+      <imsmd:description>
+        <imsmd:string>Private (Copyrighted) - http://en.wikipedia.org/wiki/Copyright</imsmd:string>
+      </imsmd:description>
+    </imsmd:rights>
+  </imsmd:lom>
+</metadata>
+<organizations/>
+<resources>
+  <resource identifier="${quizId}" type="imsqti_xmlv1p2">
+    <file href="${quizId}/questions.xml"/>
+    <dependency identifierref="${quizId}_dependency"/>
+  </resource>
+  <resource identifier="${quizId}_dependency" type="associatedcontent/imscc_xmlv1p1/learning-application-resource" href="${quizId}/assessment_meta.xml">
+    <file href="${quizId}/assessment_meta.xml"/>
+  </resource>
+</resources>
 </manifest>`;
         
         return xml;
     }
-    
+
     // Function to generate assessment meta XML
     function generateAssessmentMetaXML(quizId, title, description, questionCount) {
         const safeTitle = escapeXML(title);
         const safeDescription = escapeXML(description);
+        const pointsPossible = questionCount.toFixed(1); // Format as decimal with one place
         
         let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<quiz identifier="${quizId}" xmlns="http://www.imsglobal.org/xsd/ims_qtiasiv1p2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/ims_qtiasiv1p2 http://www.imsglobal.org/xsd/ims_qtiasiv1p2p1.xsd">
+<quiz identifier="${quizId}" xmlns="http://canvas.instructure.com/xsd/cccv1p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://canvas.instructure.com/xsd/cccv1p0 https://canvas.instructure.com/xsd/cccv1p0.xsd">
+<title>${safeTitle}</title>
+<description>${safeDescription}</description>
+<shuffle_answers>false</shuffle_answers>
+<scoring_policy>keep_highest</scoring_policy>
+<hide_results></hide_results>
+<quiz_type>assignment</quiz_type>
+<points_possible>${pointsPossible}</points_possible>
+<require_lockdown_browser>false</require_lockdown_browser>
+<require_lockdown_browser_for_results>false</require_lockdown_browser_for_results>
+<require_lockdown_browser_monitor>false</require_lockdown_browser_monitor>
+<lockdown_browser_monitor_data/>
+<show_correct_answers>true</show_correct_answers>
+<anonymous_submissions>false</anonymous_submissions>
+<could_be_locked>false</could_be_locked>
+<allowed_attempts>1</allowed_attempts>
+<one_question_at_a_time>false</one_question_at_a_time>
+<cant_go_back>false</cant_go_back>
+<available>false</available>
+<one_time_results>false</one_time_results>
+<show_correct_answers_last_attempt>false</show_correct_answers_last_attempt>
+<only_visible_to_overrides>false</only_visible_to_overrides>
+<module_locked>false</module_locked>
+<assignment identifier="itembank_assignment_t_${quizId.substring(quizId.indexOf('_') + 1)}">
   <title>${safeTitle}</title>
-  <description>${safeDescription}</description>
-  <duration>PT1H</duration>
-  <cc_profile_type>cc.exam.v0p1</cc_profile_type>
-  <questestinterop>
-    <assessment title="${safeTitle}" ident="${quizId}">
-      <metadatafield>
-        <fieldlabel>cc_maxattempts</fieldlabel>
-        <fieldentry>1</fieldentry>
-      </metadatafield>
-      <section ident="root_section">
-        <item_metadata>
-          <item_count>${questionCount}</item_count>
-        </item_metadata>
-      </section>
-    </assessment>
-  </questestinterop>
+  <due_at/>
+  <lock_at/>
+  <unlock_at/>
+  <module_locked>false</module_locked>
+  <workflow_state>unpublished</workflow_state>
+  <assignment_overrides>
+  </assignment_overrides>
+  <quiz_identifierref>${quizId}</quiz_identifierref>
+  <allowed_extensions></allowed_extensions>
+  <has_group_category>false</has_group_category>
+  <points_possible>${pointsPossible}</points_possible>
+  <grading_type>points</grading_type>
+  <all_day>false</all_day>
+  <submission_types>online_quiz</submission_types>
+  <position>1</position>
+  <turnitin_enabled>false</turnitin_enabled>
+  <vericite_enabled>false</vericite_enabled>
+  <peer_review_count>0</peer_review_count>
+  <peer_reviews>false</peer_reviews>
+  <automatic_peer_reviews>false</automatic_peer_reviews>
+  <anonymous_peer_reviews>false</anonymous_peer_reviews>
+  <grade_group_students_individually>false</grade_group_students_individually>
+  <freeze_on_copy>false</freeze_on_copy>
+  <omit_from_final_grade>false</omit_from_final_grade>
+  <intra_group_peer_reviews>false</intra_group_peer_reviews>
+</assignment>
 </quiz>`;
         
         return xml;
     }
-    
+
     // Function to generate complete questions XML
     function generateQuestionsXML(quizData, quizId) {
         const safeTitle = escapeXML(quizData.title);
@@ -946,28 +1010,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Get the HTML template for a specific question type
-    function getQuestionTemplate(type) {
+    function getQuestionTemplate(type, radioGroupId) {
         const templates = {
             'multiple-choice': `
                 <textarea placeholder="Enter your question here..."></textarea>
                 <div class="options-container">
                     <div class="option-entry">
-                        <input type="radio" name="option-group-${generateUUID()}" id="option1-${generateUUID()}">
+                        <input type="radio" name="${radioGroupId}" id="option1-${generateUUID()}">
                         <label></label>
                         <input type="text" placeholder="Option 1">
                     </div>
                     <div class="option-entry">
-                        <input type="radio" name="option-group-${generateUUID()}" id="option2-${generateUUID()}">
+                        <input type="radio" name="${radioGroupId}" id="option2-${generateUUID()}">
                         <label></label>
                         <input type="text" placeholder="Option 2">
                     </div>
                     <div class="option-entry">
-                        <input type="radio" name="option-group-${generateUUID()}" id="option3-${generateUUID()}">
+                        <input type="radio" name="${radioGroupId}" id="option3-${generateUUID()}">
                         <label></label>
                         <input type="text" placeholder="Option 3">
                     </div>
                     <div class="option-entry">
-                        <input type="radio" name="option-group-${generateUUID()}" id="option4-${generateUUID()}">
+                        <input type="radio" name="${radioGroupId}" id="option4-${generateUUID()}">
                         <label></label>
                         <input type="text" placeholder="Option 4">
                     </div>
@@ -988,12 +1052,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 <textarea placeholder="Enter your question here..."></textarea>
                 <div class="options-container">
                     <div class="option-entry">
-                        <input type="radio" name="true-false-group-${generateUUID()}" id="true-${generateUUID()}" value="true">
+                        <input type="radio" name="${radioGroupId}" id="true-${generateUUID()}" value="true">
                         <label></label>
                         <span>True</span>
                     </div>
                     <div class="option-entry">
-                        <input type="radio" name="true-false-group-${generateUUID()}" id="false-${generateUUID()}" value="false">
+                        <input type="radio" name="${radioGroupId}" id="false-${generateUUID()}" value="false">
                         <label></label>
                         <span>False</span>
                     </div>
