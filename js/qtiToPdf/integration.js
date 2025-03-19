@@ -85,7 +85,7 @@ function addQtiToPdfTab() {
                 <div class="checkbox-group">
                     <div class="checkbox-item">
                         <input type="checkbox" id="qti-include-answers" checked>
-                        <label for="qti-include-answers">Include Answers</label>
+                        <label for="qti-include-answers">Generate Answer Key</label>
                     </div>
                     <div class="checkbox-item">
                         <input type="checkbox" id="qti-include-images" checked>
@@ -126,6 +126,9 @@ function addQtiToPdfTab() {
             <div id="qti-conversion-summary" class="conversion-summary"></div>
             <button id="qti-download-btn" class="secondary-btn">
                 <i class="fas fa-download"></i> Download PDF
+            </button>
+            <button id="qti-download-answer-key-btn" class="secondary-btn hidden">
+                <i class="fas fa-download"></i> Download Answer Key PDF
             </button>
         </div>
         

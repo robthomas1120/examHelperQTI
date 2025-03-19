@@ -758,9 +758,6 @@ class QTIToPDFConverter {
         }
     }
 
-    // Rest of the QTIToPDFConverter methods (parseQuestionsXml, generatePDF, etc.)
-    // These are the same as in the original qtiToPdf.js file
-    
     /**
      * Parse questions XML
      * @param {String} xml - Questions XML content
@@ -805,7 +802,7 @@ class QTIToPDFConverter {
                 let options = [];
                 let correctAnswer = null;
                 
-                if (questionType.includes("multiple_choice") || questionType.includes("multiple_answers")) {
+                if (questionType.includes("multiple_choice")) {
                     // Get options
                     const responseLabels = itemNode.querySelectorAll("response_label");
                     responseLabels.forEach((label) => {
@@ -822,6 +819,8 @@ class QTIToPDFConverter {
                     
                     // Find correct answer(s)
                     const respConditions = itemNode.querySelectorAll("respcondition");
+                    let foundCorrectAnswer = false;
+                    
                     respConditions.forEach((condition) => {
                         const setvarNode = condition.querySelector("setvar[varname='SCORE'][action='Set']");
                         
@@ -830,6 +829,7 @@ class QTIToPDFConverter {
                             
                             varequals.forEach((varequal) => {
                                 const responseId = varequal.textContent.trim();
+                                foundCorrectAnswer = true;
                                 
                                 // Mark option as correct
                                 options.forEach((option) => {
@@ -837,14 +837,33 @@ class QTIToPDFConverter {
                                         option.correct = true;
                                     }
                                 });
-                                
-                                // For single answer questions, set the correct answer
-                                if (questionType.includes("multiple_choice")) {
-                                    correctAnswer = responseId;
-                                }
                             });
                         }
                     });
+                    
+                    // If no correct answers were found, this might be a different format
+                    // Try to find correct answers through response_lid/render_choice
+                    if (!foundCorrectAnswer) {
+                        // Reset all options to not correct first
+                        options.forEach(option => option.correct = false);
+                        
+                        // Try to find correct answers in a different way
+                        const correctPattern = itemNode.querySelector("setvar[varname='SCORE'][action='Set'][textContent^='1']");
+                        if (correctPattern) {
+                            const parentCondition = correctPattern.closest("respcondition");
+                            if (parentCondition) {
+                                const correctVarequals = parentCondition.querySelectorAll("varequal");
+                                correctVarequals.forEach(varequal => {
+                                    const correctId = varequal.textContent.trim();
+                                    options.forEach(option => {
+                                        if (option.id === correctId) {
+                                            option.correct = true;
+                                        }
+                                    });
+                                });
+                            }
+                        }
+                    }
                 } else if (questionType.includes("true_false")) {
                     // Handle true/false questions
                     const respCondition = itemNode.querySelector("respcondition");
@@ -893,6 +912,65 @@ class QTIToPDFConverter {
                     if (correctAnswers.length > 0) {
                         correctAnswer = correctAnswers.join(", ");
                     }
+                } else if (questionType.includes("multiple_answers")) {
+                    // Get options
+                    const responseLabels = itemNode.querySelectorAll("response_label");
+                    responseLabels.forEach((label) => {
+                        const id = label.getAttribute("ident");
+                        const textNode = label.querySelector("mattext");
+                        const text = textNode ? this.cleanHtml(textNode.textContent) : "";
+                        
+                        options.push({
+                            id: id,
+                            text: text,
+                            correct: false
+                        });
+                    });
+                    
+                    // Find correct answers - for multiple_answers, we need to look at the <and> structure
+                    const respConditions = itemNode.querySelectorAll("respcondition");
+                    
+                    respConditions.forEach((condition) => {
+                        const setvarNode = condition.querySelector("setvar[varname='SCORE'][action='Set']");
+                        
+                        if (setvarNode && parseFloat(setvarNode.textContent) > 0) {
+                            // Look for the <and> element that contains the correct answers
+                            const andElement = condition.querySelector("and");
+                            
+                            if (andElement) {
+                                // Get all direct varequal children (these are the correct answers)
+                                const directVarequals = Array.from(andElement.children).filter(
+                                    child => child.tagName === "varequal"
+                                );
+                                
+                                // Mark these options as correct
+                                directVarequals.forEach(varequal => {
+                                    const responseId = varequal.textContent.trim();
+                                    options.forEach(option => {
+                                        if (option.id === responseId) {
+                                            option.correct = true;
+                                        }
+                                    });
+                                });
+                                
+                                // Get all <not> elements (these contain incorrect answers)
+                                const notElements = andElement.querySelectorAll("not");
+                                
+                                // Make sure these options are marked as incorrect
+                                notElements.forEach(notElement => {
+                                    const varequal = notElement.querySelector("varequal");
+                                    if (varequal) {
+                                        const responseId = varequal.textContent.trim();
+                                        options.forEach(option => {
+                                            if (option.id === responseId) {
+                                                option.correct = false;
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                        }
+                    });
                 }
                 
                 // Add question to array
@@ -1098,7 +1176,7 @@ class QTIToPDFConverter {
             y += textLines.length * 5 + 5;
             
             // Process answer options based on question type
-            if (question.type.includes("multiple_choice") || question.type.includes("multiple_answers")) {
+            if (question.type.includes("multiple_choice")) {
                 pdf.setFontSize(10);
                 
                 // Draw options
@@ -1120,24 +1198,12 @@ class QTIToPDFConverter {
                     const optionLetter = String.fromCharCode(65 + j);
                     
                     // Draw checkbox/circle for the option
-                    if (question.type.includes("multiple_choice")) {
-                        pdf.circle(margin.left + 3, y - 1.5, 1.5, 'S');
-                    } else {
-                        pdf.rect(margin.left + 1.5, y - 3, 3, 3, 'S');
-                    }
+                    pdf.circle(margin.left + 3, y - 1.5, 1.5, 'S');
                     
                     // If including answers and this is the correct answer
                     if (this.includeAnswers && option.correct) {
-                        if (question.type.includes("multiple_choice")) {
-                            // Fill the circle for correct answer
-                            pdf.circle(margin.left + 3, y - 1.5, 0.8, 'F');
-                        } else {
-                            // Draw an X for multiple answer
-                            pdf.setLineWidth(0.2);
-                            pdf.line(margin.left + 1.8, y - 2.7, margin.left + 4.2, y - 0.3);
-                            pdf.line(margin.left + 4.2, y - 2.7, margin.left + 1.8, y - 0.3);
-                            pdf.setLineWidth(0.5);
-                        }
+                        // Fill the circle for correct answer
+                        pdf.circle(margin.left + 3, y - 1.5, 0.8, 'F');
                     }
                     
                     // Option text
@@ -1202,27 +1268,21 @@ class QTIToPDFConverter {
                 
                 pdf.setDrawColor(0, 0, 0);
             } else if (question.type.includes("short_answer") || question.type.includes("fill_in")) {
-                // Add blank space for short answer
-                pdf.setDrawColor(200, 200, 200);
+                // Add blank space for short answer - no underlines
                 
-                for (let j = 0; j < 3; j++) {
-                    // Check if we need a new page
-                    if (y > paperConfig.height - margin.bottom - 15) {
-                        pdf.addPage();
-                        y = margin.top;
-                        
-                        // Add page number if enabled
-                        if (this.includePageNumbers) {
-                            this.addPageNumber(pdf);
-                        }
-                    }
+                // Check if we need a new page
+                if (y > paperConfig.height - margin.bottom - 15) {
+                    pdf.addPage();
+                    y = margin.top;
                     
-                    // Draw a line for writing
-                    pdf.line(margin.left, y + 4, paperConfig.width - margin.right, y + 4);
-                    y += 8;
+                    // Add page number if enabled
+                    if (this.includePageNumbers) {
+                        this.addPageNumber(pdf);
+                    }
                 }
                 
-                pdf.setDrawColor(0, 0, 0);
+                // Add some space instead of drawing a line
+                y += 8;
                 
                 // Show correct answer if enabled
                 if (this.includeAnswers && question.correctAnswer) {
@@ -1232,6 +1292,88 @@ class QTIToPDFConverter {
                     pdf.setTextColor(0, 0, 0); // Reset to black
                     y += 8;
                 }
+            } else if (question.type.includes("multiple_answers")) {
+                // For multiple answer questions, display options normally in the exam
+                // But in the answer key, show the correct answers as text
+                
+                // Check if we need a new page
+                if (y > paperConfig.height - margin.bottom - 15) {
+                    pdf.addPage();
+                    y = margin.top;
+                    
+                    // Add page number if enabled
+                    if (this.includePageNumbers) {
+                        this.addPageNumber(pdf);
+                    }
+                }
+                
+                // Display options normally
+                for (let j = 0; j < question.options.length; j++) {
+                    const option = question.options[j];
+                    
+                    // Check if we need a new page
+                    if (y > paperConfig.height - margin.bottom - 10) {
+                        pdf.addPage();
+                        y = margin.top;
+                        
+                        // Add page number if enabled
+                        if (this.includePageNumbers) {
+                            this.addPageNumber(pdf);
+                        }
+                    }
+                    
+                    // Option letter (A, B, C, etc.)
+                    const optionLetter = String.fromCharCode(65 + j);
+                    
+                    // Draw checkbox/circle for the option
+                    pdf.circle(margin.left + 3, y - 1.5, 1.5, 'S');
+                    
+                    // Option text
+                    const optionText = `${optionLetter}. ${this.cleanHtml(option.text)}`;
+                    const optionIndent = margin.left + 7;
+                    
+                    // Split long option text
+                    const optionLines = pdf.splitTextToSize(optionText, paperConfig.width - optionIndent - margin.right);
+                    
+                    // Add option text
+                    pdf.text(optionLines, optionIndent, y);
+                    
+                    // Move down for next option
+                    y += 5 + (optionLines.length - 1) * 5;
+                }
+                
+                // If including answers, show correct answers as text
+                if (this.includeAnswers) {
+                    // Get correct answers
+                    const correctAnswers = question.options
+                        .filter(option => option.correct)
+                        .map(option => option.text);
+                    
+                    if (correctAnswers.length > 0) {
+                        // Add some space
+                        y += 3;
+                        
+                        // Show correct answers
+                        pdf.setFontSize(10);
+                        pdf.setTextColor(70, 130, 180); // Steel Blue color for answers
+                        
+                        // Format answer text
+                        const answerText = `Answer: ${correctAnswers.join(', ')}`;
+                        const answerLines = pdf.splitTextToSize(answerText, paperConfig.width - margin.left - margin.right);
+                        
+                        // Add answer text
+                        pdf.text(answerLines, margin.left, y);
+                        
+                        // Move down and reset text color
+                        y += 5 + (answerLines.length - 1) * 5;
+                        pdf.setTextColor(0, 0, 0); // Reset to black
+                    }
+                }
+                
+                // Add space after question
+                y += 5;
+                
+                pdf.setDrawColor(0, 0, 0);
             }
             
             // Add extra space between questions

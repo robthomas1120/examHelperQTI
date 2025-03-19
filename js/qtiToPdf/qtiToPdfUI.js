@@ -7,6 +7,8 @@ class QTIToPDFUI {
     constructor() {
         this.converter = new QTIToPDFConverter();
         this.currentFile = null;
+        this.pdfBlob = null;
+        this.answerKeyPdfBlob = null;
         
         // Initialize UI elements
         this.initElements();
@@ -37,6 +39,7 @@ class QTIToPDFUI {
             previewArea: document.getElementById('qti-preview'),
             convertBtn: document.getElementById('qti-convert-btn'),
             downloadBtn: document.getElementById('qti-download-btn'),
+            downloadAnswerKeyBtn: document.getElementById('qti-download-answer-key-btn'),
             
             // Status and results elements
             resultsSection: document.getElementById('qti-results-section'),
@@ -95,7 +98,7 @@ class QTIToPDFUI {
                     <div class="checkbox-group">
                         <div class="checkbox-item">
                             <input type="checkbox" id="qti-include-answers" checked>
-                            <label for="qti-include-answers">Include Answers</label>
+                            <label for="qti-include-answers">Generate Answer Key</label>
                         </div>
                         <div class="checkbox-item">
                             <input type="checkbox" id="qti-include-images" checked>
@@ -136,6 +139,9 @@ class QTIToPDFUI {
                 <div id="qti-conversion-summary" class="conversion-summary"></div>
                 <button id="qti-download-btn" class="secondary-btn">
                     <i class="fas fa-download"></i> Download PDF
+                </button>
+                <button id="qti-download-answer-key-btn" class="secondary-btn hidden">
+                    <i class="fas fa-download"></i> Download Answer Key PDF
                 </button>
             </div>
             
@@ -182,6 +188,11 @@ class QTIToPDFUI {
         // Download button
         if (this.elements.downloadBtn) {
             this.elements.downloadBtn.addEventListener('click', this.handleDownloadClick.bind(this));
+        }
+        
+        // Download answer key button
+        if (this.elements.downloadAnswerKeyBtn) {
+            this.elements.downloadAnswerKeyBtn.addEventListener('click', this.handleDownloadAnswerKeyClick.bind(this));
         }
         
         // Option changes
@@ -448,7 +459,7 @@ class QTIToPDFUI {
             // Get options from form
             const options = {
                 title: this.elements.titleInput.value.trim(),
-                includeAnswers: this.elements.includeAnswers.checked,
+                includeAnswers: false, // Always exclude answers from the exam PDF
                 includeImages: this.elements.includeImages.checked,
                 includePageNumbers: this.elements.includePageNumbers.checked,
                 paperSize: this.elements.paperSize.value
@@ -457,11 +468,34 @@ class QTIToPDFUI {
             // Set converter options
             this.converter.setOptions(options);
             
-            // Convert to PDF
-            const pdfBlob = await this.converter.convertToPDF(this.currentFile);
+            // Convert to PDF (exam without answers)
+            const examPdfBlob = await this.converter.convertToPDF(this.currentFile);
             
-            // Store blob for download
-            this.pdfBlob = pdfBlob;
+            // Store exam PDF blob for download
+            this.pdfBlob = examPdfBlob;
+            
+            // Generate answer key PDF if option is checked
+            if (this.elements.includeAnswers.checked) {
+                // Create a new instance for the answer key
+                const answerKeyConverter = new QTIToPDFConverter();
+                
+                // Set options for answer key (include answers)
+                const answerKeyOptions = {
+                    title: this.elements.titleInput.value.trim() + " - Answer Key",
+                    includeAnswers: true, // Include answers in the answer key
+                    includeImages: this.elements.includeImages.checked,
+                    includePageNumbers: this.elements.includePageNumbers.checked,
+                    paperSize: this.elements.paperSize.value
+                };
+                
+                answerKeyConverter.setOptions(answerKeyOptions);
+                
+                // Convert to PDF (answer key with answers)
+                const answerKeyPdfBlob = await answerKeyConverter.convertToPDF(this.currentFile);
+                
+                // Store answer key PDF blob
+                this.answerKeyPdfBlob = answerKeyPdfBlob;
+            }
             
             // Update results section
             this.updateResults(true);
@@ -507,6 +541,38 @@ class QTIToPDFUI {
     }
 
     /**
+     * Handle download answer key button click
+     * @param {MouseEvent} e - Click event
+     */
+    handleDownloadAnswerKeyClick(e) {
+        if (!this.answerKeyPdfBlob) {
+            this.showError('No answer key PDF available for download. Please convert first.');
+            return;
+        }
+        
+        // Create filename from title
+        const title = this.elements.titleInput.value.trim();
+        const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const filename = `${sanitizedTitle}_answer_key.pdf`;
+        
+        // Create download link
+        const url = URL.createObjectURL(this.answerKeyPdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        
+        // Trigger download
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        // Clean up
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 100);
+    }
+
+    /**
      * Update convert button state
      */
     updateButtonState() {
@@ -534,9 +600,14 @@ class QTIToPDFUI {
                 </div>
                 <p><strong>Title:</strong> ${this.elements.titleInput.value}</p>
                 <p><strong>Paper Size:</strong> ${paperSize}</p>
-                <p><strong>Answers Included:</strong> ${this.elements.includeAnswers.checked ? 'Yes' : 'No'}</p>
+                <p><strong>Answer Key Generated:</strong> ${this.elements.includeAnswers.checked ? 'Yes' : 'No'}</p>
                 <p><strong>Page Numbers Included:</strong> ${this.elements.includePageNumbers.checked ? 'Yes' : 'No'}</p>
             `;
+            
+            // Show download answer key button if answer key was generated
+            if (this.answerKeyPdfBlob) {
+                this.elements.downloadAnswerKeyBtn.classList.remove('hidden');
+            }
             
             // Scroll to results
             this.elements.resultsSection.scrollIntoView({ behavior: 'smooth' });
