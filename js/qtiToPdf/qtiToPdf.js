@@ -14,7 +14,7 @@ class QTIToPDFConverter {
         this.questions = [];
         this.title = "Exam";
         this.includeAnswers = true;
-        this.includeImages = false;
+        this.includeImages = false; // Always false, option removed from UI
         this.paperSize = "a4"; // Default paper size
         this.college = ""; // Default empty, will be set by setOptions
         this.generalDirections = ""; // Default empty, will be set by setOptions
@@ -61,7 +61,7 @@ class QTIToPDFConverter {
     setOptions(options) {
         if (options.title) this.title = options.title;
         if (options.includeAnswers !== undefined) this.includeAnswers = options.includeAnswers;
-        if (options.includeImages !== undefined) this.includeImages = options.includeImages;
+        // includeImages is always false, option removed from UI
         if (options.paperSize) this.paperSize = options.paperSize;
         if (options.college) this.college = options.college;
         if (options.generalDirections) this.generalDirections = options.generalDirections;
@@ -210,7 +210,6 @@ class QTIToPDFConverter {
                     
                     // Find correct answer
                     const respConditions = itemNode.querySelectorAll("respcondition");
-                    let foundCorrectAnswer = false;
                     
                     respConditions.forEach((condition) => {
                         const setvarNode = condition.querySelector("setvar[varname='SCORE'][action='Set']");
@@ -220,10 +219,7 @@ class QTIToPDFConverter {
                             
                             if (varequal) {
                                 const responseId = varequal.textContent.trim();
-                                foundCorrectAnswer = true;
-                                
-                                // Mark option as correct
-                                question.options.forEach((option) => {
+                                question.options.forEach(option => {
                                     if (option.id === responseId) {
                                         option.correct = true;
                                     }
@@ -231,30 +227,62 @@ class QTIToPDFConverter {
                             }
                         }
                     });
+                } else if (questionType.includes("true_false")) {
+                    // For true/false questions, add True and False options
+                    question.options = [];
                     
-                    // If no correct answers were found, this might be a different format
-                    // Try to find correct answers through response_lid/render_choice
-                    if (!foundCorrectAnswer) {
-                        // Reset all options to not correct first
-                        question.options.forEach(option => option.correct = false);
+                    // Get the response_labels which contain true/false options
+                    const responseLabels = itemNode.querySelectorAll("response_label");
+                    responseLabels.forEach((label) => {
+                        const id = label.getAttribute("ident");
+                        const textNode = label.querySelector("mattext");
+                        const text = textNode ? this.cleanHtml(textNode.textContent) : "";
                         
-                        // Try to find correct answers in a different way
-                        const correctPattern = itemNode.querySelector("setvar[varname='SCORE'][action='Set'][textContent^='100']");
-                        if (correctPattern) {
-                            const parentCondition = correctPattern.closest("respcondition");
-                            if (parentCondition) {
-                                const correctVarequals = parentCondition.querySelectorAll("varequal");
-                                correctVarequals.forEach(varequal => {
-                                    const correctId = varequal.textContent.trim();
-                                    question.options.forEach(option => {
-                                        if (option.id === correctId) {
-                                            option.correct = true;
-                                        }
-                                    });
+                        // Add the option (true or false)
+                        question.options.push({
+                            id: id,
+                            text: text.charAt(0).toUpperCase() + text.slice(1), // Capitalize first letter
+                            correct: false
+                        });
+                    });
+                    
+                    // Find correct answer
+                    const respConditions = itemNode.querySelectorAll("respcondition");
+                    
+                    respConditions.forEach((condition) => {
+                        const setvarNode = condition.querySelector("setvar[varname='SCORE'][action='Set']");
+                        
+                        if (setvarNode && parseFloat(setvarNode.textContent) > 0) {
+                            const varequal = condition.querySelector("varequal");
+                            
+                            if (varequal) {
+                                const responseId = varequal.textContent.trim();
+                                
+                                // Mark the correct option
+                                question.options.forEach(option => {
+                                    if (option.id === responseId) {
+                                        option.correct = true;
+                                    }
                                 });
                             }
                         }
-                    }
+                    });
+                } else if (questionType.includes("fill_in") || questionType.includes("short_answer")) {
+                    // For fill in the blank questions, find the correct answer
+                    const respConditions = itemNode.querySelectorAll("respcondition");
+                    
+                    respConditions.forEach((condition) => {
+                        const setvarNode = condition.querySelector("setvar[varname='SCORE'][action='Set']");
+                        
+                        if (setvarNode && parseFloat(setvarNode.textContent) > 0) {
+                            const varequal = condition.querySelector("varequal");
+                            
+                            if (varequal) {
+                                const correctAnswer = varequal.textContent.trim();
+                                question.correctAnswer = correctAnswer;
+                            }
+                        }
+                    });
                 } else if (questionType.includes("multiple_answers")) {
                     // Get options
                     const responseLabels = itemNode.querySelectorAll("response_label");
@@ -506,7 +534,13 @@ class QTIToPDFConverter {
             // Handle true/false questions differently
             if (question.type.includes("true_false")) {
                 // For true/false questions, show as statement with underline after the number
-                pdf.text(`${questionNumber}. _____ ${this.cleanHtml(question.text)}`, margin.left, y);
+                // Only make the question number bold
+                pdf.text(`${questionNumber}. `, margin.left, y);
+                
+                // Set normal font for the underline and question text
+                pdf.setFont("helvetica", "normal");
+                pdf.text(`_____ ${this.cleanHtml(question.text)}`, margin.left + pdf.getStringUnitWidth(`${questionNumber}. `) * 12 / pdf.internal.scaleFactor, y);
+                
                 y += 8;
                 
                 // If including answers, show the correct answer

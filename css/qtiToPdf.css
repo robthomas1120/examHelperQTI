@@ -195,6 +195,27 @@
     grid-column: 1 / -1;
 }
 
+/* Checkbox Styles */
+.checkbox-group {
+    margin-top: 10px;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    margin-top: 15px;
+    margin-bottom: 10px;
+}
+
+.checkbox-item input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.checkbox-item label {
+    margin-bottom: 0;
+    display: inline-block;
+}
+
 /* Button Styles */
 .primary-btn {
     background-color: var(--primary-color);
