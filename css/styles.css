@@ -1,15 +1,29 @@
 /* General Styles */
 :root {
-    --primary-color: #4361ee;
-    --primary-hover: #3a56d4;
-    --secondary-color: #4b5563;
-    --success-color: #10b981;
-    --warning-color: #f59e0b;
-    --error-color: #ef4444;
-    --light-gray: #f3f4f6;
-    --border-color: #e5e7eb;
-    --text-primary: #1f2937;
-    --text-secondary: #6b7280;
+    /* Primary colors - UST gold and gray */
+    --primary-color: #ffb81c;      /* UST gold */
+    --primary-hover: #e6a619;      /* Slightly darker gold for hover states */
+    --secondary-color: #54585a;    /* UST dark gray */
+    
+    /* Status colors */
+    --success-color: #198754;      /* Green */
+    --warning-color: #ffc107;      /* Amber */
+    --error-color: #dc3545;        /* Red */
+    
+    /* Background and border colors */
+    --light-gray: #f8f9fa;         /* Light background */
+    --border-color: #dee2e6;       /* Border color */
+    
+    /* Text colors */
+    --text-primary: #212529;       /* Dark text for headings */
+    --text-secondary: #6c757d;     /* Secondary text color */
+    
+    /* Additional UST colors */
+    --ust-dark-blue: #003366;      /* Dark blue accent */
+    --ust-light-blue: #0066cc;     /* Light blue accent */
+    --ust-white: #ffffff;          /* White */
+    
+    /* Unchanged properties */
     --card-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
     --transition-speed: 0.3s;
 }
