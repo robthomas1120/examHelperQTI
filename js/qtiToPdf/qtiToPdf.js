@@ -469,7 +469,7 @@ class QTIToPDFConverter {
             y += textLines.length * 5 + 5;
             
             // Process answer options based on question type
-            if (question.type.includes("multiple_choice") || question.type.includes("multiple_answers") || question.type.includes("true_false")) {
+            if (question.type.includes("multiple_choice") || question.type.includes("multiple_answers")) {
                 pdf.setFontSize(10);
                 
                 // Draw options
@@ -491,7 +491,7 @@ class QTIToPDFConverter {
                     const optionLetter = String.fromCharCode(65 + j);
                     
                     // Draw checkbox/circle for the option
-                    if (question.type.includes("multiple_choice") || question.type.includes("true_false")) {
+                    if (question.type.includes("multiple_choice")) {
                         pdf.circle(margin.left + 3, y - 1.5, 1.5, 'S');
                     } else {
                         pdf.rect(margin.left + 1.5, y - 3, 3, 3, 'S');
@@ -499,7 +499,7 @@ class QTIToPDFConverter {
                     
                     // If including answers and this is the correct answer
                     if (this.includeAnswers && option.correct) {
-                        if (question.type.includes("multiple_choice") || question.type.includes("true_false")) {
+                        if (question.type.includes("multiple_choice")) {
                             // Fill the circle for correct answer
                             pdf.circle(margin.left + 3, y - 1.5, 0.8, 'F');
                         } else {
@@ -521,6 +521,34 @@ class QTIToPDFConverter {
                     
                     // Move down based on number of lines
                     y += optionLines.length * 5 + 3;
+                }
+            } else if (question.type.includes("true_false")) {
+                // For true/false questions, add one underline before the question number
+                // Go back to the question number position
+                const questionY = y - textLines.length * 5 - 5; // Go back to the question number position
+                
+                // Draw one underline before the question number
+                pdf.setDrawColor(0, 0, 0);
+                pdf.setLineWidth(0.5);
+                
+                // Calculate the position for the underline (before the question number)
+                const underlineX = margin.left - 15;
+                const underlineWidth = 12;
+                
+                // Draw one underline
+                pdf.line(underlineX, questionY, underlineX + underlineWidth, questionY);
+                
+                // If including answers, indicate the correct answer
+                if (this.includeAnswers) {
+                    // Find the correct answer
+                    const correctAnswer = question.options.find(option => option.correct);
+                    if (correctAnswer) {
+                        pdf.setFontSize(10);
+                        pdf.setTextColor(70, 130, 180); // Steel Blue color for answers
+                        pdf.text(`Answer: ${correctAnswer.text}`, margin.left, y);
+                        pdf.setTextColor(0, 0, 0); // Reset to black
+                        y += 8;
+                    }
                 }
             } else if (question.type.includes("essay")) {
                 // Add blank lines for essay response
