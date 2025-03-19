@@ -546,14 +546,14 @@ class UIController {
         const questionNumber = document.createElement('div');
         questionNumber.className = 'question-number';
         questionNumber.textContent = index;
-        questionNumber.style.cssText = 'margin-right: 10px; flex-shrink: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background-color: #f3f4f6; border-radius: 50%; font-size: 12px; font-weight: 500;';
+        questionNumber.style.cssText = 'margin-right: 10px; flex-shrink: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background-color: rgb(169, 169, 169); border-radius: 50%; font-size: 12px; font-weight: 500;';
         contentContainer.appendChild(questionNumber);
         
         // Add question type badge
         const typeBadge = document.createElement('div');
         typeBadge.className = `question-type ${question.type}`;
         typeBadge.textContent = question.type;
-        typeBadge.style.cssText = 'margin-right: 10px; flex-shrink: 0; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; background-color: #e5e7eb;';
+        typeBadge.style.cssText = 'margin-right: 30px; flex-shrink: 0; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; background-color: rgb(169, 169, 169);';
         contentContainer.appendChild(typeBadge);
         
         // Add question title with proper text truncation
@@ -562,7 +562,7 @@ class UIController {
         // Convert question text to string to avoid truncateText issues
         const questionText = question.text === undefined || question.text === null ? '' : String(question.text);
         questionTitle.textContent = this.truncateText(questionText, 60);
-        questionTitle.style.cssText = 'flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px;';
+        questionTitle.style.cssText = 'flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; padding-left: 30px;';
         contentContainer.appendChild(questionTitle);
         
         // Add content container to card
@@ -572,7 +572,7 @@ class UIController {
         const addBtn = document.createElement('div');
         addBtn.className = 'add-remove-btn add-btn';
         addBtn.innerHTML = '<i class="fas fa-plus"></i>';
-        addBtn.style.cssText = 'flex-shrink: 0; margin-left: 10px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background-color: #4a6cf7; color: white; border-radius: 50%; cursor: pointer;';
+        addBtn.style.cssText = 'flex-shrink: 0; margin-left: 10px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background-color: #ffb81c; color: white; border-radius: 50%; cursor: pointer;';
         
         if (isSelected) {
             addBtn.style.display = 'none';
@@ -639,7 +639,7 @@ class UIController {
             align-items: center;
             justify-content: center;
             gap: 8px;
-            background-color: #4a6cf7;
+            background-color: #ffb81c;
             color: white;
             border: none;
             border-radius: 6px;
@@ -653,11 +653,11 @@ class UIController {
 
         // Add hover effect
         addAllButton.addEventListener('mouseenter', () => {
-            addAllButton.style.backgroundColor = '#3451b2';
+            addAllButton.style.backgroundColor = '#e6a619';
         });
 
         addAllButton.addEventListener('mouseleave', () => {
-            addAllButton.style.backgroundColor = '#4a6cf7';
+            addAllButton.style.backgroundColor = '#ffb81c';
         });
 
         // Add click handler
@@ -999,13 +999,13 @@ class UIController {
         // Create content container for better layout
         const contentContainer = document.createElement('div');
         contentContainer.className = 'question-content-container';
-        contentContainer.style.cssText = 'display: flex; flex: 1; align-items: center; min-width: 0;';
+        contentContainer.style.cssText = 'display: flex; flex: 1; align-items: center; min-width: 0; Padding-left: 20px;';
         
         // Question number
         const numberSpan = document.createElement('div');
         numberSpan.className = 'question-number';
         numberSpan.textContent = index;
-        numberSpan.style.cssText = 'margin-right: 10px; flex-shrink: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background-color: #f3f4f6; border-radius: 50%; font-size: 12px; font-weight: 500;';
+        numberSpan.style.cssText = 'margin-right: 10px; flex-shrink: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background-color:rgb(169, 169, 169); border-radius: 50%; font-size: 12px; font-weight: 500;';
         contentContainer.appendChild(numberSpan);
         
         // Question type badge

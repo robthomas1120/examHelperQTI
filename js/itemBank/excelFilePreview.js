@@ -84,7 +84,7 @@ class ExcelFilePreview {
         this.downloadBtn.className = 'download-btn';
         this.downloadBtn.innerHTML = '<i class="fas fa-download"></i> Download Edited File';
         this.downloadBtn.style.cssText = `
-            background-color: #4a6cf7;
+            background-color: #ffb81c;
             color: white;
             border: none;
             padding: 10px 15px;
