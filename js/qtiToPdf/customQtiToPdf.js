@@ -1326,7 +1326,16 @@ class QTIToPDFConverter {
                     const optionLetter = String.fromCharCode(65 + j);
                     
                     // Draw checkbox/circle for the option
-                    pdf.circle(margin.left + 3, y - 1.5, 1.5, 'S');
+                    pdf.rect(margin.left + 2, y - 3, 3, 3, 'S');
+                    
+                    // If including answers and this is the correct answer
+                    if (this.includeAnswers && option.correct) {
+                        // Draw an X in the square for correct answer
+                        pdf.setLineWidth(0.3);
+                        pdf.line(margin.left + 2, y - 3, margin.left + 5, y);
+                        pdf.line(margin.left + 5, y - 3, margin.left + 2, y);
+                        pdf.setLineWidth(0.2);
+                    }
                     
                     // Option text
                     const optionText = `${optionLetter}. ${this.cleanHtml(option.text)}`;
@@ -1343,7 +1352,7 @@ class QTIToPDFConverter {
                 }
                 
                 // If including answers, show correct answers as text
-                if (this.includeAnswers) {
+                if (this.includeAnswers && !question.type.includes("multiple_answers")) {
                     // Get correct answers
                     const correctAnswers = question.options
                         .filter(option => option.correct)

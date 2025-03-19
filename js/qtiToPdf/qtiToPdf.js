@@ -502,6 +502,9 @@ class QTIToPDFConverter {
                     // Draw checkbox/circle for the option
                     if (question.type.includes("multiple_choice")) {
                         pdf.circle(margin.left + 3, y - 1.5, 1.5, 'S');
+                    } else if (question.type.includes("multiple_answers")) {
+                        // Draw a square for multiple answer questions
+                        pdf.rect(margin.left + 2, y - 3, 3, 3, 'S');
                     }
                     
                     // If including answers and this is the correct answer
@@ -509,6 +512,12 @@ class QTIToPDFConverter {
                         if (question.type.includes("multiple_choice")) {
                             // Fill the circle for correct answer
                             pdf.circle(margin.left + 3, y - 1.5, 0.8, 'F');
+                        } else if (question.type.includes("multiple_answers")) {
+                            // Draw an X in the square for correct answer
+                            pdf.setLineWidth(0.3);
+                            pdf.line(margin.left + 2, y - 3, margin.left + 5, y);
+                            pdf.line(margin.left + 5, y - 3, margin.left + 2, y);
+                            pdf.setLineWidth(0.2);
                         }
                     }
                     
@@ -523,88 +532,6 @@ class QTIToPDFConverter {
                     // Move down based on number of lines
                     y += optionLines.length * 5 + 3;
                 }
-            } else if (question.type.includes("multiple_answers")) {
-                // For multiple answer questions, display options normally in the exam
-                // But in the answer key, show the correct answers as text
-                
-                // Check if we need a new page
-                if (y > paperConfig.height - margin.bottom - 15) {
-                    pdf.addPage();
-                    y = margin.top;
-                    
-                    // Add page number if enabled
-                    if (this.includePageNumbers) {
-                        this.addPageNumber(pdf);
-                    }
-                }
-                
-                // Display options normally
-                for (let j = 0; j < question.options.length; j++) {
-                    const option = question.options[j];
-                    
-                    // Check if we need a new page
-                    if (y > paperConfig.height - margin.bottom - 10) {
-                        pdf.addPage();
-                        y = margin.top;
-                        
-                        // Add page number if enabled
-                        if (this.includePageNumbers) {
-                            this.addPageNumber(pdf);
-                        }
-                    }
-                    
-                    // Option letter (A, B, C, etc.)
-                    const optionLetter = String.fromCharCode(65 + j);
-                    
-                    // Draw checkbox/circle for the option
-                    pdf.circle(margin.left + 3, y - 1.5, 1.5, 'S');
-                    
-                    // Option text
-                    const optionText = `${optionLetter}. ${this.cleanHtml(option.text)}`;
-                    const optionIndent = margin.left + 7;
-                    
-                    // Split long option text
-                    const optionLines = pdf.splitTextToSize(optionText, paperConfig.width - optionIndent - margin.right);
-                    
-                    // Add option text
-                    pdf.text(optionLines, optionIndent, y);
-                    
-                    // Move down for next option
-                    y += 5 + (optionLines.length - 1) * 5;
-                }
-                
-                // If including answers, show correct answers as text
-                if (this.includeAnswers) {
-                    // Get correct answers
-                    const correctAnswers = question.options
-                        .filter(option => option.correct)
-                        .map(option => option.text);
-                    
-                    if (correctAnswers.length > 0) {
-                        // Add some space
-                        y += 3;
-                        
-                        // Show correct answers
-                        pdf.setFontSize(10);
-                        pdf.setTextColor(70, 130, 180); // Steel Blue color for answers
-                        
-                        // Format answer text
-                        const answerText = `Answer: ${correctAnswers.join(', ')}`;
-                        const answerLines = pdf.splitTextToSize(answerText, paperConfig.width - margin.left - margin.right);
-                        
-                        // Add answer text
-                        pdf.text(answerLines, margin.left, y);
-                        
-                        // Move down and reset text color
-                        y += 5 + (answerLines.length - 1) * 5;
-                        pdf.setTextColor(0, 0, 0); // Reset to black
-                    }
-                }
-                
-                // Add space after question
-                y += 5;
-                
-                pdf.setDrawColor(0, 0, 0);
             } else if (question.type.includes("true_false")) {
                 // For true/false questions, add one underline before the question number
                 // Go back to the question number position
