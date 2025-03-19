@@ -4,6 +4,9 @@
  * Designed for different paper sizes including short bond, long bond, and A4
  */
 
+// Add console log to verify the file is loaded
+console.log("qtiToPdf.js loaded successfully");
+
 class QTIToPDFConverter {
     constructor() {
         this.jszip = JSZip;
@@ -13,6 +16,7 @@ class QTIToPDFConverter {
         this.includeAnswers = true;
         this.includeImages = false;
         this.paperSize = "a4"; // Default paper size
+        this.college = ""; // Default empty, will be set by setOptions
         
         // Paper size configurations
         this.paperSizes = {
@@ -58,6 +62,7 @@ class QTIToPDFConverter {
         if (options.includeAnswers !== undefined) this.includeAnswers = options.includeAnswers;
         if (options.includeImages !== undefined) this.includeImages = options.includeImages;
         if (options.paperSize) this.paperSize = options.paperSize;
+        if (options.college) this.college = options.college;
     }
 
     /**
@@ -134,161 +139,188 @@ class QTIToPDFConverter {
      * Parse questions XML
      * @param {String} xml - Questions XML content
      */
-    parseQuestionsXml(xmlContent) {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
-        const questions = [];
-        
-        // Get all item nodes
-        const itemNodes = xmlDoc.querySelectorAll("item");
-        
-        // Process each item node
-        itemNodes.forEach((itemNode, index) => {
-            // Get question type
-            const questionType = itemNode.querySelector("fieldlabel:contains('question_type')") ? 
-                itemNode.querySelector("fieldlabel:contains('question_type')").nextElementSibling.textContent.trim() : "";
+    parseQuestionsXml(xml) {
+        try {
+            // Parse XML
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xml, "text/xml");
             
-            // Get question text
-            const questionText = itemNode.querySelector("mattext") ? 
-                this.cleanHtml(itemNode.querySelector("mattext").textContent) : "";
+            // Extract assessment title if available
+            const assessmentNode = xmlDoc.querySelector("assessment");
+            if (assessmentNode && assessmentNode.getAttribute("title")) {
+                this.title = assessmentNode.getAttribute("title");
+            }
             
-            // Initialize question object
-            const question = {
-                id: index + 1,
-                text: questionText,
-                type: questionType,
-                options: []
-            };
+            // Extract questions
+            const itemNodes = xmlDoc.querySelectorAll("item");
+            this.questions = [];
             
-            // Process options based on question type
-            if (questionType.includes("multiple_choice")) {
-                // Get options
-                const responseLabels = itemNode.querySelectorAll("response_label");
-                responseLabels.forEach((label) => {
-                    const id = label.getAttribute("ident");
-                    const textNode = label.querySelector("mattext");
-                    const text = textNode ? this.cleanHtml(textNode.textContent) : "";
-                    
-                    question.options.push({
-                        id: id,
-                        text: text,
-                        correct: false
-                    });
-                });
+            itemNodes.forEach((itemNode, index) => {
+                // Get question type
+                let questionType = "unknown";
                 
-                // Find correct answer
-                const respConditions = itemNode.querySelectorAll("respcondition");
-                let foundCorrectAnswer = false;
+                // Use standard querySelector instead of jQuery-style :contains()
+                const fieldLabels = itemNode.querySelectorAll("fieldlabel");
+                let typeNode = null;
                 
-                respConditions.forEach((condition) => {
-                    const setvarNode = condition.querySelector("setvar[varname='SCORE'][action='Set']");
-                    
-                    if (setvarNode && parseFloat(setvarNode.textContent) > 0) {
-                        const varequal = condition.querySelector("varequal");
-                        
-                        if (varequal) {
-                            const responseId = varequal.textContent.trim();
-                            foundCorrectAnswer = true;
-                            
-                            // Mark option as correct
-                            question.options.forEach((option) => {
-                                if (option.id === responseId) {
-                                    option.correct = true;
-                                }
-                            });
-                        }
-                    }
-                });
-                
-                // If no correct answers were found, this might be a different format
-                // Try to find correct answers through response_lid/render_choice
-                if (!foundCorrectAnswer) {
-                    // Reset all options to not correct first
-                    question.options.forEach(option => option.correct = false);
-                    
-                    // Try to find correct answers in a different way
-                    const correctPattern = itemNode.querySelector("setvar[varname='SCORE'][action='Set'][textContent^='100']");
-                    if (correctPattern) {
-                        const parentCondition = correctPattern.closest("respcondition");
-                        if (parentCondition) {
-                            const correctVarequals = parentCondition.querySelectorAll("varequal");
-                            correctVarequals.forEach(varequal => {
-                                const correctId = varequal.textContent.trim();
-                                question.options.forEach(option => {
-                                    if (option.id === correctId) {
-                                        option.correct = true;
-                                    }
-                                });
-                            });
-                        }
+                // Find the fieldlabel with text "question_type"
+                for (let i = 0; i < fieldLabels.length; i++) {
+                    if (fieldLabels[i].textContent.trim() === "question_type") {
+                        typeNode = fieldLabels[i];
+                        break;
                     }
                 }
-            } else if (questionType.includes("multiple_answers")) {
-                // Get options
-                const responseLabels = itemNode.querySelectorAll("response_label");
-                responseLabels.forEach((label) => {
-                    const id = label.getAttribute("ident");
-                    const textNode = label.querySelector("mattext");
-                    const text = textNode ? this.cleanHtml(textNode.textContent) : "";
-                    
-                    question.options.push({
-                        id: id,
-                        text: text,
-                        correct: false
-                    });
-                });
                 
-                // Find correct answers - for multiple_answers, we need to look at the <and> structure
-                const respConditions = itemNode.querySelectorAll("respcondition");
+                if (typeNode) {
+                    const typeValueNode = typeNode.parentNode.querySelector("fieldentry");
+                    if (typeValueNode) {
+                        questionType = typeValueNode.textContent.trim();
+                    }
+                }
                 
-                respConditions.forEach((condition) => {
-                    const setvarNode = condition.querySelector("setvar[varname='SCORE'][action='Set']");
-                    
-                    if (setvarNode && parseFloat(setvarNode.textContent) > 0) {
-                        // Look for the <and> element that contains the correct answers
-                        const andElement = condition.querySelector("and");
+                // Get question text
+                const questionText = itemNode.querySelector("mattext") ? 
+                    this.cleanHtml(itemNode.querySelector("mattext").textContent) : "";
+                
+                // Initialize question object
+                const question = {
+                    id: index + 1,
+                    text: questionText,
+                    type: questionType,
+                    options: []
+                };
+                
+                // Process options based on question type
+                if (questionType.includes("multiple_choice")) {
+                    // Get options
+                    const responseLabels = itemNode.querySelectorAll("response_label");
+                    responseLabels.forEach((label) => {
+                        const id = label.getAttribute("ident");
+                        const textNode = label.querySelector("mattext");
+                        const text = textNode ? this.cleanHtml(textNode.textContent) : "";
                         
-                        if (andElement) {
-                            // Get all direct varequal children (these are the correct answers)
-                            const directVarequals = Array.from(andElement.children).filter(
-                                child => child.tagName === "varequal"
-                            );
+                        question.options.push({
+                            id: id,
+                            text: text,
+                            correct: false
+                        });
+                    });
+                    
+                    // Find correct answer
+                    const respConditions = itemNode.querySelectorAll("respcondition");
+                    let foundCorrectAnswer = false;
+                    
+                    respConditions.forEach((condition) => {
+                        const setvarNode = condition.querySelector("setvar[varname='SCORE'][action='Set']");
+                        
+                        if (setvarNode && parseFloat(setvarNode.textContent) > 0) {
+                            const varequal = condition.querySelector("varequal");
                             
-                            // Mark these options as correct
-                            directVarequals.forEach(varequal => {
+                            if (varequal) {
                                 const responseId = varequal.textContent.trim();
-                                question.options.forEach(option => {
+                                foundCorrectAnswer = true;
+                                
+                                // Mark option as correct
+                                question.options.forEach((option) => {
                                     if (option.id === responseId) {
                                         option.correct = true;
                                     }
                                 });
-                            });
+                            }
+                        }
+                    });
+                    
+                    // If no correct answers were found, this might be a different format
+                    // Try to find correct answers through response_lid/render_choice
+                    if (!foundCorrectAnswer) {
+                        // Reset all options to not correct first
+                        question.options.forEach(option => option.correct = false);
+                        
+                        // Try to find correct answers in a different way
+                        const correctPattern = itemNode.querySelector("setvar[varname='SCORE'][action='Set'][textContent^='100']");
+                        if (correctPattern) {
+                            const parentCondition = correctPattern.closest("respcondition");
+                            if (parentCondition) {
+                                const correctVarequals = parentCondition.querySelectorAll("varequal");
+                                correctVarequals.forEach(varequal => {
+                                    const correctId = varequal.textContent.trim();
+                                    question.options.forEach(option => {
+                                        if (option.id === correctId) {
+                                            option.correct = true;
+                                        }
+                                    });
+                                });
+                            }
+                        }
+                    }
+                } else if (questionType.includes("multiple_answers")) {
+                    // Get options
+                    const responseLabels = itemNode.querySelectorAll("response_label");
+                    responseLabels.forEach((label) => {
+                        const id = label.getAttribute("ident");
+                        const textNode = label.querySelector("mattext");
+                        const text = textNode ? this.cleanHtml(textNode.textContent) : "";
+                        
+                        question.options.push({
+                            id: id,
+                            text: text,
+                            correct: false
+                        });
+                    });
+                    
+                    // Find correct answers - for multiple_answers, we need to look at the <and> structure
+                    const respConditions = itemNode.querySelectorAll("respcondition");
+                    
+                    respConditions.forEach((condition) => {
+                        const setvarNode = condition.querySelector("setvar[varname='SCORE'][action='Set']");
+                        
+                        if (setvarNode && parseFloat(setvarNode.textContent) > 0) {
+                            // Look for the <and> element that contains the correct answers
+                            const andElement = condition.querySelector("and");
                             
-                            // Get all <not> elements (these contain incorrect answers)
-                            const notElements = andElement.querySelectorAll("not");
-                            
-                            // Make sure these options are marked as incorrect
-                            notElements.forEach(notElement => {
-                                const varequal = notElement.querySelector("varequal");
-                                if (varequal) {
+                            if (andElement) {
+                                // Get all direct varequal children (these are the correct answers)
+                                const directVarequals = Array.from(andElement.children).filter(
+                                    child => child.tagName === "varequal"
+                                );
+                                
+                                // Mark these options as correct
+                                directVarequals.forEach(varequal => {
                                     const responseId = varequal.textContent.trim();
                                     question.options.forEach(option => {
                                         if (option.id === responseId) {
-                                            option.correct = false;
+                                            option.correct = true;
                                         }
                                     });
-                                }
-                            });
+                                });
+                                
+                                // Get all <not> elements (these contain incorrect answers)
+                                const notElements = andElement.querySelectorAll("not");
+                                
+                                // Make sure these options are marked as incorrect
+                                notElements.forEach(notElement => {
+                                    const varequal = notElement.querySelector("varequal");
+                                    if (varequal) {
+                                        const responseId = varequal.textContent.trim();
+                                        question.options.forEach(option => {
+                                            if (option.id === responseId) {
+                                                option.correct = false;
+                                            }
+                                        });
+                                    }
+                                });
+                            }
                         }
-                    }
-                });
-            }
-            
-            // Add question to array
-            questions.push(question);
-        });
-        
-        this.questions = questions;
+                    });
+                }
+                
+                // Add question to array
+                this.questions.push(question);
+            });
+        } catch (error) {
+            console.error("Error parsing questions XML:", error);
+            // Continue without questions - not critical
+        }
     }
 
     /**
@@ -408,33 +440,44 @@ class QTIToPDFConverter {
         // Current Y position
         let y = margin.top;
         
-        // Add title
+        // Add university header
         pdf.setFontSize(16);
         pdf.setFont("helvetica", "bold");
         
-        // Center the title
-        const titleWidth = pdf.getStringUnitWidth(this.title) * 16 / pdf.internal.scaleFactor;
-        const titleX = (paperConfig.width - titleWidth) / 2;
+        // Center the university name
+        const universityName = "University of Santo Tomas";
+        const universityWidth = pdf.getStringUnitWidth(universityName) * 16 / pdf.internal.scaleFactor;
+        const universityX = (paperConfig.width - universityWidth) / 2;
         
-        pdf.text(this.title, titleX, y);
+        pdf.text(universityName, universityX, y);
         y += 10;
         
-        // Add description if available
-        if (this.description) {
-            pdf.setFontSize(10);
+        // Add college name if provided
+        if (this.college) {
+            pdf.setFontSize(14);
             pdf.setFont("helvetica", "normal");
             
-            const descLines = pdf.splitTextToSize(this.description, contentWidth);
-            pdf.text(descLines, margin.left, y);
-            y += descLines.length * 5 + 5;
+            // Center the college name
+            const collegeWidth = pdf.getStringUnitWidth(this.college) * 14 / pdf.internal.scaleFactor;
+            const collegeX = (paperConfig.width - collegeWidth) / 2;
+            
+            pdf.text(this.college, collegeX, y);
+            y += 25; // Increased spacing after college name
         }
         
-        // Add exam details
-        pdf.setFontSize(10);
+        // Add student information lines without underlines
+        pdf.setFontSize(12);
         pdf.setFont("helvetica", "normal");
-        pdf.text(`Date: ${new Date().toLocaleDateString()}`, margin.left, y);
-        pdf.text(`Number of Questions: ${this.questions.length}`, margin.left, y + 5);
-        y += 15;
+        
+        // Left side
+        pdf.text("Name:", margin.left, y);
+        pdf.text("Section:", margin.left, y + 20); // Increased spacing between lines
+        
+        // Right side
+        pdf.text("Date:", paperConfig.width - margin.right - 60, y);
+        pdf.text("Student Number:", paperConfig.width - margin.right - 60, y + 20); // Increased spacing between lines
+        
+        y += 40; // Increase spacing after student info
         
         // Draw a horizontal line
         pdf.setLineWidth(0.5);
@@ -442,7 +485,7 @@ class QTIToPDFConverter {
         y += 10;
         
         // Process each question
-        for (let i = 0; i < this.questions.length; i++) {
+        for (let i = 0; i <this.questions.length; i++) {
             const question = this.questions[i];
             
             // Check if we need a new page

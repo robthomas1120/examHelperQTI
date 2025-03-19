@@ -31,6 +31,7 @@ class QTIToPDFUI {
             titleInput: document.getElementById('qti-title-input'),
             includeAnswers: document.getElementById('qti-include-answers'),
             paperSize: document.getElementById('qti-paper-size'),
+            collegeSelect: document.getElementById('qti-college-select'), // Added collegeSelect
             convertBtn: document.getElementById('qti-convert-btn'),
             previewArea: document.getElementById('qti-preview'),
             resultsSection: document.getElementById('qti-results-section'),
@@ -84,6 +85,18 @@ class QTIToPDFUI {
                 <div class="form-group">
                     <label for="qti-title-input">Document Title:</label>
                     <input type="text" id="qti-title-input" placeholder="Enter document title">
+                </div>
+                
+                <div class="form-group">
+                    <label for="qti-college-select">College:</label>
+                    <select id="qti-college-select">
+                        <option value="">Select College</option>
+                        <option value="College of Arts and Sciences">College of Arts and Sciences</option>
+                        <option value="College of Business">College of Business</option>
+                        <option value="College of Education">College of Education</option>
+                        <option value="College of Engineering">College of Engineering</option>
+                        <option value="College of Health Sciences">College of Health Sciences</option>
+                    </select>
                 </div>
                 
                 <div class="form-group">
@@ -445,7 +458,8 @@ class QTIToPDFUI {
             const options = {
                 title: this.elements.titleInput.value.trim(),
                 includeAnswers: false, // Always exclude answers from the exam PDF
-                paperSize: this.elements.paperSize.value
+                paperSize: this.elements.paperSize.value,
+                college: this.elements.collegeSelect.value
             };
             
             // Set converter options
@@ -466,7 +480,8 @@ class QTIToPDFUI {
                 const answerKeyOptions = {
                     title: this.elements.titleInput.value.trim() + " - Answer Key",
                     includeAnswers: true, // Include answers in the answer key
-                    paperSize: this.elements.paperSize.value
+                    paperSize: this.elements.paperSize.value,
+                    college: this.elements.collegeSelect.value
                 };
                 
                 answerKeyConverter.setOptions(answerKeyOptions);
@@ -573,6 +588,7 @@ class QTIToPDFUI {
             
             // Update summary
             const paperSize = this.elements.paperSize.options[this.elements.paperSize.selectedIndex].text;
+            const college = this.elements.collegeSelect.options[this.elements.collegeSelect.selectedIndex].text;
             
             this.elements.conversionSummary.innerHTML = `
                 <div class="success-message">
@@ -580,6 +596,7 @@ class QTIToPDFUI {
                     Successfully converted QTI to PDF
                 </div>
                 <p><strong>Title:</strong> ${this.elements.titleInput.value}</p>
+                <p><strong>College:</strong> ${college}</p>
                 <p><strong>Paper Size:</strong> ${paperSize}</p>
                 <p><strong>Answer Key Generated:</strong> ${this.elements.includeAnswers.checked ? 'Yes' : 'No'}</p>
             `;

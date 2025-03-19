@@ -94,6 +94,16 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="collegeSelect">College:</label>
+                        <select id="collegeSelect">
+                            <option value="College of Information and Computing Sciences">College of Information and Computing Sciences</option>
+                            <option value="Faculty of Engineering">Faculty of Engineering</option>
+                            <option value="Faculty of Pharmacy">Faculty of Pharmacy</option>
+                            <option value="College of Nursing">College of Nursing</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label for="pdfOptions">PDF Options:</label>
                         <div class="checkbox-group">
                             <div class="checkbox-item">
@@ -118,15 +128,6 @@
                 </div>
             </div>
             
-            <section class="preview-section">
-                <div class="card">
-                    <h2><i class="fas fa-eye"></i> QTI Preview</h2>
-                    <div id="qti-preview">
-                        <p class="placeholder-text">QTI content will appear here after upload</p>
-                    </div>
-                </div>
-            </section>
-
             <section class="results-section hidden" id="results-section">
                 <div class="card">
                     <h2><i class="fas fa-check-circle"></i> Conversion Results</h2>
@@ -156,6 +157,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- Update JS paths with proper relative paths -->
+    <script src="../js/qtiToPdf/qtiToPdf.js"></script>
     <script src="../js/qtiToPdf/customQtiToPdf.js"></script>
 </body>
 </html>
