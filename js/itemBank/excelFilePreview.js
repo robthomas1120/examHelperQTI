@@ -62,58 +62,167 @@ class ExcelFilePreview {
         this.attachEventListeners();
     }
 
-    /**
-     * Create download button for edited file
-     */
-    createDownloadButton() {
-        // Check if button already exists
-        let existingBtn = document.getElementById('download-edited-file-btn');
-        if (existingBtn) {
-            this.downloadBtn = existingBtn;
-            return;
-        }
-
-        // Create button container
-        const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'download-button-container';
-        buttonContainer.style.cssText = 'margin-top: 15px; text-align: right;';
-
-        // Create download button
-        this.downloadBtn = document.createElement('button');
-        this.downloadBtn.id = 'download-edited-file-btn';
-        this.downloadBtn.className = 'download-btn';
-        this.downloadBtn.innerHTML = '<i class="fas fa-download"></i> Download Edited File';
-        this.downloadBtn.style.cssText = `
-            background-color: #ffb81c;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: background-color 0.3s ease;
-        `;
-        this.downloadBtn.addEventListener('mouseenter', () => {
-            this.downloadBtn.style.backgroundColor = '#3451b2';
-        });
-        this.downloadBtn.addEventListener('mouseleave', () => {
-            this.downloadBtn.style.backgroundColor = '#4a6cf7';
-        });
-        this.downloadBtn.addEventListener('click', this.downloadEditedFile);
-        this.downloadBtn.disabled = true;
-        
-        // Add download button to container
-        buttonContainer.appendChild(this.downloadBtn);
-        
-        // Add button container after the preview element
-        if (this.previewElement && this.previewElement.parentNode) {
-            this.previewElement.parentNode.insertBefore(buttonContainer, this.previewElement.nextSibling);
-        }
+/**
+ * Create download button for edited file
+ */
+createDownloadButton() {
+    // Check if button already exists
+    let existingBtn = document.getElementById('download-edited-file-btn');
+    if (existingBtn) {
+        this.downloadBtn = existingBtn;
+        return;
     }
 
+    // Create button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'download-button-container';
+    buttonContainer.style.cssText = 'margin-top: 15px; text-align: right; display: flex; gap: 10px; justify-content: flex-end;';
+
+    // Create commit changes button
+    const commitBtn = document.createElement('button');
+    commitBtn.id = 'commit-changes-btn';
+    commitBtn.className = 'commit-btn';
+    commitBtn.innerHTML = '<i class="fas fa-save"></i> Commit Changes';
+    commitBtn.style.cssText = `
+        background-color: #4a6cf7;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: background-color 0.3s ease;
+    `;
+    commitBtn.addEventListener('mouseenter', () => {
+        commitBtn.style.backgroundColor = '#3451b2';
+    });
+    commitBtn.addEventListener('mouseleave', () => {
+        commitBtn.style.backgroundColor = '#4a6cf7';
+    });
+    commitBtn.addEventListener('click', this.commitChanges.bind(this));
+    commitBtn.disabled = true;
+    this.commitBtn = commitBtn; // Store reference
+
+    // Create download button
+    this.downloadBtn = document.createElement('button');
+    this.downloadBtn.id = 'download-edited-file-btn';
+    this.downloadBtn.className = 'download-btn';
+    this.downloadBtn.innerHTML = '<i class="fas fa-download"></i> Download Edited File';
+    this.downloadBtn.style.cssText = `
+        background-color: #ffb81c;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: background-color 0.3s ease;
+    `;
+    this.downloadBtn.addEventListener('mouseenter', () => {
+        this.downloadBtn.style.backgroundColor = '#e6a619';
+    });
+    this.downloadBtn.addEventListener('mouseleave', () => {
+        this.downloadBtn.style.backgroundColor = '#ffb81c';
+    });
+    this.downloadBtn.addEventListener('click', this.downloadEditedFile);
+    this.downloadBtn.disabled = true;
+    
+    // Add buttons to container
+    buttonContainer.appendChild(commitBtn);
+    buttonContainer.appendChild(this.downloadBtn);
+    
+    // Add button container after the preview element
+    if (this.previewElement && this.previewElement.parentNode) {
+        this.previewElement.parentNode.insertBefore(buttonContainer, this.previewElement.nextSibling);
+    }
+}
+
+/**
+ * Commit changes to the question data
+ */
+commitChanges() {
+    if (!this.editedData || !this.editedHeaders) {
+        this.showMessage('No changes to commit', 'error');
+        return;
+    }
+    
+    try {
+        // If we have a workbook, update it with the edited data
+        if (this.workbook && this.currentSheetIndex !== undefined) {
+            const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
+            if (sheetName) {
+                const sheet = this.workbook.Sheets[sheetName];
+                if (sheet) {
+                    // Create new worksheet from edited data
+                    const wsData = [this.editedHeaders, ...this.editedData];
+                    const newSheet = XLSX.utils.aoa_to_sheet(wsData);
+                    
+                    // Replace the sheet in the workbook
+                    this.workbook.Sheets[sheetName] = newSheet;
+                }
+            }
+        }
+        
+        // Update the fileHandler's processedData if available
+        if (window.app && window.app.fileHandler) {
+            // Determine the question type from the current sheet
+            let questionType = null;
+            if (this.workbook && this.currentSheetIndex !== undefined) {
+                const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
+                if (sheetName) {
+                    // Try to determine question type from sheet name
+                    if (sheetName.includes('MC')) questionType = 'MC';
+                    else if (sheetName.includes('MA')) questionType = 'MA';
+                    else if (sheetName.includes('TF')) questionType = 'TF';
+                    else if (sheetName.includes('ESS')) questionType = 'ESS';
+                    else if (sheetName.includes('FIB')) questionType = 'FIB';
+                }
+            }
+            
+            // If we found a question type, update the corresponding data
+            if (questionType && window.app.fileHandler.processedData[questionType]) {
+                // Re-process the edited data
+                const processedQuestions = this.processEditedData(questionType);
+                
+                // Update processed data
+                window.app.fileHandler.processedData[questionType] = processedQuestions;
+                
+                // Also update 'all' array
+                window.app.fileHandler.processedData.all = window.app.fileHandler.processedData.all.filter(
+                    q => q.type !== questionType
+                );
+                window.app.fileHandler.processedData.all.push(...processedQuestions);
+                
+                // Update the question processor with the new data
+                if (window.app.questionProcessor) {
+                    window.app.questionProcessor.setQuestions(window.app.fileHandler.processedData);
+                }
+                
+                // Refresh the UI
+                if (window.app.uiController) {
+                    window.app.uiController.renderQuestions();
+                    
+                    // Re-render selected questions if any
+                    if (window.app.questionProcessor.getSelectedCount() > 0) {
+                        window.app.uiController.renderSelectedQuestions();
+                    }
+                }
+            }
+        }
+        
+        // Show success message
+        this.showMessage('Changes committed successfully!', 'success');
+    } catch (error) {
+        console.error('Error committing changes:', error);
+        this.showMessage(`Error committing changes: ${error.message}`, 'error');
+    }
+}
     /**
      * Attach event listeners to DOM elements
      */
@@ -920,6 +1029,7 @@ class ExcelFilePreview {
         // Update validation errors state
         this.hasValidationErrors = errors.length > 0 || multipleCorrectErrors.length > 0 || singleCorrectMAErrors.length > 0;
     }
+    
 
     /**
      * Handle cell click for editing
@@ -992,41 +1102,44 @@ class ExcelFilePreview {
         }
     }
 
-    /**
-     * Finish editing a cell and save the changes
-     */
-    finishEditing() {
-        if (!this.currentEditCell) return;
-        
-        const { cell, row, originalCol, input } = this.currentEditCell;
-        const newValue = input.value;
-        
-        // Update the cell content
-        cell.innerHTML = newValue;
-        cell.setAttribute('data-value', this.escapeHTML(newValue));
-        
-        // Update the edited data
-        if (this.editedData && this.editedData[row]) {
-            this.editedData[row][originalCol] = newValue;
-        }
-        
-        // Update the original question data to persist changes
-        this.updateOriginalQuestionData(row, originalCol, newValue);
-        
-        // Clear current edit
-        this.currentEditCell = null;
-        
-        // Enable download button if not already enabled
-        if (this.downloadBtn) {
-            this.downloadBtn.disabled = false;
-        }
-        
-        // Re-validate and update error notifications
-        this.updateErrorNotifications();
-        
-        // Refresh the question display in the UI
-        this.refreshQuestionDisplay();
+/**
+ * Finish editing a cell and save the changes
+ */
+finishEditing() {
+    if (!this.currentEditCell) return;
+    
+    const { cell, row, originalCol, input } = this.currentEditCell;
+    const newValue = input.value;
+    
+    // Update the cell content
+    cell.innerHTML = newValue;
+    cell.setAttribute('data-value', this.escapeHTML(newValue));
+    
+    // Update the edited data
+    if (this.editedData && this.editedData[row]) {
+        this.editedData[row][originalCol] = newValue;
     }
+    
+    // Update the original question data to persist changes
+    this.updateOriginalQuestionData(row, originalCol, newValue);
+    
+    // Clear current edit
+    this.currentEditCell = null;
+    
+    // Enable download and commit buttons
+    if (this.downloadBtn) {
+        this.downloadBtn.disabled = false;
+    }
+    if (this.commitBtn) {
+        this.commitBtn.disabled = false;
+    }
+    
+    // Re-validate and update error notifications
+    this.updateErrorNotifications();
+    
+    // Refresh the question display in the UI
+    this.refreshQuestionDisplay();
+}
     
     /**
      * Refresh the question display in the UI after edits
@@ -1092,48 +1205,174 @@ class ExcelFilePreview {
         }
     }
 
-    /**
-     * Remove the current file
-     */
-    removeFile() {
-        this.currentFile = null;
-        this.questionData = null;
-        this.workbook = null;
-        this.editedData = null;
-        this.editedHeaders = null;
-        this.fileInput.value = '';
-        this.fileInfo.classList.add('hidden');
-        this.previewElement.innerHTML = '<p class="placeholder-text">File content will appear here after upload</p>';
-        
-        // Remove sheet navigation if it exists
-        if (this.sheetNavContainer) {
-            this.sheetNavContainer.remove();
-            this.sheetNavContainer = null;
-        }
-        
-        // Hide the summary section if it exists
-        const summarySection = document.getElementById('summary-section');
-        if (summarySection) {
-            summarySection.classList.add('hidden');
-        }
-        
-        // Clear quiz title if exists
-        const quizTitleInput = document.getElementById('quiz-title');
-        if (quizTitleInput) {
-            quizTitleInput.value = '';
-        }
-        
-        // Clear quiz description if exists
-        const quizDescriptionInput = document.getElementById('quiz-description');
-        if (quizDescriptionInput) {
-            quizDescriptionInput.value = '';
-        }
-        
-        // Disable download button
-        if (this.downloadBtn) {
-            this.downloadBtn.disabled = true;
-        }
+/**
+ * Commit changes to the question data
+ */
+commitChanges() {
+    if (!this.editedData || !this.editedHeaders) {
+        this.showMessage('No changes to commit', 'error');
+        return;
     }
+    
+    try {
+        // If we have a workbook, update it with the edited data
+        if (this.workbook && this.currentSheetIndex !== undefined) {
+            const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
+            if (sheetName) {
+                const sheet = this.workbook.Sheets[sheetName];
+                if (sheet) {
+                    // Create new worksheet from edited data
+                    const wsData = [this.editedHeaders, ...this.editedData];
+                    const newSheet = XLSX.utils.aoa_to_sheet(wsData);
+                    
+                    // Replace the sheet in the workbook
+                    this.workbook.Sheets[sheetName] = newSheet;
+                }
+            }
+        }
+        
+        // Update the fileHandler's processedData if available
+        if (window.app && window.app.fileHandler) {
+            // Determine the question type from the current sheet
+            let questionType = null;
+            if (this.workbook && this.currentSheetIndex !== undefined) {
+                const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
+                if (sheetName) {
+                    // Try to determine question type from sheet name
+                    if (sheetName.includes('MC')) questionType = 'MC';
+                    else if (sheetName.includes('MA')) questionType = 'MA';
+                    else if (sheetName.includes('TF')) questionType = 'TF';
+                    else if (sheetName.includes('ESS')) questionType = 'ESS';
+                    else if (sheetName.includes('FIB')) questionType = 'FIB';
+                }
+            }
+            
+            // If we found a question type, update the corresponding data
+            if (questionType && window.app.fileHandler.processedData[questionType]) {
+                // Re-process the edited data
+                const processedQuestions = this.processEditedData(questionType);
+                
+                // Update processed data
+                window.app.fileHandler.processedData[questionType] = processedQuestions;
+                
+                // Also update 'all' array
+                window.app.fileHandler.processedData.all = window.app.fileHandler.processedData.all.filter(
+                    q => q.type !== questionType
+                );
+                window.app.fileHandler.processedData.all.push(...processedQuestions);
+                
+                // Update the question processor with the new data
+                if (window.app.questionProcessor) {
+                    window.app.questionProcessor.setQuestions(window.app.fileHandler.processedData);
+                }
+                
+                // Refresh the UI
+                if (window.app.uiController) {
+                    window.app.uiController.renderQuestions();
+                    
+                    // Re-render selected questions if any
+                    if (window.app.questionProcessor.getSelectedCount() > 0) {
+                        window.app.uiController.renderSelectedQuestions();
+                    }
+                }
+            }
+        }
+        
+        // Show success message
+        this.showMessage('Changes committed successfully!', 'success');
+    } catch (error) {
+        console.error('Error committing changes:', error);
+        this.showMessage(`Error committing changes: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Process edited data into question objects
+ * @param {String} questionType - Type of questions (MC, MA, etc.)
+ * @returns {Array} - Array of processed question objects
+ */
+processEditedData(questionType) {
+    if (!this.editedData || !this.editedHeaders) {
+        return [];
+    }
+    
+    const processedQuestions = [];
+    
+    this.editedData.forEach((row, index) => {
+        let question = null;
+        
+        // Process based on question type
+        switch (questionType) {
+            case 'MC':
+                question = window.app.fileHandler.processMCQuestion(row, index);
+                break;
+            case 'MA':
+                question = window.app.fileHandler.processMAQuestion(row, index);
+                break;
+            case 'TF':
+                question = window.app.fileHandler.processTFQuestion(row, index);
+                break;
+            case 'ESS':
+                question = window.app.fileHandler.processESSQuestion(row, index);
+                break;
+            case 'FIB':
+                question = window.app.fileHandler.processFIBQuestion(row, index);
+                break;
+        }
+        
+        if (question) {
+            processedQuestions.push(question);
+        }
+    });
+    
+    return processedQuestions;
+}
+
+/**
+ * Remove the current file
+ */
+removeFile() {
+    this.currentFile = null;
+    this.questionData = null;
+    this.workbook = null;
+    this.editedData = null;
+    this.editedHeaders = null;
+    this.fileInput.value = '';
+    this.fileInfo.classList.add('hidden');
+    this.previewElement.innerHTML = '<p class="placeholder-text">File content will appear here after upload</p>';
+    
+    // Remove sheet navigation if it exists
+    if (this.sheetNavContainer) {
+        this.sheetNavContainer.remove();
+        this.sheetNavContainer = null;
+    }
+    
+    // Hide the summary section if it exists
+    const summarySection = document.getElementById('summary-section');
+    if (summarySection) {
+        summarySection.classList.add('hidden');
+    }
+    
+    // Clear quiz title if exists
+    const quizTitleInput = document.getElementById('quiz-title');
+    if (quizTitleInput) {
+        quizTitleInput.value = '';
+    }
+    
+    // Clear quiz description if exists
+    const quizDescriptionInput = document.getElementById('quiz-description');
+    if (quizDescriptionInput) {
+        quizDescriptionInput.value = '';
+    }
+    
+    // Disable download and commit buttons
+    if (this.downloadBtn) {
+        this.downloadBtn.disabled = true;
+    }
+    if (this.commitBtn) {
+        this.commitBtn.disabled = true;
+    }
+}
 
     /**
      * Format file size for display
