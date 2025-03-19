@@ -106,9 +106,17 @@
                     <div class="form-group">
                         <label for="pdfOptions">PDF Options:</label>
                         <div class="checkbox-group">
+                            <div class="option-group full-width">
+                                <label for="generalDirections">General Directions:</label>
+                                <textarea id="generalDirections" rows="3" placeholder="Enter general directions for the exam"></textarea>
+                            </div>
                             <div class="checkbox-item">
                                 <input type="checkbox" id="includeAnswers" name="includeAnswers" checked>
                                 <label for="includeAnswers">Generate Answer Key</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="includeImages" name="includeImages">
+                                <label for="includeImages">Include Images</label>
                             </div>
                         </div>
                     </div>

@@ -17,6 +17,7 @@ class QTIToPDFConverter {
         this.includeImages = false;
         this.paperSize = "a4"; // Default paper size
         this.college = ""; // Default empty, will be set by setOptions
+        this.generalDirections = ""; // Default empty, will be set by setOptions
         
         // Paper size configurations
         this.paperSizes = {
@@ -63,6 +64,7 @@ class QTIToPDFConverter {
         if (options.includeImages !== undefined) this.includeImages = options.includeImages;
         if (options.paperSize) this.paperSize = options.paperSize;
         if (options.college) this.college = options.college;
+        if (options.generalDirections) this.generalDirections = options.generalDirections;
     }
 
     /**
@@ -450,7 +452,7 @@ class QTIToPDFConverter {
         const universityX = (paperConfig.width - universityWidth) / 2;
         
         pdf.text(universityName, universityX, y);
-        y += 10;
+        y += 8; // Reduced spacing after university name from 10 to 8
         
         // Add college name if provided
         if (this.college) {
@@ -462,7 +464,8 @@ class QTIToPDFConverter {
             const collegeX = (paperConfig.width - collegeWidth) / 2;
             
             pdf.text(this.college, collegeX, y);
-            y += 25; // Increased spacing after college name
+            y += 20; // Reduced spacing after college name from 25 to 20
+            
         }
         
         // Add student information lines without underlines
@@ -471,21 +474,29 @@ class QTIToPDFConverter {
         
         // Left side
         pdf.text("Name:", margin.left, y);
-        pdf.text("Section:", margin.left, y + 20); // Increased spacing between lines
+        pdf.text("Section:", margin.left, y + 12); // Reduced spacing from 20 to 12
         
         // Right side
         pdf.text("Date:", paperConfig.width - margin.right - 60, y);
-        pdf.text("Student Number:", paperConfig.width - margin.right - 60, y + 20); // Increased spacing between lines
+        pdf.text("Student Number:", paperConfig.width - margin.right - 60, y + 12); // Reduced spacing from 20 to 12
         
-        y += 40; // Increase spacing after student info
+        y += 30; // Reduced spacing after student info from 40 to 30
         
-        // Draw a horizontal line
-        pdf.setLineWidth(0.5);
-        pdf.line(margin.left, y, paperConfig.width - margin.right, y);
-        y += 10;
+        // Add general directions if provided
+        if (this.generalDirections && this.generalDirections.trim() !== '') {
+            pdf.setFontSize(11);
+            pdf.setFont("helvetica", "normal");
+            
+            // Split text to fit within margins
+            const directionsLines = pdf.splitTextToSize(this.generalDirections, contentWidth);
+            pdf.text(directionsLines, margin.left, y);
+            
+            // Increase y position based on number of lines
+            y += directionsLines.length * 7 + 10;
+        }
         
         // Process each question
-        for (let i = 0; i <this.questions.length; i++) {
+        for (let i = 0; i < this.questions.length; i++) {
             const question = this.questions[i];
             
             // Check if we need a new page

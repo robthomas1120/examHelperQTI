@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
         collegeSelect: document.getElementById('collegeSelect'),
         includeAnswers: document.getElementById('includeAnswers'),
         paperSize: document.getElementById('paperSize'),
+        generalDirections: document.getElementById('generalDirections'),
         convertBtn: document.getElementById('convertBtn'),
         downloadBtn: document.getElementById('downloadBtn'),
         resultsSection: document.getElementById('results-section'),
@@ -173,7 +174,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 title: elements.titleInput.value.trim(),
                 includeAnswers: elements.includeAnswers.checked,
                 paperSize: elements.paperSize.value,
-                college: elements.collegeSelect.value
+                college: elements.collegeSelect.value,
+                generalDirections: elements.generalDirections.value
             };
 
             // Set converter options
