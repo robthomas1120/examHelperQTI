@@ -1,22 +1,18 @@
-// navbar.js - with image logo, responsive design and global header/footer
+// navbar.js - with download button inside the burger menu for all responsive sizes
 document.addEventListener('DOMContentLoaded', function() {
-  // Create the header HTML with responsive design and image logo
+  // Create the header HTML with positioning adjustments
   const headerHTML = `
     <header>
         <div class="container-nav">
-            <div class="logo-nav">
-                <a href="index.html">
-                    <img src="../ustlogo.png" alt="UST Logo" class="logo-img">
-                    <span>Exam Helper</span>
-                </a>
-            </div>
-            <div class="hamburger-menu">
-                <div class="hamburger-icon">
-                    <span></span>
-                    <span></span>
-                    <span></span>
+            <div class="left-section">
+                <div class="logo-nav">
+                    <a href="index.html">
+                        <img src="../ustlogo.png" alt="UST Logo" class="logo-img">
+                        <span>ExamHelper</span>
+                    </a>
                 </div>
             </div>
+            
             <nav class="nav-menu">
                 <ul>
                     <li><a href="index.html">Home</a></li>
@@ -31,10 +27,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     </li>
                 </ul>
             </nav>
-            <div class="download-btn">
-                <a href="#" class="btn-download" id="download-template-btn">
-                    <i class="fas fa-download"></i> Download Template
-                </a>
+            
+            <div class="right-section">
+                <div class="hamburger-menu">
+                    <div class="hamburger-icon">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+                <!-- Desktop download button only visible on large screens -->
+                <div class="download-btn desktop-only">
+                    <a href="#" class="btn-download" id="download-template-btn">
+                        <i class="fas fa-download"></i> Download Template
+                    </a>
+                </div>
             </div>
         </div>
     </header>
@@ -128,7 +135,17 @@ document.addEventListener('DOMContentLoaded', function() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          position: relative;
+          width: 100%;
+      }
+      
+      .left-section {
+          margin-right: auto; /* Push to the far left */
+      }
+      
+      .right-section {
+          margin-left: auto; /* Push to the far right */
+          display: flex;
+          align-items: center;
       }
       
       /* Logo styles */
@@ -146,11 +163,52 @@ document.addEventListener('DOMContentLoaded', function() {
           margin-right: 10px;
       }
       
+      /* Navigation menu styles */
+      .nav-menu {
+          display: flex;
+          justify-content: center;
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
+      }
+      
+      .nav-menu ul {
+          display: flex;
+          list-style: none;
+          margin: 0;
+          padding: 0;
+      }
+      
+      .nav-menu li {
+          margin: 0 10px;
+      }
+      
+      .nav-menu a {
+          text-decoration: none;
+          color: var(--nav-text-color, #fff);
+          font-weight: 500;
+          padding: 8px 12px;
+          border-radius: 5px;
+          transition: all 0.3s ease;
+          display: block;
+      }
+      
+      .nav-menu a:hover {
+          color: var(--primary-color);
+          background-color: var(--nav-hover-bg, rgba(255, 184, 28, 0.2));
+      }
+      
+      .nav-menu a.active {
+          color: var(--primary-color);
+          background-color: var(--nav-active-bg, rgba(255, 184, 28, 0.3));
+      }
+      
       /* Hamburger Menu Styles */
       .hamburger-menu {
           display: none;
           cursor: pointer;
           z-index: 1000;
+          margin-right: 15px;
       }
       
       .hamburger-icon {
@@ -183,6 +241,32 @@ document.addEventListener('DOMContentLoaded', function() {
           transform: translateY(-8.5px) rotate(-45deg);
       }
       
+      /* Download Button Styles */
+      .download-btn {
+          margin-left: 20px;
+      }
+      
+      .btn-download {
+          display: inline-block;
+          background-color: var(--primary-color);
+          color: var(--nav-bg-color, #121212);
+          padding: 8px 16px;
+          border-radius: 5px;
+          text-decoration: none;
+          font-weight: 500;
+          transition: all 0.3s ease;
+      }
+      
+      .btn-download:hover {
+          background-color: var(--primary-dark);
+          transform: translateY(-2px);
+          box-shadow: 0 2px 8px rgba(255, 184, 28, 0.4);
+      }
+      
+      .btn-download i {
+          margin-right: 8px;
+      }
+      
       /* Mobile download button styles */
       .mobile-download-item {
           display: none;
@@ -192,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
           display: flex;
           align-items: center;
           background-color: var(--primary-color);
-          color: var(--nav-bg-color) !important;
+          color: var(--nav-bg-color, #121212) !important;
           padding: 10px 15px !important;
           border-radius: 5px;
           font-weight: 500;
@@ -240,27 +324,19 @@ document.addEventListener('DOMContentLoaded', function() {
       
       /* Media Queries for Responsive Design */
       @media screen and (max-width: 992px) {
-          .hamburger-menu {
-              display: flex;
-              order: 3;
-          }
-          
-          .download-btn {
-              order: 2;
-              margin-left: 0;
-          }
-          
           .nav-menu {
               position: fixed;
               top: 0;
               right: -100%;
               width: 250px;
               height: 100vh;
-              background-color: var(--nav-bg-color);
+              background-color: var(--nav-bg-color, #121212);
               box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
               padding-top: 80px;
               transition: all 0.4s ease;
               z-index: 100;
+              transform: none;
+              left: auto;
           }
           
           .nav-menu.active {
@@ -276,36 +352,29 @@ document.addEventListener('DOMContentLoaded', function() {
               margin: 15px 0;
           }
           
-          .nav-menu a {
-              display: block;
-              padding: 10px 15px;
+          .hamburger-menu {
+              display: flex;
           }
           
+          /* Show download button in mobile menu for tablet sizes */
           .mobile-download-item {
-              display: none; /* Still hidden on tablets */
+              display: block;
+          }
+          
+          /* Hide desktop download button in tablet view */
+          .desktop-only {
+              display: none;
           }
       }
       
       @media screen and (max-width: 768px) {
-          .download-btn {
-              display: none;
-          }
-          
-          .mobile-download-item {
-              display: block; /* Show on mobile */
-          }
-          
           .nav-menu {
               width: 100%;
               padding-top: 70px;
           }
           
-          .nav-menu.active {
-              right: 0;
-          }
-          
           .logo-img {
-              height: 30px; /* Slightly smaller logo on mobile */
+              height: 30px;
           }
       }
       
@@ -315,7 +384,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }
           
           .logo-img {
-              height: 25px; /* Even smaller logo on very small screens */
+              height: 25px;
           }
       }
     `;

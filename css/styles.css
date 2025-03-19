@@ -43,7 +43,7 @@ body {
     min-height: 100vh;
 }
 
-.container, .container-nav {
+.container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 2rem;
@@ -579,7 +579,7 @@ tr:nth-child(even) {
 
 /* Responsive Styles */
 @media (max-width: 768px) {
-    .container, .container-nav {
+    .container{
         padding: 1rem;
     }
     
