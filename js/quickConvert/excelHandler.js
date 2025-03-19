@@ -578,8 +578,23 @@ addCellEditListeners() {
                 }
             }
             
+            // Store previous validation state to detect changes
+            const previousValidationState = this.hasValidationErrors;
+            
             // Revalidate data and update error displays
             this.validateData();
+            
+            // If validation state has changed, dispatch an event to notify the main script
+            if (previousValidationState !== this.hasValidationErrors) {
+                // Dispatch a custom event with the new validation state
+                const event = new CustomEvent('validationStateChanged', {
+                    detail: { 
+                        hasErrors: this.hasValidationErrors 
+                    },
+                    bubbles: true
+                });
+                this.previewElement.dispatchEvent(event);
+            }
         });
     });
     
