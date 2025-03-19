@@ -190,6 +190,9 @@
     resize: vertical;
     min-height: 80px;
 }
+.form-group input {
+    width: 20px;
+}
 
 .full-width {
     grid-column: 1 / -1;
