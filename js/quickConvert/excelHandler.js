@@ -13,6 +13,7 @@ class ExcelHandler {
         this.hasValidationErrors = false;
         this.errorMessages = [];
         this.errorContainer = null;
+        this.mcErrorContainer = null;
     }
 
     /**
@@ -59,6 +60,9 @@ class ExcelHandler {
             // Display the data
             this.displayData();
             
+            // Validate data to show errors immediately
+            this.validateData();
+            
             // Return processed data
             return this.processQuestionData();
         } catch (error) {
@@ -72,11 +76,11 @@ class ExcelHandler {
      * Create error container for displaying validation errors
      */
     createErrorContainer() {
-        // Check if error container already exists
+        // Check if regular error container already exists
         let errorContainer = document.getElementById('error-container');
         
         if (!errorContainer) {
-            // Create error container
+            // Create regular error container
             errorContainer = document.createElement('div');
             errorContainer.id = 'error-container';
             errorContainer.className = 'error-container';
@@ -93,7 +97,29 @@ class ExcelHandler {
             this.previewElement.parentNode.insertBefore(errorContainer, this.previewElement);
         }
         
+        // Check if multiple correct error container already exists
+        let mcErrorContainer = document.getElementById('mc-error-container');
+        
+        if (!mcErrorContainer) {
+            // Create multiple correct error container
+            mcErrorContainer = document.createElement('div');
+            mcErrorContainer.id = 'mc-error-container';
+            mcErrorContainer.className = 'mc-error-container';
+            mcErrorContainer.style.cssText = `
+                margin-bottom: 15px;
+                padding: 12px 15px;
+                background-color: #ffedd5;
+                border-radius: 6px;
+                border: 1px solid #f97316;
+                display: none;
+            `;
+            
+            // Insert before preview element but after regular error container
+            this.previewElement.parentNode.insertBefore(mcErrorContainer, this.previewElement);
+        }
+        
         this.errorContainer = errorContainer;
+        this.mcErrorContainer = mcErrorContainer;
     }
 
     /**
@@ -116,10 +142,9 @@ class ExcelHandler {
             reader.readAsArrayBuffer(file);
         });
     }
+    
+    // Update to the displayData method to make the table taller
 
-    /**
-     * Display the question data in an editable table
-     */
     displayData() {
         if (!this.questionData || this.questionData.length < 1) {
             this.previewElement.innerHTML = '<p>No valid data found</p>';
@@ -134,30 +159,45 @@ class ExcelHandler {
             headers.push('');
         }
 
-        // Create table with error container first
-        let tableHtml = '<div id="error-container" class="error-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #fee2e2; border-radius: 6px; border: 1px solid #ef4444; display: none;"></div>';
-
-        // Add tip box
-        tableHtml += '<div class="tip-box" style="margin-bottom: 15px; padding: 10px; background-color: #f0f9ff; border-radius: 6px; border-left: 4px solid #3b82f6;">';
-        tableHtml += '<i class="fas fa-info-circle" style="color: #3b82f6; margin-right: 8px;"></i>';
-        tableHtml += 'Tip: Click any cell to edit its value. Press Enter to save changes or Esc to cancel.';
-        tableHtml += '</div>';
+        // Create main structure
+        let fullHtml = '';
         
-        tableHtml += '<div class="table-container" style="max-height: 600px;">';
-        tableHtml += '<table class="data-table" style="width: 100%; border-collapse: collapse;">';
+        // Error container
+        fullHtml += '<div id="error-container" class="error-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #fee2e2; border-radius: 6px; border: 1px solid #ef4444; display: none;"></div>';
         
-        // Table header
-        tableHtml += '<thead><tr>';
+        // Multiple correct error container
+        fullHtml += '<div id="mc-error-container" class="mc-error-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316; display: none;"></div>';
+        
+        // Download button right after error notifications
+        fullHtml += '<div style="margin-bottom: 15px; text-align: right;">';
+        fullHtml += '<button id="downloadExcelBtn" class="secondary-btn">';
+        fullHtml += '<i class="fas fa-download"></i> Download Edited Excel';
+        fullHtml += '</button>';
+        fullHtml += '</div>';
+        
+        // Tip message
+        fullHtml += '<div class="tip-box" style="margin-bottom: 15px; padding: 12px 15px; background-color: #e0f2fe; border-radius: 6px; border: 1px solid #0ea5e9;">';
+        fullHtml += '<p style="margin: 0; color: #0c4a6e;"><i class="fas fa-lightbulb" style="margin-right: 8px;"></i><strong>Tip:</strong> Double-click on cells to edit. Press Enter to save your changes.</p>';
+        fullHtml += '</div>';
+        
+        // Add scrollable container for the table with fixed height (doubled)
+        fullHtml += '<div class="table-container" style="height: 600px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 15px;">';
+        
+        // Table (within scrollable container)
+        fullHtml += '<table class="data-table" style="width: 100%; border-collapse: collapse;">';
+        
+        // Table header (make it sticky)
+        fullHtml += '<thead style="position: sticky; top: 0; z-index: 10;"><tr>';
         headers.forEach((header, index) => {
-            tableHtml += `<th style="padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: left; position: sticky; top: 0; z-index: 10;">${header}</th>`;
+            fullHtml += `<th style="padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: left;">${header}</th>`;
         });
-        tableHtml += '</tr></thead>';
+        fullHtml += '</tr></thead>';
         
         // Table body
-        tableHtml += '<tbody>';
+        fullHtml += '<tbody>';
         
-        // Get data rows (skip header row)
-        const dataRows = this.questionData.slice(1);
+        // Get all data rows
+        const dataRows = this.questionData;
         
         // Filter out completely empty rows
         const nonEmptyRows = dataRows.filter(row => 
@@ -165,11 +205,15 @@ class ExcelHandler {
         );
 
         nonEmptyRows.forEach((row, rowIndex) => {
-            const displayRowNumber = rowIndex + 2; // Start counting from 2 since row 1 is header
-            tableHtml += `<tr data-row-index="${rowIndex}">`;
+            const displayRowNumber = rowIndex + 1;
+            fullHtml += `<tr data-row-index="${rowIndex}">`;
             
             // Add row number column
-            tableHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; background-color: #f3f4f6; font-weight: 500; text-align: center;">${displayRowNumber}</td>`;
+            fullHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; background-color: #f3f4f6; font-weight: 500; text-align: center;">${displayRowNumber}</td>`;
+            
+            // Get question type for this row (if available)
+            // The first column of your data is the Exam Type
+            const questionType = row[0]?.toString().toUpperCase() || '';
             
             // Add data cells
             row.forEach((cell, colIndex) => {
@@ -185,34 +229,31 @@ class ExcelHandler {
                 }
                 
                 // Add error highlighting for invalid tag values
-                if (this.isTagColumn(colIndex + 1) && cellValue && !['correct', 'incorrect', ''].includes(cellValue.toLowerCase())) {
+                if (this.isTagColumn(colIndex + 1, questionType) && cellValue && !['correct', 'incorrect', ''].includes(cellValue.toLowerCase())) {
                     cellStyle += ' background-color: #fee2e2;'; // Red background for invalid tags
                 }
                 
-                tableHtml += `<td 
+                fullHtml += `<td 
                     class="${isEditable ? 'editable-cell' : ''}" 
                     data-row="${rowIndex}" 
                     data-col="${colIndex}" 
+                    data-question-type="${questionType}"
                     data-value="${this.escapeHTML(cellValue)}" 
                     style="padding: 8px; border: 1px solid #e5e7eb; ${cellStyle}"
                     ${isEditable ? 'contenteditable="true"' : ''}
                 >${cellValue}</td>`;
             });
             
-            tableHtml += '</tr>';
+            fullHtml += '</tr>';
         });
         
-        tableHtml += '</tbody></table></div>';
+        fullHtml += '</tbody></table>';
         
-        // Add download button
-        tableHtml += '<div style="margin-top: 15px; text-align: right;">';
-        tableHtml += '<button id="downloadExcelBtn" class="secondary-btn" style="margin-right: 10px;">';
-        tableHtml += '<i class="fas fa-download"></i> Download Edited Excel';
-        tableHtml += '</button>';
-        tableHtml += '</div>';
+        // Close the scrollable container
+        fullHtml += '</div>';
         
         // Update preview
-        this.previewElement.innerHTML = tableHtml;
+        this.previewElement.innerHTML = fullHtml;
         
         // Store reference to error container
         this.errorContainer = document.getElementById('error-container');
@@ -226,85 +267,83 @@ class ExcelHandler {
             downloadBtn.addEventListener('click', () => this.downloadEditedFile());
         }
         
-        // Validate and show errors
-        this.validateData();
+        // Update the cell editing event listeners to use double-click
+        this.updateCellEditListeners();
     }
-    
+
+
+    /**
+     * Update cell edit listeners to use double-click
+     */
+    updateCellEditListeners() {
+        const cells = this.previewElement.querySelectorAll('.editable-cell');
+        
+        cells.forEach(cell => {
+            // Remove existing click listener and add double-click
+            cell.removeEventListener('click', this.cellClickHandler);
+            
+            // Add double-click listener
+            cell.addEventListener('dblclick', () => {
+                cell.focus();
+                // Select all text when double-clicked
+                const range = document.createRange();
+                range.selectNodeContents(cell);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            });
+        });
+    }
+
     /**
      * Check if a column is a tag column (for correct/incorrect values)
      * @param {number} colIndex - Column index
+     * @param {string} questionType - Question type (MC, MA, etc.)
      * @returns {boolean} - True if it's a tag column
      */
-    isTagColumn(colIndex) {
+    isTagColumn(colIndex, questionType) {
+        // Only MC and MA questions have tag columns
+        if (questionType !== 'MC' && questionType !== 'MA') {
+            return false;
+        }
         // For MC and MA questions, every even-numbered column after column 2 is a tag column
         return colIndex > 2 && colIndex % 2 === 0;
-    }
-    
-    /**
-     * Validate the data and show error messages
-     */
-    validateData() {
-        this.errorMessages = [];
-        this.hasValidationErrors = false;
-        
-        if (!this.editedData || this.editedData.length < 2) return;
-        
-        const dataRows = this.editedData.slice(1); // Skip header row
-        
-        dataRows.forEach((row, rowIndex) => {
-            const rowNum = rowIndex + 2; // Start counting from row 2 since row 1 is header
-            const questionType = row[1]?.toString().toUpperCase(); // Exam Type is in column 2
-            
-            // Skip empty rows
-            if (!row.some(cell => cell !== null && cell !== undefined && cell !== '')) {
-                return;
-            }
-
-            // Only validate correct/incorrect tags for MC and MA
-            if (questionType === 'MC' || questionType === 'MA') {
-                // Check for invalid tag values
-                row.forEach((cell, colIndex) => {
-                    if (this.isTagColumn(colIndex + 1)) {
-                        const cellValue = cell?.toString().toLowerCase();
-                        if (cellValue && !['correct', 'incorrect'].includes(cellValue)) {
-                            this.errorMessages.push(`Row ${rowNum}: Invalid tag value "${cell}" - must be "correct" or "incorrect"`);
-                            this.hasValidationErrors = true;
-                        }
-                    }
-                });
-
-                // Count correct answers
-                let correctCount = 0;
-                row.forEach((cell, colIndex) => {
-                    if (this.isTagColumn(colIndex + 1) && cell?.toString().toLowerCase() === 'correct') {
-                        correctCount++;
-                    }
-                });
-
-                // Validate based on question type
-                if (questionType === 'MC' && correctCount !== 1) {
-                    this.errorMessages.push(`Row ${rowNum}: Multiple Choice question must have exactly 1 correct answer`);
-                    this.hasValidationErrors = true;
-                } else if (questionType === 'MA' && correctCount < 2) {
-                    this.errorMessages.push(`Row ${rowNum}: Multiple Answer question must have at least 2 correct answers`);
-                    this.hasValidationErrors = true;
-                }
-            }
-        });
-        
-        this.updateErrorDisplay();
     }
 
     /**
      * Update the error display
      */
     updateErrorDisplay() {
-        if (!this.errorContainer) return;
+        if (!this.errorContainer || !this.mcErrorContainer) return;
         
-        if (this.errorMessages.length > 0) {
+        // Separate regular validation errors from multiple correct answer errors
+        const regularErrors = [];
+        const multipleCorrectErrors = [];
+        const mcErrorRows = new Set(); // Track row numbers with MC/MA errors only
+        
+        this.errorMessages.forEach(error => {
+            if (error.includes('Multiple Choice question must have exactly 1 correct answer') || 
+                error.includes('Multiple Answer question must have at least 2 correct answers')) {
+                multipleCorrectErrors.push(error);
+                
+                // Extract row number from error message (assuming format "Row X: ...")
+                const rowMatch = error.match(/Row (\d+):/);
+                if (rowMatch && rowMatch[1]) {
+                    mcErrorRows.add(parseInt(rowMatch[1]));
+                }
+            } else {
+                regularErrors.push(error);
+            }
+        });
+        
+        // Highlight only rows with multiple choice/answer errors
+        this.highlightErrorRows(mcErrorRows);
+        
+        // Regular validation errors
+        if (regularErrors.length > 0) {
             let errorHtml = '<h3 style="margin: 0 0 8px 0; color: #991b1b; font-size: 1rem; font-weight: 600;">Validation Errors:</h3>';
             errorHtml += '<ul style="margin: 0; padding-left: 20px;">';
-            this.errorMessages.forEach(error => {
+            regularErrors.forEach(error => {
                 errorHtml += `<li style="color: #7f1d1d; margin-bottom: 4px;">${error}</li>`;
             });
             errorHtml += '</ul>';
@@ -315,6 +354,47 @@ class ExcelHandler {
             this.errorContainer.style.display = 'none';
             this.errorContainer.innerHTML = '';
         }
+        
+        // Multiple correct answer errors in separate orange container
+        if (multipleCorrectErrors.length > 0) {
+            let mcErrorHtml = '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Correct Answer Error:</h3>';
+            mcErrorHtml += '<ul style="margin: 0; padding-left: 20px;">';
+            multipleCorrectErrors.forEach(error => {
+                mcErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">${error}</li>`;
+            });
+            mcErrorHtml += '</ul>';
+            
+            this.mcErrorContainer.innerHTML = mcErrorHtml;
+            this.mcErrorContainer.style.display = 'block';
+        } else {
+            this.mcErrorContainer.style.display = 'none';
+            this.mcErrorContainer.innerHTML = '';
+        }
+    }
+    
+    /**
+     * Highlight rows with errors
+     * @param {Set<number>} errorRows - Set of row numbers with errors
+     */
+    highlightErrorRows(errorRows) {
+        // Get all table rows
+        const tableRows = this.previewElement.querySelectorAll('table.data-table tbody tr');
+        
+        // First, remove any existing error highlighting
+        tableRows.forEach(row => {
+            row.style.backgroundColor = '';
+        });
+        
+        // Then highlight rows with errors
+        errorRows.forEach(rowNum => {
+            // Adjust rowNum to match display index (rowNum-1 is the array index, but the first row is 1 in the display)
+            const rowIndex = rowNum - 1;
+            const row = tableRows[rowIndex];
+            if (row) {
+                // Add a more distinct orange background to highlight the row
+                row.style.backgroundColor = '#ffcb8d'; // Brighter orange color
+            }
+        });
     }
     
     /**
@@ -352,18 +432,19 @@ class ExcelHandler {
                 const row = parseInt(cell.getAttribute('data-row'));
                 const col = parseInt(cell.getAttribute('data-col'));
                 const newValue = cell.textContent.trim();
+                const questionType = cell.getAttribute('data-question-type') || '';
                 
                 // Update edited data
-                if (!this.editedData[row + 1]) {
-                    this.editedData[row + 1] = [];
+                if (!this.editedData[row]) {
+                    this.editedData[row] = [];
                 }
-                this.editedData[row + 1][col] = newValue;
+                this.editedData[row][col] = newValue;
                 
                 // Update cell attributes
                 cell.setAttribute('data-value', this.escapeHTML(newValue));
                 
                 // Update cell styling
-                if (this.isTagColumn(col + 1)) {
+                if (this.isTagColumn(col + 1, questionType)) {
                     const lowerValue = newValue.toLowerCase();
                     if (lowerValue === 'correct') {
                         cell.style.color = '#10b981';
@@ -384,6 +465,71 @@ class ExcelHandler {
                 this.validateData();
             });
         });
+    }
+
+    /**
+     * Validate the data and show errors
+     */
+    validateData() {
+        this.errorMessages = [];
+        this.hasValidationErrors = false;
+        
+        if (!this.editedData || this.editedData.length < 1) return;
+        
+        const dataRows = this.editedData; // Include all rows
+        const validQuestionTypes = ['MC', 'MA', 'FIB', 'ESS', 'TF'];
+        
+        dataRows.forEach((row, rowIndex) => {
+            const rowNum = rowIndex + 1; // Adjust to display row numbers correctly
+            if (!row || row.length < 2) return;
+            
+            // The first column is the Exam Type in your data structure
+            const questionType = row[0]?.toString().toUpperCase(); 
+            
+            // Skip empty rows
+            if (!row.some(cell => cell !== null && cell !== undefined && cell !== '')) {
+                return;
+            }
+
+            // Check if the question type is valid
+            if (questionType && !validQuestionTypes.includes(questionType)) {
+                this.errorMessages.push(`Row ${rowNum}: Invalid exam type "${questionType}" - must be one of: MC, MA, FIB, ESS, TF`);
+                this.hasValidationErrors = true;
+            }
+        
+            // Only validate correct/incorrect tags for MC and MA
+            if (questionType === 'MC' || questionType === 'MA') {
+                // Check for invalid tag values
+                row.forEach((cell, colIndex) => {
+                    if (this.isTagColumn(colIndex + 1, questionType)) {
+                        const cellValue = cell?.toString().toLowerCase();
+                        if (cellValue && !['correct', 'incorrect'].includes(cellValue)) {
+                            this.errorMessages.push(`Row ${rowNum}: Invalid tag value "${cell}" - must be "correct" or "incorrect"`);
+                            this.hasValidationErrors = true;
+                        }
+                    }
+                });
+        
+                // Count correct answers
+                let correctCount = 0;
+                row.forEach((cell, colIndex) => {
+                    if (this.isTagColumn(colIndex + 1, questionType) && cell?.toString().toLowerCase() === 'correct') {
+                        correctCount++;
+                    }
+                });
+        
+                // Validate based on question type
+                if (questionType === 'MC' && correctCount !== 1) {
+                    this.errorMessages.push(`Row ${rowNum}: Multiple Choice question must have exactly 1 correct answer`);
+                    this.hasValidationErrors = true;
+                } else if (questionType === 'MA' && correctCount < 2) {
+                    this.errorMessages.push(`Row ${rowNum}: Multiple Answer question must have at least 2 correct answers`);
+                    this.hasValidationErrors = true;
+                }
+            }
+        });
+        
+        this.updateErrorDisplay();
     }
 
     /**
@@ -413,7 +559,7 @@ class ExcelHandler {
      * @returns {Array} - Processed question data
      */
     processQuestionData() {
-        if (!this.editedData || this.editedData.length < 2) {
+        if (!this.editedData || this.editedData.length < 1) {
             return [];
         }
         
@@ -426,8 +572,8 @@ class ExcelHandler {
             all: []
         };
         
-        // Process each row (skip the first row which contains headers)
-        for (let rowIndex = 1; rowIndex < this.editedData.length; rowIndex++) {
+        // Process each row (start from index 0 to include the header row)
+        for (let rowIndex = 0; rowIndex < this.editedData.length; rowIndex++) {
             const row = this.editedData[rowIndex];
             if (!row || row.length < 2) continue;
             
