@@ -7,6 +7,8 @@ class QTIToPDFUI {
     constructor() {
         this.converter = new QTIToPDFConverter();
         this.currentFile = null;
+        this.pdfBlob = null;
+        this.answerKeyPdfBlob = null;
         
         // Initialize UI elements
         this.initElements();
@@ -17,35 +19,30 @@ class QTIToPDFUI {
      * Initialize UI element references
      */
     initElements() {
+        // Main container
         this.elements = {
-            // File upload elements
+            container: document.getElementById('qti-to-pdf-container'),
             dropArea: document.getElementById('qti-drop-area'),
             fileInput: document.getElementById('qti-file-input'),
             fileInfo: document.getElementById('qti-file-info'),
-            fileName: document.getElementById('qti-file-name'),
-            fileSize: document.getElementById('qti-file-size'),
+            fileNameDisplay: document.getElementById('qti-file-name'),
+            fileSizeDisplay: document.getElementById('qti-file-size'),
             removeFileBtn: document.getElementById('qti-remove-file'),
-            
-            // Option elements
-            titleInput: document.getElementById('qti-doc-title'),
+            titleInput: document.getElementById('qti-title-input'),
             includeAnswers: document.getElementById('qti-include-answers'),
-            includeImages: document.getElementById('qti-include-images'),
-            includePageNumbers: document.getElementById('qti-include-page-numbers'),
             paperSize: document.getElementById('qti-paper-size'),
-            
-            // Preview and conversion elements
-            previewArea: document.getElementById('qti-preview'),
+            collegeSelect: document.getElementById('qti-college-select'), // Added collegeSelect
             convertBtn: document.getElementById('qti-convert-btn'),
-            downloadBtn: document.getElementById('qti-download-btn'),
-            
-            // Status and results elements
+            previewArea: document.getElementById('qti-preview'),
             resultsSection: document.getElementById('qti-results-section'),
             conversionSummary: document.getElementById('qti-conversion-summary'),
+            downloadBtn: document.getElementById('qti-download-btn'),
+            downloadAnswerKeyBtn: document.getElementById('qti-download-answer-key-btn'),
             loadingOverlay: document.getElementById('qti-loading-overlay')
         };
         
-        // Create elements if they don't exist yet (for integration)
-        if (!this.elements.dropArea) {
+        // If elements don't exist, create them
+        if (!this.elements.container) {
             this.createUIElements();
         }
     }
@@ -86,8 +83,20 @@ class QTIToPDFUI {
             <div class="qti-options-section">
                 <h3>PDF Options</h3>
                 <div class="form-group">
-                    <label for="qti-doc-title">Document Title:</label>
-                    <input type="text" id="qti-doc-title" placeholder="Enter document title">
+                    <label for="qti-title-input">Document Title:</label>
+                    <input type="text" id="qti-title-input" placeholder="Enter document title">
+                </div>
+                
+                <div class="form-group">
+                    <label for="qti-college-select">College:</label>
+                    <select id="qti-college-select">
+                        <option value="">Select College</option>
+                        <option value="College of Arts and Sciences">College of Arts and Sciences</option>
+                        <option value="College of Business">College of Business</option>
+                        <option value="College of Education">College of Education</option>
+                        <option value="College of Engineering">College of Engineering</option>
+                        <option value="College of Health Sciences">College of Health Sciences</option>
+                    </select>
                 </div>
                 
                 <div class="form-group">
@@ -95,15 +104,7 @@ class QTIToPDFUI {
                     <div class="checkbox-group">
                         <div class="checkbox-item">
                             <input type="checkbox" id="qti-include-answers" checked>
-                            <label for="qti-include-answers">Include Answers</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="qti-include-images" checked>
-                            <label for="qti-include-images">Include Images</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="qti-include-page-numbers" checked>
-                            <label for="qti-include-page-numbers">Include Page Numbers</label>
+                            <label for="qti-include-answers">Generate Answer Key</label>
                         </div>
                     </div>
                 </div>
@@ -136,6 +137,9 @@ class QTIToPDFUI {
                 <div id="qti-conversion-summary" class="conversion-summary"></div>
                 <button id="qti-download-btn" class="secondary-btn">
                     <i class="fas fa-download"></i> Download PDF
+                </button>
+                <button id="qti-download-answer-key-btn" class="secondary-btn hidden">
+                    <i class="fas fa-download"></i> Download Answer Key PDF
                 </button>
             </div>
             
@@ -182,6 +186,11 @@ class QTIToPDFUI {
         // Download button
         if (this.elements.downloadBtn) {
             this.elements.downloadBtn.addEventListener('click', this.handleDownloadClick.bind(this));
+        }
+        
+        // Download answer key button
+        if (this.elements.downloadAnswerKeyBtn) {
+            this.elements.downloadAnswerKeyBtn.addEventListener('click', this.handleDownloadAnswerKeyClick.bind(this));
         }
         
         // Option changes
@@ -279,8 +288,8 @@ class QTIToPDFUI {
         this.currentFile = file;
         
         // Update file info display
-        this.elements.fileName.textContent = file.name;
-        this.elements.fileSize.textContent = this.formatFileSize(file.size);
+        this.elements.fileNameDisplay.textContent = file.name;
+        this.elements.fileSizeDisplay.textContent = this.formatFileSize(file.size);
         this.elements.fileInfo.classList.remove('hidden');
         
         // Set default title from filename
@@ -448,20 +457,41 @@ class QTIToPDFUI {
             // Get options from form
             const options = {
                 title: this.elements.titleInput.value.trim(),
-                includeAnswers: this.elements.includeAnswers.checked,
-                includeImages: this.elements.includeImages.checked,
-                includePageNumbers: this.elements.includePageNumbers.checked,
-                paperSize: this.elements.paperSize.value
+                includeAnswers: false, // Always exclude answers from the exam PDF
+                paperSize: this.elements.paperSize.value,
+                college: this.elements.collegeSelect.value
             };
             
             // Set converter options
             this.converter.setOptions(options);
             
-            // Convert to PDF
-            const pdfBlob = await this.converter.convertToPDF(this.currentFile);
+            // Convert to PDF (exam without answers)
+            const examPdfBlob = await this.converter.convertToPDF(this.currentFile);
             
-            // Store blob for download
-            this.pdfBlob = pdfBlob;
+            // Store exam PDF blob for download
+            this.pdfBlob = examPdfBlob;
+            
+            // Generate answer key PDF if option is checked
+            if (this.elements.includeAnswers.checked) {
+                // Create a new instance for the answer key
+                const answerKeyConverter = new QTIToPDFConverter();
+                
+                // Set options for answer key (include answers)
+                const answerKeyOptions = {
+                    title: this.elements.titleInput.value.trim() + " - Answer Key",
+                    includeAnswers: true, // Include answers in the answer key
+                    paperSize: this.elements.paperSize.value,
+                    college: this.elements.collegeSelect.value
+                };
+                
+                answerKeyConverter.setOptions(answerKeyOptions);
+                
+                // Convert to PDF (answer key with answers)
+                const answerKeyPdfBlob = await answerKeyConverter.convertToPDF(this.currentFile);
+                
+                // Store answer key PDF blob
+                this.answerKeyPdfBlob = answerKeyPdfBlob;
+            }
             
             // Update results section
             this.updateResults(true);
@@ -507,6 +537,38 @@ class QTIToPDFUI {
     }
 
     /**
+     * Handle download answer key button click
+     * @param {MouseEvent} e - Click event
+     */
+    handleDownloadAnswerKeyClick(e) {
+        if (!this.answerKeyPdfBlob) {
+            this.showError('No answer key PDF available for download. Please convert first.');
+            return;
+        }
+        
+        // Create filename from title
+        const title = this.elements.titleInput.value.trim();
+        const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const filename = `${sanitizedTitle}_answer_key.pdf`;
+        
+        // Create download link
+        const url = URL.createObjectURL(this.answerKeyPdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        
+        // Trigger download
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        // Clean up
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 100);
+    }
+
+    /**
      * Update convert button state
      */
     updateButtonState() {
@@ -526,6 +588,7 @@ class QTIToPDFUI {
             
             // Update summary
             const paperSize = this.elements.paperSize.options[this.elements.paperSize.selectedIndex].text;
+            const college = this.elements.collegeSelect.options[this.elements.collegeSelect.selectedIndex].text;
             
             this.elements.conversionSummary.innerHTML = `
                 <div class="success-message">
@@ -533,10 +596,15 @@ class QTIToPDFUI {
                     Successfully converted QTI to PDF
                 </div>
                 <p><strong>Title:</strong> ${this.elements.titleInput.value}</p>
+                <p><strong>College:</strong> ${college}</p>
                 <p><strong>Paper Size:</strong> ${paperSize}</p>
-                <p><strong>Answers Included:</strong> ${this.elements.includeAnswers.checked ? 'Yes' : 'No'}</p>
-                <p><strong>Page Numbers Included:</strong> ${this.elements.includePageNumbers.checked ? 'Yes' : 'No'}</p>
+                <p><strong>Answer Key Generated:</strong> ${this.elements.includeAnswers.checked ? 'Yes' : 'No'}</p>
             `;
+            
+            // Show download answer key button if answer key was generated
+            if (this.answerKeyPdfBlob) {
+                this.elements.downloadAnswerKeyBtn.classList.remove('hidden');
+            }
             
             // Scroll to results
             this.elements.resultsSection.scrollIntoView({ behavior: 'smooth' });

@@ -94,19 +94,46 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="collegeSelect">College:</label>
+                        <select id="collegeSelect">
+                            <option value="College of Accountancy">College of Accountancy</option>
+                            <option value="College of Architecture">College of Architecture</option>
+                            <option value="College of Commerce and Business Administration">College of Commerce and Business Administration</option>
+                            <option value="College of Education">College of Education</option>
+                            <option value="College of Fine Arts and Design">College of Fine Arts and Design</option>
+                            <option value="College of Information and Computing Sciences">College of Information and Computing Sciences</option>
+                            <option value="College of Nursing">College of Nursing</option>
+                            <option value="College of Rehabilitation Sciences">College of Rehabilitation Sciences</option>
+                            <option value="College of Science">College of Science</option>
+                            <option value="College of Tourism and Hospitality Management">College of Tourism and Hospitality Management</option>
+                            <option value="Conservatory of Music">Conservatory of Music</option>
+                            <option value="Education High School">Education High School</option>
+                            <option value="Faculty of Arts and Letters">Faculty of Arts and Letters</option>
+                            <option value="Faculty of Canon Law">Faculty of Canon Law</option>
+                            <option value="Faculty of Civil Law">Faculty of Civil Law</option>
+                            <option value="Faculty of Engineering">Faculty of Engineering</option>
+                            <option value="Faculty of Medicine and Surgery">Faculty of Medicine and Surgery</option>
+                            <option value="Faculty of Pharmacy">Faculty of Pharmacy</option>
+                            <option value="Faculty of Philosophy">Faculty of Philosophy</option>
+                            <option value="Faculty of Sacred Theology">Faculty of Sacred Theology</option>
+                            <option value="Graduate School">Graduate School</option>
+                            <option value="Graduate School of Law">Graduate School of Law</option>
+                            <option value="Institute of Physical Education and Athletics">Institute of Physical Education and Athletics</option>
+                            <option value="Junior High School">Junior High School</option>
+                            <option value="Senior High School">Senior High School</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label for="pdfOptions">PDF Options:</label>
                         <div class="checkbox-group">
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="includeAnswers" checked>
-                                <label for="includeAnswers">Include Answers</label>
+                            <div class="option-group full-width">
+                                <label for="generalDirections">General Directions:</label>
+                                <textarea id="generalDirections" rows="3" placeholder="Enter general directions for the exam"></textarea>
                             </div>
                             <div class="checkbox-item">
-                                <input type="checkbox" id="includeImages" checked>
-                                <label for="includeImages">Include Images</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="includePageNumbers" checked>
-                                <label for="includePageNumbers">Include Page Numbers</label>
+                                <input type="checkbox" id="includeAnswers" name="includeAnswers" checked>
+                                <label for="includeAnswers">Generate Answer Key</label>
                             </div>
                         </div>
                     </div>
@@ -117,8 +144,6 @@
                             <option value="a4">A4</option>
                             <option value="letter">Letter</option>
                             <option value="legal">Legal</option>
-                            <option value="short-bond">Short Bond</option>
-                            <option value="long-bond">Long Bond</option>
                         </select>
                     </div>
 
@@ -128,21 +153,15 @@
                 </div>
             </div>
             
-            <section class="preview-section">
-                <div class="card">
-                    <h2><i class="fas fa-eye"></i> QTI Preview</h2>
-                    <div id="qti-preview">
-                        <p class="placeholder-text">QTI content will appear here after upload</p>
-                    </div>
-                </div>
-            </section>
-
             <section class="results-section hidden" id="results-section">
                 <div class="card">
                     <h2><i class="fas fa-check-circle"></i> Conversion Results</h2>
                     <div id="conversion-summary"></div>
                     <button id="downloadBtn" class="secondary-btn">
                         <i class="fas fa-download"></i> Download PDF
+                    </button>
+                    <button id="downloadAnswerKeyBtn" class="secondary-btn hidden">
+                        <i class="fas fa-download"></i> Download Answer Key PDF
                     </button>
                 </div>
             </section>
@@ -163,6 +182,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- Update JS paths with proper relative paths -->
+    <script src="../js/qtiToPdf/qtiToPdf.js"></script>
     <script src="../js/qtiToPdf/customQtiToPdf.js"></script>
 </body>
 </html>
