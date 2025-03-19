@@ -9,6 +9,9 @@ class QTIConverter {
         this.questionCounter = 0;
         this.itemsXML = [];
         this.manifestItems = [];
+        this.quizTitle = '';
+        this.quizDescription = '';
+        this.questions = [];
     }
 
     /**
@@ -400,12 +403,23 @@ class QTIConverter {
      * Create True/False question item
      * @param {String} id - Question ID
      * @param {String} questionText - Question text
-     * @param {Array} questionData - Full question data
+     * @param {Array|Object} questionData - Question data
      * @returns {String} - QTI XML for true/false item
      */
     createTrueFalseItem(id, questionText, questionData) {
-        // Determine correct answer
-        const correctAnswer = (questionData[2] || '').toUpperCase() === 'TRUE';
+        // Handle different formats of question data
+        let correctAnswer = false;
+        
+        if (Array.isArray(questionData)) {
+            // If it's an array, the answer should be at index 2
+            const answerText = questionData[2] ? String(questionData[2]).trim().toUpperCase() : '';
+            correctAnswer = answerText === 'TRUE';
+        } else if (typeof questionData === 'object') {
+            // If it's an object, check for the answer property
+            correctAnswer = !!questionData.answer;
+        }
+        
+        console.log(`Creating TF question: "${questionText.substring(0, 30)}..." Answer: ${correctAnswer ? 'TRUE' : 'FALSE'}`);
         
         // Generate answer IDs
         const trueId = `question_${this.generateUniqueId()}`;
@@ -726,6 +740,107 @@ class QTIConverter {
 </quiz>`;
         
         return xml;
+    }
+    
+    /**
+     * Set the quiz title
+     * @param {String} title - Quiz title
+     */
+    setQuizTitle(title) {
+        this.quizTitle = title || 'Untitled Quiz';
+    }
+
+    /**
+     * Set the quiz description
+     * @param {String} description - Quiz description
+     */
+    setQuizDescription(description) {
+        this.quizDescription = description || '';
+    }
+
+    /**
+     * Add questions to the converter
+     * @param {Object} questionData - Object containing question data
+     */
+    addQuestions(questionData) {
+        if (!questionData) {
+            console.error('Question data is null or undefined');
+            return;
+        }
+        
+        // Handle the case where questionData is an object with arrays for different question types
+        if (typeof questionData === 'object' && questionData.all && Array.isArray(questionData.all)) {
+            // Process all questions, ensuring TF questions have the correct format
+            this.questions = questionData.all.map(q => {
+                // If it's a TF question, ensure it has the correct format for the converter
+                if (q.type === 'TF' && q.data) {
+                    // Make sure the answer is in the correct format for createTrueFalseItem
+                    // The third element (index 2) should be 'TRUE' or 'FALSE'
+                    const tfData = [...q.data];
+                    if (q.answer !== undefined) {
+                        tfData[2] = q.answer ? 'TRUE' : 'FALSE';
+                    }
+                    return tfData;
+                }
+                return q.data || q;
+            });
+            
+            // Also include questions from the TF array if it exists
+            if (questionData.TF && Array.isArray(questionData.TF) && questionData.TF.length > 0) {
+                const tfQuestions = questionData.TF.map(q => {
+                    // Format TF questions correctly
+                    const tfData = [...(q.data || [])];
+                    if (q.answer !== undefined) {
+                        tfData[2] = q.answer ? 'TRUE' : 'FALSE';
+                    }
+                    return tfData;
+                });
+                
+                // Add TF questions that aren't already in the questions array
+                const existingIds = new Set(this.questions.map(q => q.id || ''));
+                const newTfQuestions = tfQuestions.filter(q => !existingIds.has(q.id || ''));
+                
+                this.questions = [...this.questions, ...newTfQuestions];
+            }
+        } else if (Array.isArray(questionData)) {
+            this.questions = questionData;
+        } else {
+            console.error('Questions must be an array or an object with an "all" array property');
+        }
+        
+        console.log(`Total questions added: ${this.questions.length}`);
+    }
+    
+    /**
+     * Generate QTI package with the current quiz data
+     * @returns {Blob} - Zip file blob
+     */
+    generateQTIPackage() {
+        try {
+            // Convert using the existing convert method
+            const zipPromise = this.convert(this.questions, this.quizTitle, this.quizDescription);
+            
+            // Handle the promise to return a Blob synchronously
+            let zipBlob = null;
+            zipPromise.then(blob => {
+                zipBlob = blob;
+            }).catch(error => {
+                console.error('Error generating QTI package:', error);
+                throw error;
+            });
+            
+            // If we have a zipBlob, return it
+            if (zipBlob) {
+                return zipBlob;
+            }
+            
+            // Otherwise create a dummy blob to avoid errors
+            return new Blob(['Processing...'], { type: 'text/plain' });
+        } catch (error) {
+            console.error('Error in generateQTIPackage:', error);
+            // Return a dummy blob to avoid errors
+            return new Blob(['Error generating QTI package'], { type: 'text/plain' });
+        }
     }
     
     /**

@@ -276,44 +276,70 @@ document.addEventListener('DOMContentLoaded', function() {
             // Convert questions
             converter.addQuestions(questionData);
             
-            // Generate QTI package
-            const zipBlob = converter.generateQTIPackage();
+            // Show loading message
+            const loadingMessage = document.createElement('div');
+            loadingMessage.id = 'conversion-loading';
+            loadingMessage.innerHTML = '<p>Converting questions to QTI format...</p><div class="spinner"></div>';
+            document.body.appendChild(loadingMessage);
             
-            // Create download URL
-            const downloadUrl = URL.createObjectURL(zipBlob);
-            
-            // Set download button attributes
-            downloadBtn.setAttribute('data-url', downloadUrl);
-            downloadBtn.setAttribute('data-filename', `${quizTitle.value.trim().replace(/\s+/g, '_')}_qti.zip`);
-            
-            // Show results section
-            resultsSection.classList.remove('hidden');
-            
-            // Display conversion summary
-            const summary = countQuestionTypes(questionData);
-            let summaryHtml = '<h3>Conversion Complete</h3>';
-            summaryHtml += '<p>The following questions have been converted:</p>';
-            summaryHtml += '<ul>';
-            
-            for (const type in summary) {
-                if (summary[type] > 0) {
-                    const typeName = getQuestionTypeName(type);
-                    summaryHtml += `<li>${typeName}: ${summary[type]}</li>`;
-                }
-            }
-            
-            summaryHtml += '</ul>';
-            conversionSummary.innerHTML = summaryHtml;
-            
-            // Scroll to results
-            resultsSection.scrollIntoView({ behavior: 'smooth' });
+            // Generate QTI package asynchronously
+            converter.convert(converter.questions, converter.quizTitle, converter.quizDescription)
+                .then(zipBlob => {
+                    // Remove loading message
+                    const loadingElement = document.getElementById('conversion-loading');
+                    if (loadingElement) {
+                        loadingElement.remove();
+                    }
+                    
+                    // Create download URL
+                    const downloadUrl = URL.createObjectURL(zipBlob);
+                    
+                    // Set download button attributes
+                    downloadBtn.setAttribute('data-url', downloadUrl);
+                    downloadBtn.setAttribute('data-filename', `${quizTitle.value.trim().replace(/\s+/g, '_')}_qti.zip`);
+                    
+                    // Show results section
+                    resultsSection.classList.remove('hidden');
+                    
+                    // Display conversion summary
+                    const summary = countQuestionTypes(questionData);
+                    let summaryHtml = '<h3>Conversion Complete</h3>';
+                    summaryHtml += '<p>The following questions have been converted:</p>';
+                    summaryHtml += '<ul>';
+                    
+                    for (const type in summary) {
+                        if (summary[type] > 0) {
+                            const typeName = getQuestionTypeName(type);
+                            summaryHtml += `<li>${typeName}: ${summary[type]}</li>`;
+                        }
+                    }
+                    
+                    summaryHtml += '</ul>';
+                    conversionSummary.innerHTML = summaryHtml;
+                    
+                    // Scroll to results
+                    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                })
+                .catch(error => {
+                    // Remove loading message
+                    const loadingElement = document.getElementById('conversion-loading');
+                    if (loadingElement) {
+                        loadingElement.remove();
+                    }
+                    
+                    console.error('Error during conversion:', error);
+                    alert('An error occurred during conversion. Please check the console for details.');
+                });
         } catch (error) {
             console.error('Error during conversion:', error);
             alert(`Error during conversion: ${error.message}`);
         }
     }
     
-    function countQuestionTypes(questions) {
+    // Count question types in data
+    function countQuestionTypes(data) {
+        if (!data) return {};
+        
         const counts = {
             MC: 0,
             MA: 0,
@@ -322,15 +348,37 @@ document.addEventListener('DOMContentLoaded', function() {
             FIB: 0
         };
         
-        // Count questions by type
-        if (questions && questions.all) {
-            questions.all.forEach(question => {
-                if (counts[question.type] !== undefined) {
-                    counts[question.type]++;
+        // If data is an object with type-specific arrays
+        if (typeof data === 'object' && !Array.isArray(data)) {
+            // Count questions in each type array
+            for (const type in counts) {
+                if (data[type] && Array.isArray(data[type])) {
+                    counts[type] = data[type].length;
+                }
+            }
+            
+            // Also check the 'all' array for any questions not in type-specific arrays
+            if (data.all && Array.isArray(data.all)) {
+                data.all.forEach(q => {
+                    const qType = q.type || (q.data && q.data[0]);
+                    if (qType && !counts[qType]) {
+                        counts[qType] = (counts[qType] || 0) + 1;
+                    }
+                });
+            }
+        } else if (Array.isArray(data)) {
+            // If data is a simple array, count by first column
+            data.forEach(row => {
+                if (Array.isArray(row) && row.length > 0) {
+                    const type = row[0].toString().trim().toUpperCase();
+                    if (counts[type] !== undefined) {
+                        counts[type]++;
+                    }
                 }
             });
         }
         
+        console.log('Question counts:', counts);
         return counts;
     }
     
