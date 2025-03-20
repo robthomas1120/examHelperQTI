@@ -513,7 +513,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Check if fill in the blank questions have all answers filled
             if (questionType === 'Fill In The Blank') {
                 const answerEntries = questionEntries[i].querySelectorAll('.answer-entry');
-                
+            
                 if (answerEntries.length === 0) {
                     alert(`Question ${i + 1}: Please add at least one answer for the fill in the blank question.`);
                     return false;
