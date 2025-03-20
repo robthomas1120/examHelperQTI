@@ -773,15 +773,17 @@ commitChanges() {
      * @param {Boolean} isMASheet - Whether this is a Multiple Answer sheet
      */
     displayTable(headers, rows, columnIndices, isTFSheet = false, isMASheet = false) {
-        // Limit preview to 10 rows
-        const previewRows = rows.slice(0, 10);
+        // Show all rows instead of limiting to 10
+        const previewRows = rows;
         
-        let tableHtml = '<table class="editable-table" style="width: 100%; border-collapse: collapse;">';
+        // Create a container for the scrollable table
+        let tableHtml = '<div style="max-height: 600px; overflow-y: auto; margin-bottom: 15px;">';
+        tableHtml += '<table class="editable-table" style="width: 100%; border-collapse: collapse;">';
         
         // Table header
         tableHtml += '<thead><tr>';
         headers.forEach(header => {
-            tableHtml += `<th style="padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: left;">${header}</th>`;
+            tableHtml += `<th style="position: sticky; top: 0; padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: left; z-index: 10;">${header}</th>`;
         });
         tableHtml += '</tr></thead>';
         
@@ -794,8 +796,8 @@ commitChanges() {
         // Identify "tagging" columns
         const taggingColumns = columnIndices.filter(index => 
             headers[index] && (headers[index].toLowerCase().includes("tag") || 
-                               headers[index].toLowerCase().includes("correct") ||
-                               headers[index].toLowerCase().includes("incorrect"))
+                            headers[index].toLowerCase().includes("correct") ||
+                            headers[index].toLowerCase().includes("incorrect"))
         );
         
         console.log("Detected tagging columns:", taggingColumns);
@@ -820,8 +822,8 @@ commitChanges() {
         
         // Determine if this is an MC (Multiple Choice) sheet
         const isMCSheet = (this.workbook && this.workbook.SheetNames[this.currentSheetIndex] && 
-                         this.workbook.SheetNames[this.currentSheetIndex].includes("MC")) ||
-                         headers.some(header => header && header.includes("MC"));
+                        this.workbook.SheetNames[this.currentSheetIndex].includes("MC")) ||
+                        headers.some(header => header && header.includes("MC"));
         
         previewRows.forEach((row, rowIndex) => {
             let rowErrors = [];
@@ -941,6 +943,7 @@ commitChanges() {
         });
         
         tableHtml += '</tbody></table>';
+        tableHtml += '</div>'; // Close the scrollable container
         
         // Clear previous errors
         document.querySelectorAll(".validation-errors-container").forEach(el => el.remove());
@@ -1004,13 +1007,12 @@ commitChanges() {
         
         this.previewElement.innerHTML = tableHtml;
         
-        // Add note if there are more rows
-        if (rows.length > 10) {
-            const note = document.createElement('p');
-            note.style = 'margin-top: 10px; color: #718096; font-style: italic;';
-            note.textContent = `Showing 10 of ${rows.length} rows`;
-            this.previewElement.appendChild(note);
-        }
+        // Remove note about showing only 10 rows (since we're showing all rows now)
+        // Instead, add row count info
+        const rowCountInfo = document.createElement('p');
+        rowCountInfo.style = 'margin-top: 10px; color: #718096;';
+        rowCountInfo.textContent = `Showing all ${rows.length} rows`;
+        this.previewElement.appendChild(rowCountInfo);
         
         // Add help text for editing
         const helpText = document.createElement('p');
@@ -1167,43 +1169,53 @@ finishEditing() {
         this.currentEditCell = null;
     }
 
-    /**
-     * Download the edited data as a file
-     */
-    downloadEditedFile() {
-        if (!this.editedData || !this.editedHeaders) {
-            this.showMessage('No data available to download', 'error');
-            return;
+/**
+ * Download the edited data as a file
+ */
+downloadEditedFile() {
+    if (!this.workbook) {
+        this.showMessage('No workbook available to download', 'error');
+        return;
+    }
+    
+    try {
+        // Create a new workbook based on the original one
+        const wb = XLSX.utils.book_new();
+        
+        // Get all sheets from the original workbook
+        for (let i = 0; i < this.workbook.SheetNames.length; i++) {
+            const sheetName = this.workbook.SheetNames[i];
+            
+            // If this is the current active sheet with edits
+            if (i === this.currentSheetIndex && this.editedData && this.editedHeaders) {
+                // Create new worksheet from edited data
+                const wsData = [this.editedHeaders, ...this.editedData];
+                const newSheet = XLSX.utils.aoa_to_sheet(wsData);
+                
+                // Add the edited sheet to the new workbook
+                XLSX.utils.book_append_sheet(wb, newSheet, sheetName);
+            } else {
+                // Copy the sheet as-is from the original workbook
+                const sheet = this.workbook.Sheets[sheetName];
+                XLSX.utils.book_append_sheet(wb, sheet, sheetName);
+            }
         }
         
-        try {
-            // Create workbook
-            const wb = XLSX.utils.book_new();
-            
-            // Create worksheet data by adding headers + edited data
-            const wsData = [this.editedHeaders, ...this.editedData];
-            
-            // Convert to worksheet
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            
-            // Add to workbook
-            XLSX.utils.book_append_sheet(wb, ws, "Edited_Data");
-            
-            // Generate file name based on original file
-            const fileName = this.currentFile ? 
-                `edited_${this.currentFile.name}` : 
-                "edited_data.xlsx";
-            
-            // Write to file and trigger download
-            XLSX.writeFile(wb, fileName);
-            
-            // Show success message
-            this.showMessage(`File "${fileName}" downloaded successfully!`, 'success');
-        } catch (error) {
-            console.error('Error downloading edited file:', error);
-            this.showMessage(`Error creating file: ${error.message}`, 'error');
-        }
+        // Generate file name based on original file
+        const fileName = this.currentFile ? 
+            `edited_${this.currentFile.name}` : 
+            "edited_data.xlsx";
+        
+        // Write to file and trigger download
+        XLSX.writeFile(wb, fileName);
+        
+        // Show success message
+        this.showMessage(`File "${fileName}" downloaded successfully!`, 'success');
+    } catch (error) {
+        console.error('Error downloading edited file:', error);
+        this.showMessage(`Error creating file: ${error.message}`, 'error');
     }
+}
 
 /**
  * Commit changes to the question data
