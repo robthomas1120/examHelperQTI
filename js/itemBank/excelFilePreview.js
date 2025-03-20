@@ -782,6 +782,8 @@ displayTable(headers, rows, columnIndices, isTFSheet = false, isMASheet = false)
     
     // Table header
     tableHtml += '<thead><tr>';
+    // Add row number header
+    tableHtml += '<th style="position: sticky; top: 0; padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: center; z-index: 10; width: 60px;">Row #</th>';
     headers.forEach(header => {
         tableHtml += `<th style="position: sticky; top: 0; padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: left; z-index: 10;">${header}</th>`;
     });
@@ -894,7 +896,9 @@ displayTable(headers, rows, columnIndices, isTFSheet = false, isMASheet = false)
         });
         
         tableHtml += `<tr style="background-color: ${rowIndex % 2 === 0 ? 'white' : '#f9fafb'}; ${rowStyle}" data-row-id="${rowIndex}">`;
-    
+        // Add row number cell
+        tableHtml += `<td style="padding: 8px; text-align: center; font-weight: 500; color: #6b7280; border: 1px solid #e5e7eb; background-color: #f3f4f6;">${rowIndex + 1}</td>`;
+
         columnIndices.forEach((colIndex, cellIndex) => {
             const value = row[colIndex] !== undefined ? row[colIndex].toString().trim() : '';
             let cellStyle = '';
