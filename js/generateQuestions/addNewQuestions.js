@@ -510,7 +510,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            // Check if fill in the blank questions have all answers filled and the question contains EXACTLY ___
+            // Check if fill in the blank questions have all answers filled
             if (questionType === 'Fill In The Blank') {
                 const answerEntries = questionEntries[i].querySelectorAll('.answer-entry');
                 
@@ -532,24 +532,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     return false;
                 }
                 
-                // Check if the question contains exactly three underscores (___) as placeholder
-                if (!questionText.includes('___')) {
-                    alert(`Question ${i + 1}: Fill in the blank questions must contain the placeholder (___). Please add ___ where you want students to fill in the answer.`);
-                    return false;
-                }
-                
-                // Make sure the underscores are exactly three consecutive underscores
-                const matches = questionText.match(/_{3}/g) || [];
-                if (matches.length === 0) {
-                    alert(`Question ${i + 1}: Fill in the blank questions must contain exactly three consecutive underscores (___) as a placeholder.`);
-                    return false;
-                }
-                
-                // Check to prevent more than one set of triple underscores
-                if (matches.length > 1) {
-                    alert(`Question ${i + 1}: Fill in the blank questions should contain only one placeholder (___). Please use only one set of three underscores.`);
-                    return false;
-                }
+                // No validation for underscores - they are not required anymore
             }
             
             // Check if true or false questions have a selected answer
@@ -854,6 +837,10 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (questionType === 'True Or False') {
                 const trueOption = entry.querySelector('input[value="true"]');
                 const falseOption = entry.querySelector('input[value="false"]');
+                const fillBlankCheckbox = entry.querySelector('.fill-blank-checkbox');
+                
+                // Add the fill-in-the-blank flag to the question data
+                questionData.isFillInTheBlank = fillBlankCheckbox && fillBlankCheckbox.checked;
                 
                 questionData.options.push({
                     id: `q${index + 1}_true`,
@@ -987,7 +974,17 @@ document.addEventListener('DOMContentLoaded', function() {
             xml += '</resprocessing></item>';
         } else if (question.type === 'True Or False') {
             xml += '<item ident="' + question.id + '" title="' + escapeXML(question.text) + '">';
-            xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>true_false_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+            
+            // Check if this is a fill-in-the-blank style true/false question
+            if (question.isFillInTheBlank) {
+                // Use the fill-in-the-blank question type
+                xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>true_false_question</fieldentry></qtimetadatafield>';
+                xml += '<qtimetadatafield><fieldlabel>is_fill_in_the_blank</fieldlabel><fieldentry>true</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+            } else {
+                // Use the standard true/false question type
+                xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>true_false_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+            }
+            
             xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
             xml += '<response_lid ident="response1" rcardinality="Single"><render_choice>';
             
@@ -1096,10 +1093,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         <label></label>
                         <span>False</span>
                     </div>
+                    <div class="fill-blank-option">
+                        ${(function() {
+                            const checkboxId = `fill-blank-${generateUUID()}`;
+                            return `
+                                <input type="checkbox" id="${checkboxId}" class="fill-blank-checkbox">
+                                <label for="${checkboxId}">Format as fill-in-the-blank</label>
+                            `;
+                        })()}
+                    </div>
                 </div>
             `,
             'fill-in-the-blank': `
-                <textarea placeholder="Enter your question here with ___ for the blank..."></textarea>
+                <textarea placeholder="Enter your question here (underscores ___ are optional)..."></textarea>
                 <div class="options-container">
                     <div class="answer-entry">
                         <input type="text" placeholder="Correct Answer">
