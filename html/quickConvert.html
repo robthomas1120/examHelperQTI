@@ -45,6 +45,81 @@
             background-color: #f0f4ff;
             border-color: #4361ee;
         }
+
+        .container {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .preview-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 600px; /* Minimum height for preview section */
+    }
+    
+    .preview-section .card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #csv-preview {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 500px;
+    }
+    
+    /* Fix the layout of the initial upload container */
+    .upload-container {
+        flex-shrink: 0; /* Don't allow this to shrink */
+    }
+    
+    /* Make the table container take remaining space */
+    .table-container {
+        height: 100% !important;
+        max-height: none !important;
+        overflow-y: auto;
+    }
+    
+    /* Ensure the footer stays at the bottom */
+    footer {
+        flex-shrink: 0;
+    }
+    
+    /* Make cells more compact */
+    .data-table td, .data-table th {
+        padding: 6px !important;
+        font-size: 14px;
+    }
+
+    .data-table th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background-color: #f3f4f6 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+  }
+
+  /* Make sure the table container has a fixed height and scrolls properly */
+  #csv-preview, .table-container {
+    max-height: 800px !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Make table rows more compact */
+  .data-table td {
+    padding: 5px !important; 
+  }
     </style>
       
 </head>
@@ -104,17 +179,24 @@
                 <div class="card">
                     <h2><i class="fas fa-table"></i> File Preview</h2>
                     <!-- Error container will be inserted here by JavaScript -->
-                    <div id="csv-preview">
-                        <div class="table-container" style="max-height: 600px;">
-                            <table class="data-table" style="width: 100%; border-collapse: collapse;">
-                                <thead>
-
-                                </thead>
-                                <tbody id="csv-preview-body">
-                                    <p class="placeholder-text">Excel content will appear here after upload</p>
-                                </tbody>
-                            </table>
-                        </div>
+                    <div id="csv-preview" style="max-height: 800px; overflow-y: auto;">
+                        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="position: sticky; top: 0; z-index: 100; background-color: #f3f4f6; padding: 10px; border: 1px solid #e5e7eb;">#</th>
+                                    <th style="position: sticky; top: 0; z-index: 100; background-color: #f3f4f6; padding: 10px; border: 1px solid #e5e7eb;">Exam Type</th>
+                                    <th style="position: sticky; top: 0; z-index: 100; background-color: #f3f4f6; padding: 10px; border: 1px solid #e5e7eb;">Question</th>
+                                    <!-- Additional headers will be added by JavaScript -->
+                                </tr>
+                            </thead>
+                            <tbody id="csv-preview-body">
+                                <tr>
+                                    <td colspan="3">
+                                        <p class="placeholder-text">Excel content will appear here after upload</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>
