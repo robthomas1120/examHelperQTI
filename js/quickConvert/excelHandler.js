@@ -269,6 +269,12 @@ class ExcelHandler {
                         cellStyle += ' background-color: #fee2e2;'; // Red background for invalid tags
                     }
                     
+                    // Add error highlighting for invalid TF values
+                    if (questionType === 'TF' && colIndex === 2 && cellValue && 
+                        cellValue.toLowerCase() !== 'true' && cellValue.toLowerCase() !== 'false') {
+                        cellStyle += ' background-color: #fee2e2;'; // Red background for invalid TF values
+                    }
+                    
                     fullHtml += `<td 
                         class="${isEditable ? 'editable-cell' : ''}" 
                         data-row="${displayRowNumber}" 
@@ -425,35 +431,35 @@ class ExcelHandler {
         }
     }
 
-/**
- * Update cell edit listeners to use double-click
- */
-updateCellEditListeners() {
-    const cells = this.previewElement.querySelectorAll('.editable-cell');
-    
-    cells.forEach(cell => {
-        // Make cells initially non-editable
-        cell.contentEditable = 'false';
+    /**
+     * Update cell edit listeners to use double-click
+     */
+    updateCellEditListeners() {
+        const cells = this.previewElement.querySelectorAll('.editable-cell');
         
-        // Add double-click listener
-        cell.addEventListener('dblclick', () => {
-            // Make the cell editable on double-click
-            cell.contentEditable = 'true';
-            cell.focus();
+        cells.forEach(cell => {
+            // Make cells initially non-editable
+            cell.contentEditable = 'false';
             
-            // Change outline to indicate editing mode
-            cell.style.outline = '2px solid #16a34a'; // Green outline for editing mode
-            cell.style.outlineOffset = '-2px';
-            
-            // Select all text when double-clicked
-            const range = document.createRange();
-            range.selectNodeContents(cell);
-            const selection = window.getSelection();
-            selection.removeAllRanges();
-            selection.addRange(range);
+            // Add double-click listener
+            cell.addEventListener('dblclick', () => {
+                // Make the cell editable on double-click
+                cell.contentEditable = 'true';
+                cell.focus();
+                
+                // Change outline to indicate editing mode
+                cell.style.outline = '2px solid #16a34a'; // Green outline for editing mode
+                cell.style.outlineOffset = '-2px';
+                
+                // Select all text when double-clicked
+                const range = document.createRange();
+                range.selectNodeContents(cell);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            });
         });
-    });
-}
+    }
 
     /**
      * Check if a column is a tag column (for correct/incorrect values)
@@ -470,278 +476,323 @@ updateCellEditListeners() {
         return colIndex > 2 && colIndex % 2 === 0;
     }
 
-/**
- * Update the error display
- */
-updateErrorDisplay() {
-    if (!this.errorContainer || !this.mcErrorContainer) return;
-    
-    // Separate regular validation errors from multiple correct answer errors
-    const regularErrors = [];
-    const multipleCorrectErrors = [];
-    const mcErrorRows = new Set(); // Track row numbers with MC/MA errors only
-    
-    this.errorMessages.forEach(error => {
-        if (error.includes('Multiple Choice question must have exactly 1 correct answer') || 
-            error.includes('Multiple Answer question must have at least 2 correct answers')) {
-            multipleCorrectErrors.push(error);
-            
-            // Extract row number from error message (assuming format "Row X: ...")
-            const rowMatch = error.match(/Row (\d+):/);
-            if (rowMatch && rowMatch[1]) {
-                // The rowMatch[1] is a string, so parse it to integer
-                mcErrorRows.add(parseInt(rowMatch[1]));
-            }
-        } else {
-            regularErrors.push(error);
-        }
-    });
-    
-    // Highlight rows with multiple choice/answer errors
-    this.highlightErrorRows(mcErrorRows);
-    
-    // Regular validation errors
-    if (regularErrors.length > 0) {
-        let errorHtml = '<h3 style="margin: 0 0 8px 0; color: #991b1b; font-size: 1rem; font-weight: 600;">Validation Errors:</h3>';
-        errorHtml += '<ul style="margin: 0; padding-left: 20px;">';
-        regularErrors.forEach(error => {
-            errorHtml += `<li style="color: #7f1d1d; margin-bottom: 4px;">${error}</li>`;
-        });
-        errorHtml += '</ul>';
+    /**
+     * Update the error display
+     */
+    updateErrorDisplay() {
+        if (!this.errorContainer || !this.mcErrorContainer) return;
         
-        this.errorContainer.innerHTML = errorHtml;
-        this.errorContainer.style.display = 'block';
-    } else {
-        this.errorContainer.style.display = 'none';
-        this.errorContainer.innerHTML = '';
-    }
-    
-    // Multiple correct answer errors in separate orange container
-    if (multipleCorrectErrors.length > 0) {
-        let mcErrorHtml = '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Correct Answer Error:</h3>';
-        mcErrorHtml += '<ul style="margin: 0; padding-left: 20px;">';
-        multipleCorrectErrors.forEach(error => {
-            mcErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">${error}</li>`;
-        });
-        mcErrorHtml += '</ul>';
+        // Separate regular validation errors from multiple correct answer errors
+        const regularErrors = [];
+        const multipleCorrectErrors = [];
+        const mcErrorRows = new Set(); // Track row numbers with MC/MA errors only
         
-        this.mcErrorContainer.innerHTML = mcErrorHtml;
-        this.mcErrorContainer.style.display = 'block';
-    } else {
-        this.mcErrorContainer.style.display = 'none';
-        this.mcErrorContainer.innerHTML = '';
-    }
-}
-    
-/**
- * Highlight rows with errors - FIXED VERSION
- * @param {Set<number>} errorRows - Set of row numbers with errors
- */
-highlightErrorRows(errorRows) {
-    // First, remove any existing error highlighting from all table rows
-    const allTableRows = this.previewElement.querySelectorAll('table.data-table tr');
-    allTableRows.forEach(row => {
-        row.style.backgroundColor = '';
-    });
-    
-    // Then highlight rows with errors
-    errorRows.forEach(rowNum => {
-        // We need to find the actual displayed row that corresponds to the data row where the error was found
-        // The issue was that we need to find the displayed row that has cells with data-row attribute equal to rowNum
-        
-        // First, get all cells with the specific data-row attribute
-        const cellsForRow = this.previewElement.querySelectorAll(`td[data-row="${rowNum}"]`);
-        
-        // If we found matching cells, highlight their parent row
-        if (cellsForRow.length > 0) {
-            // Get the parent tr element of the first matching cell
-            const rowToHighlight = cellsForRow[0].closest('tr');
-            if (rowToHighlight) {
-                // Add a distinct orange background to highlight the row
-                rowToHighlight.style.backgroundColor = '#ffcb8d'; // Brighter orange color
-            }
-        }
-    });
-}
-    
-/**
- * Add event listeners for cell editing
- */
-addCellEditListeners() {
-    const cells = this.previewElement.querySelectorAll('.editable-cell');
-    
-    // Track the currently active cell
-    this.activeCell = null;
-    
-    cells.forEach(cell => {
-        // Add single-click handler for highlighting
-        cell.addEventListener('click', () => {
-            // Remove highlight from previously active cell
-            if (this.activeCell && this.activeCell !== cell) {
-                this.activeCell.style.outline = 'none';
-            }
-            
-            // Highlight current cell
-            cell.style.outline = '2px solid #3b82f6'; // Blue outline
-            cell.style.outlineOffset = '-2px';
-            this.activeCell = cell;
-        });
-        
-        // Handle key events
-        cell.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                cell.blur(); // Trigger the blur event which saves changes
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                cell.textContent = cell.getAttribute('data-value');
-                cell.blur();
-            }
-        });
-
-        // Save changes on blur
-        cell.addEventListener('blur', () => {
-            const row = parseInt(cell.getAttribute('data-row'));
-            const col = parseInt(cell.getAttribute('data-col'));
-            const newValue = cell.textContent.trim();
-            const questionType = cell.getAttribute('data-question-type') || '';
-            
-            // Update edited data
-            if (!this.editedData[row-1]) {
-                this.editedData[row-1] = [];
-            }
-            this.editedData[row-1][col] = newValue;
-            
-            // Update cell attributes
-            cell.setAttribute('data-value', this.escapeHTML(newValue));
-            
-            // Make cell non-editable again after editing
-            cell.contentEditable = 'false';
-            
-            // Keep the highlight but remove editing style
-            if (this.activeCell === cell) {
-                cell.style.outline = '2px solid #3b82f6';
-                cell.style.outlineOffset = '-2px';
+        this.errorMessages.forEach(error => {
+            if (error.includes('Multiple Choice question must have exactly 1 correct answer') || 
+                error.includes('Multiple Answer question must have at least 2 correct answers')) {
+                multipleCorrectErrors.push(error);
+                
+                // Extract row number from error message (assuming format "Row X: ...")
+                const rowMatch = error.match(/Row (\d+):/);
+                if (rowMatch && rowMatch[1]) {
+                    // The rowMatch[1] is a string, so parse it to integer
+                    mcErrorRows.add(parseInt(rowMatch[1]));
+                }
             } else {
-                cell.style.outline = 'none';
+                regularErrors.push(error);
             }
+        });
+        
+        // Highlight rows with multiple choice/answer errors
+        this.highlightErrorRows(mcErrorRows);
+        
+        // Regular validation errors
+        if (regularErrors.length > 0) {
+            let errorHtml = '<h3 style="margin: 0 0 8px 0; color: #991b1b; font-size: 1rem; font-weight: 600;">Validation Errors:</h3>';
+            errorHtml += '<ul style="margin: 0; padding-left: 20px;">';
+            regularErrors.forEach(error => {
+                errorHtml += `<li style="color: #7f1d1d; margin-bottom: 4px;">${error}</li>`;
+            });
+            errorHtml += '</ul>';
             
-            // Update cell styling
-            if (this.isTagColumn(col + 1, questionType)) {
-                const lowerValue = newValue.toLowerCase();
-                if (lowerValue === 'correct') {
-                    cell.style.color = '#10b981';
-                    cell.style.backgroundColor = '';
-                    cell.style.fontWeight = '500';
-                } else if (lowerValue === 'incorrect') {
-                    cell.style.color = '#ef4444';
-                    cell.style.backgroundColor = '';
-                    cell.style.fontWeight = '500';
-                } else if (newValue) {
-                    cell.style.color = '';
-                    cell.style.backgroundColor = '#fee2e2';
-                    cell.style.fontWeight = 'normal';
-                } else {
-                    cell.style.color = '';
-                    cell.style.backgroundColor = '';
-                    cell.style.fontWeight = 'normal';
+            this.errorContainer.innerHTML = errorHtml;
+            this.errorContainer.style.display = 'block';
+        } else {
+            this.errorContainer.style.display = 'none';
+            this.errorContainer.innerHTML = '';
+        }
+        
+        // Multiple correct answer errors in separate orange container
+        if (multipleCorrectErrors.length > 0) {
+            let mcErrorHtml = '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Correct Answer Error:</h3>';
+            mcErrorHtml += '<ul style="margin: 0; padding-left: 20px;">';
+            multipleCorrectErrors.forEach(error => {
+                mcErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">${error}</li>`;
+            });
+            mcErrorHtml += '</ul>';
+            
+            this.mcErrorContainer.innerHTML = mcErrorHtml;
+            this.mcErrorContainer.style.display = 'block';
+        } else {
+            this.mcErrorContainer.style.display = 'none';
+            this.mcErrorContainer.innerHTML = '';
+        }
+    }
+    
+    /**
+     * Highlight rows with errors - FIXED VERSION
+     * @param {Set<number>} errorRows - Set of row numbers with errors
+     */
+    highlightErrorRows(errorRows) {
+        // First, remove any existing error highlighting from all table rows
+        const allTableRows = this.previewElement.querySelectorAll('table.data-table tr');
+        allTableRows.forEach(row => {
+            row.style.backgroundColor = '';
+        });
+        
+        // Then highlight rows with errors
+        errorRows.forEach(rowNum => {
+            // We need to find the actual displayed row that corresponds to the data row where the error was found
+            // The issue was that we need to find the displayed row that has cells with data-row attribute equal to rowNum
+            
+            // First, get all cells with the specific data-row attribute
+            const cellsForRow = this.previewElement.querySelectorAll(`td[data-row="${rowNum}"]`);
+            
+            // If we found matching cells, highlight their parent row
+            if (cellsForRow.length > 0) {
+                // Get the parent tr element of the first matching cell
+                const rowToHighlight = cellsForRow[0].closest('tr');
+                if (rowToHighlight) {
+                    // Add a distinct orange background to highlight the row
+                    rowToHighlight.style.backgroundColor = '#ffcb8d'; // Brighter orange color
                 }
             }
-            
-            // Store previous validation state to detect changes
-            const previousValidationState = this.hasValidationErrors;
-            
-            // Revalidate data and update error displays
-            this.validateData();
-            
-            // If validation state has changed, dispatch an event to notify the main script
-            if (previousValidationState !== this.hasValidationErrors) {
-                // Dispatch a custom event with the new validation state
-                const event = new CustomEvent('validationStateChanged', {
-                    detail: { 
-                        hasErrors: this.hasValidationErrors 
-                    },
-                    bubbles: true
-                });
-                this.previewElement.dispatchEvent(event);
-            }
         });
-    });
+    }
     
-    // Add click event listener to document to clear highlight when clicking outside
-    document.addEventListener('click', (e) => {
-        // If click is outside any editable cell
-        if (!e.target.closest('.editable-cell') && this.activeCell) {
-            this.activeCell.style.outline = 'none';
-            this.activeCell = null;
-        }
-    });
-}
-
-/**
- * Validate the data and show errors
- */
-validateData() {
-    this.errorMessages = [];
-    this.hasValidationErrors = false;
-    
-    if (!this.editedData || this.editedData.length < 1) return;
-    
-    const dataRows = this.editedData; // Include all rows
-    const validQuestionTypes = ['MC', 'MA', 'FIB', 'ESS', 'TF'];
-    
-    dataRows.forEach((row, rowIndex) => {
-        const rowNum = rowIndex + 1; // Adjust to display row numbers correctly
-        if (!row || row.length < 2) return;
+    /**
+     * Add event listeners for cell editing
+     */
+    addCellEditListeners() {
+        const cells = this.previewElement.querySelectorAll('.editable-cell');
         
-        // The first column is the Exam Type in your data structure
-        const questionType = row[0]?.toString().toUpperCase(); 
+        // Track the currently active cell
+        this.activeCell = null;
         
-        // Skip empty rows
-        if (!row.some(cell => cell !== null && cell !== undefined && cell !== '')) {
-            return;
-        }
+        cells.forEach(cell => {
+            // Add single-click handler for highlighting
+            cell.addEventListener('click', () => {
+                // Remove highlight from previously active cell
+                if (this.activeCell && this.activeCell !== cell) {
+                    this.activeCell.style.outline = 'none';
+                }
+                
+                // Highlight current cell
+                cell.style.outline = '2px solid #3b82f6'; // Blue outline
+                cell.style.outlineOffset = '-2px';
+                this.activeCell = cell;
+            });
+            
+            // Handle key events
+            cell.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    cell.blur(); // Trigger the blur event which saves changes
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cell.textContent = cell.getAttribute('data-value');
+                    cell.blur();
+                }
+            });
 
-        // Check if the question type is valid
-        if (questionType && !validQuestionTypes.includes(questionType)) {
-            this.errorMessages.push(`Row ${rowNum}: Invalid exam type "${questionType}" - must be one of: MC, MA, FIB, ESS, TF`);
-            this.hasValidationErrors = true;
-        }
-    
-        // Only validate correct/incorrect tags for MC and MA
-        if (questionType === 'MC' || questionType === 'MA') {
-            // Check for invalid tag values
-            row.forEach((cell, colIndex) => {
-                if (this.isTagColumn(colIndex + 1, questionType)) {
-                    const cellValue = cell?.toString().toLowerCase();
-                    if (cellValue && !['correct', 'incorrect'].includes(cellValue)) {
-                        this.errorMessages.push(`Row ${rowNum}: Invalid tag value "${cell}" - must be "correct" or "incorrect"`);
-                        this.hasValidationErrors = true;
+            // Save changes on blur
+            cell.addEventListener('blur', () => {
+                const row = parseInt(cell.getAttribute('data-row'));
+                const col = parseInt(cell.getAttribute('data-col'));
+                const newValue = cell.textContent.trim();
+                const questionType = cell.getAttribute('data-question-type') || '';
+                
+                // Update edited data
+                if (!this.editedData[row-1]) {
+                    this.editedData[row-1] = [];
+                }
+                this.editedData[row-1][col] = newValue;
+                
+                // Update cell attributes
+                cell.setAttribute('data-value', this.escapeHTML(newValue));
+                
+                // Make cell non-editable again after editing
+                cell.contentEditable = 'false';
+                
+                // Keep the highlight but remove editing style
+                if (this.activeCell === cell) {
+                    cell.style.outline = '2px solid #3b82f6';
+                    cell.style.outlineOffset = '-2px';
+                } else {
+                    cell.style.outline = 'none';
+                }
+                
+                // Update cell styling
+                if (this.isTagColumn(col + 1, questionType)) {
+                    const lowerValue = newValue.toLowerCase();
+                    if (lowerValue === 'correct') {
+                        cell.style.color = '#10b981';
+                        cell.style.backgroundColor = '';
+                        cell.style.fontWeight = '500';
+                    } else if (lowerValue === 'incorrect') {
+                        cell.style.color = '#ef4444';
+                        cell.style.backgroundColor = '';
+                        cell.style.fontWeight = '500';
+                    } else if (newValue) {
+                        cell.style.color = '';
+                        cell.style.backgroundColor = '#fee2e2';
+                        cell.style.fontWeight = 'normal';
+                    } else {
+                        cell.style.color = '';
+                        cell.style.backgroundColor = '';
+                        cell.style.fontWeight = 'normal';
                     }
                 }
-            });
-    
-            // Count correct answers
-            let correctCount = 0;
-            row.forEach((cell, colIndex) => {
-                if (this.isTagColumn(colIndex + 1, questionType) && cell?.toString().toLowerCase() === 'correct') {
-                    correctCount++;
+                
+                // Handle TF answer validation - highlight invalid TF answers
+                if (questionType === 'TF' && col === 2) { // Column 2 is the answer column for TF questions
+                    const lowerValue = newValue.toLowerCase();
+                    if (newValue && lowerValue !== 'true' && lowerValue !== 'false') {
+                        cell.style.backgroundColor = '#fee2e2'; // Red background for invalid TF value
+                    } else {
+                        cell.style.backgroundColor = '';
+                    }
+                }
+                
+                // Store previous validation state to detect changes
+                const previousValidationState = this.hasValidationErrors;
+                
+                // Revalidate data and update error displays
+                this.validateData();
+                
+                // If validation state has changed, dispatch an event to notify the main script
+                if (previousValidationState !== this.hasValidationErrors) {
+                    // Dispatch a custom event with the new validation state
+                    const event = new CustomEvent('validationStateChanged', {
+                        detail: { 
+                            hasErrors: this.hasValidationErrors 
+                        },
+                        bubbles: true
+                    });
+                    this.previewElement.dispatchEvent(event);
                 }
             });
-    
-            // Validate based on question type
-            if (questionType === 'MC' && correctCount !== 1) {
-                this.errorMessages.push(`Row ${rowNum}: Multiple Choice question must have exactly 1 correct answer`);
-                this.hasValidationErrors = true;
-            } else if (questionType === 'MA' && correctCount < 2) {
-                this.errorMessages.push(`Row ${rowNum}: Multiple Answer question must have at least 2 correct answers`);
+        });
+        
+        // Add click event listener to document to clear highlight when clicking outside
+        document.addEventListener('click', (e) => {
+            // If click is outside any editable cell
+            if (!e.target.closest('.editable-cell') && this.activeCell) {
+                this.activeCell.style.outline = 'none';
+                this.activeCell = null;
+            }
+        });
+    }
+
+    /**
+     * Validate True/False answers in TF questions
+     * @param {Object} row - Data row
+     * @param {Number} rowNum - Row number for error reporting
+     * @param {String} questionType - Question type
+     * @returns {Array} - Array of TF validation errors
+     */
+    validateTFQuestion(row, rowNum, questionType) {
+        const tfErrors = [];
+        
+        // Only validate TF questions
+        if (questionType !== 'TF') {
+            return tfErrors;
+        }
+        
+        // In this structure, column 2 (index 2) contains the TF answer
+        const tfAnswer = row[2] ? row[2].toString().trim().toLowerCase() : '';
+        
+        // If answer is provided but not 'true' or 'false'
+        if (tfAnswer && tfAnswer !== 'true' && tfAnswer !== 'false') {
+            tfErrors.push(`Row ${rowNum}: Invalid True/False value "${row[2]}". Only "true" or "false" are accepted.`);
+        }
+        
+        return tfErrors;
+    }
+
+    /**
+     * Validate the data and show errors
+     */
+    validateData() {
+        this.errorMessages = [];
+        this.hasValidationErrors = false;
+        
+        if (!this.editedData || this.editedData.length < 1) return;
+        
+        const dataRows = this.editedData; // Include all rows
+        const validQuestionTypes = ['MC', 'MA', 'FIB', 'ESS', 'TF'];
+        
+        dataRows.forEach((row, rowIndex) => {
+            const rowNum = rowIndex + 1; // Adjust to display row numbers correctly
+            if (!row || row.length < 2) return;
+            
+            // The first column is the Exam Type in your data structure
+            const questionType = row[0]?.toString().toUpperCase(); 
+            
+            // Skip empty rows
+            if (!row.some(cell => cell !== null && cell !== undefined && cell !== '')) {
+                return;
+            }
+
+            // Check if the question type is valid
+            if (questionType && !validQuestionTypes.includes(questionType)) {
+                this.errorMessages.push(`Row ${rowNum}: Invalid exam type "${questionType}" - must be one of: MC, MA, FIB, ESS, TF`);
                 this.hasValidationErrors = true;
             }
-        }
-    });
-    
-    this.updateErrorDisplay();
-}
+        
+            // Only validate correct/incorrect tags for MC and MA
+            if (questionType === 'MC' || questionType === 'MA') {
+                // Check for invalid tag values
+                row.forEach((cell, colIndex) => {
+                    if (this.isTagColumn(colIndex + 1, questionType)) {
+                        const cellValue = cell?.toString().toLowerCase();
+                        if (cellValue && !['correct', 'incorrect'].includes(cellValue)) {
+                            this.errorMessages.push(`Row ${rowNum}: Invalid tag value "${cell}" - must be "correct" or "incorrect"`);
+                            this.hasValidationErrors = true;
+                        }
+                    }
+                });
+        
+                // Count correct answers
+                let correctCount = 0;
+                row.forEach((cell, colIndex) => {
+                    if (this.isTagColumn(colIndex + 1, questionType) && cell?.toString().toLowerCase() === 'correct') {
+                        correctCount++;
+                    }
+                });
+        
+                // Validate based on question type
+                if (questionType === 'MC' && correctCount !== 1) {
+                    this.errorMessages.push(`Row ${rowNum}: Multiple Choice question must have exactly 1 correct answer`);
+                    this.hasValidationErrors = true;
+                } else if (questionType === 'MA' && correctCount < 2) {
+                    this.errorMessages.push(`Row ${rowNum}: Multiple Answer question must have at least 2 correct answers`);
+                    this.hasValidationErrors = true;
+                }
+            }
+            
+            // Validate True/False questions
+            if (questionType === 'TF') {
+                const tfErrors = this.validateTFQuestion(row, rowNum, questionType);
+                if (tfErrors.length > 0) {
+                    this.errorMessages.push(...tfErrors);
+                    this.hasValidationErrors = true;
+                }
+            }
+        });
+        
+        this.updateErrorDisplay();
+    }
 
     /**
      * Download the edited Excel file
@@ -757,132 +808,132 @@ validateData() {
             // Add worksheet to workbook
             XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
             
-            // Generate Excel file
-            XLSX.writeFile(wb, "edited_quiz.xlsx");
-        } catch (error) {
-            console.error('Error downloading Excel file:', error);
-            alert('Error downloading Excel file: ' + error.message);
-        }
-    }
+// Generate Excel file
+XLSX.writeFile(wb, "edited_quiz.xlsx");
+} catch (error) {
+    console.error('Error downloading Excel file:', error);
+    alert('Error downloading Excel file: ' + error.message);
+}
+}
 
-    /**
-     * Process question data for conversion
-     * @returns {Array} - Processed question data
-     */
-    processQuestionData() {
-        if (!this.editedData || this.editedData.length < 1) {
-            return [];
-        }
-        
-        const processedData = {
-            MC: [],
-            MA: [],
-            TF: [],
-            ESS: [],
-            FIB: [],
-            all: []
-        };
-        
-        // Process each row (start from index 0 to include the header row)
-        for (let rowIndex = 0; rowIndex < this.editedData.length; rowIndex++) {
-            const row = this.editedData[rowIndex];
-            if (!row || row.length < 2) continue;
-            
-            // Get the question type (first column)
-            const questionType = row[0] ? row[0].toString().trim().toUpperCase() : '';
-            
-            // Skip rows without a valid question type
-            if (!['MC', 'MA', 'TF', 'ESS', 'FIB'].includes(questionType)) continue;
-            
-            // Get the question text (second column)
-            const questionText = row[1] ? row[1].toString().trim() : '';
-            
-            // Skip rows without question text
-            if (!questionText) continue;
-            
-            // Create a question object
-            const question = {
-                id: `q${rowIndex}`,
-                type: questionType,
-                text: questionText,
-                data: row,
-                options: []
-            };
-            
-            // Process options based on question type
-            switch (questionType) {
-                case 'MC':
-                case 'MA':
-                    // Process options and tags (starting from column 2, in pairs)
-                    for (let i = 2; i < row.length; i += 2) {
-                        const option = row[i] ? row[i].toString().trim() : '';
-                        const tag = (i + 1 < row.length && row[i + 1]) ? row[i + 1].toString().trim().toLowerCase() : '';
-                        
-                        // Skip empty options
-                        if (!option) continue;
-                        
-                        question.options.push({
-                            text: option,
-                            isCorrect: tag === 'correct'
-                        });
-                    }
-                    break;
-                    
-                case 'TF':
-                    // Get the answer
-                    const tfAnswer = row[2] ? row[2].toString().trim().toLowerCase() : '';
-                    question.answer = tfAnswer === 'true';
-                    break;
-                    
-                case 'FIB':
-                    // Get all possible answers
-                    question.answers = [];
-                    for (let i = 2; i < row.length; i++) {
-                        const answer = row[i] ? row[i].toString().trim() : '';
-                        if (answer) {
-                            question.answers.push(answer);
-                        }
-                    }
-                    break;
+/**
+* Process question data for conversion
+* @returns {Array} - Processed question data
+*/
+processQuestionData() {
+if (!this.editedData || this.editedData.length < 1) {
+    return [];
+}
+
+const processedData = {
+    MC: [],
+    MA: [],
+    TF: [],
+    ESS: [],
+    FIB: [],
+    all: []
+};
+
+// Process each row (start from index 0 to include the header row)
+for (let rowIndex = 0; rowIndex < this.editedData.length; rowIndex++) {
+    const row = this.editedData[rowIndex];
+    if (!row || row.length < 2) continue;
+    
+    // Get the question type (first column)
+    const questionType = row[0] ? row[0].toString().trim().toUpperCase() : '';
+    
+    // Skip rows without a valid question type
+    if (!['MC', 'MA', 'TF', 'ESS', 'FIB'].includes(questionType)) continue;
+    
+    // Get the question text (second column)
+    const questionText = row[1] ? row[1].toString().trim() : '';
+    
+    // Skip rows without question text
+    if (!questionText) continue;
+    
+    // Create a question object
+    const question = {
+        id: `q${rowIndex}`,
+        type: questionType,
+        text: questionText,
+        data: row,
+        options: []
+    };
+    
+    // Process options based on question type
+    switch (questionType) {
+        case 'MC':
+        case 'MA':
+            // Process options and tags (starting from column 2, in pairs)
+            for (let i = 2; i < row.length; i += 2) {
+                const option = row[i] ? row[i].toString().trim() : '';
+                const tag = (i + 1 < row.length && row[i + 1]) ? row[i + 1].toString().trim().toLowerCase() : '';
+                
+                // Skip empty options
+                if (!option) continue;
+                
+                question.options.push({
+                    text: option,
+                    isCorrect: tag === 'correct'
+                });
             }
+            break;
             
-            // Add to the appropriate array
-            if (processedData[questionType]) {
-                processedData[questionType].push(question);
+        case 'TF':
+            // Get the answer
+            const tfAnswer = row[2] ? row[2].toString().trim().toLowerCase() : '';
+            question.answer = tfAnswer === 'true';
+            break;
+            
+        case 'FIB':
+            // Get all possible answers
+            question.answers = [];
+            for (let i = 2; i < row.length; i++) {
+                const answer = row[i] ? row[i].toString().trim() : '';
+                if (answer) {
+                    question.answers.push(answer);
+                }
             }
-            
-            // Add to the all array
-            processedData.all.push(question);
-        }
-        
-        return processedData;
+            break;
     }
+    
+    // Add to the appropriate array
+    if (processedData[questionType]) {
+        processedData[questionType].push(question);
+    }
+    
+    // Add to the all array
+    processedData.all.push(question);
+}
 
-    /**
-     * Check if there are validation errors
-     * @returns {Boolean} - True if there are validation errors
-     */
-    hasErrors() {
-        return this.hasValidationErrors;
-    }
+return processedData;
+}
 
-    /**
-     * Escape HTML special characters
-     * @param {String} text - Text to escape
-     * @returns {String} - Escaped text
-     */
-    escapeHTML(text) {
-        return text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
+/**
+* Check if there are validation errors
+* @returns {Boolean} - True if there are validation errors
+*/
+hasErrors() {
+return this.hasValidationErrors;
+}
+
+/**
+* Escape HTML special characters
+* @param {String} text - Text to escape
+* @returns {String} - Escaped text
+*/
+escapeHTML(text) {
+return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 }
 
 // Initialize when document is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Create global instance of Excel Handler
-    window.excelHandler = new ExcelHandler();
+// Create global instance of Excel Handler
+window.excelHandler = new ExcelHandler();
 });
