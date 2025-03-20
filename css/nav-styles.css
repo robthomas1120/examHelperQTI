@@ -21,23 +21,38 @@
     --warning-color: #ffc107;      /* Amber/gold */
     --danger-color: #dc3545;       /* Red */
     --info-color: #0066cc;         /* UST light blue */
+    
+    /* Navbar height */
+    --navbar-height: 80px;         /* Increased height for navbar */
 }
 
 /* Basic Layout */
 .container-nav {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 0 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    height: var(--navbar-height);
 }
 
 /* Header Styles */
 header {
     background-color: var(--nav-bg-color);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    padding: 15px 0;
+    padding: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    height: var(--navbar-height);
+}
+
+/* Add padding to body to prevent content from being hidden under fixed navbar */
+body {
+    padding-top: var(--navbar-height);
 }
 
 .logo-nav a {
@@ -51,6 +66,11 @@ header {
 
 .logo-nav i {
     font-size: 1.5rem;
+    margin-right: 10px;
+}
+
+.logo-img {
+    height: 40px;
     margin-right: 10px;
 }
 
@@ -75,7 +95,7 @@ nav a {
     text-decoration: none;
     color: var(--nav-text-color);
     font-weight: 500;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-radius: 5px;
     transition: all 0.3s ease;
 }
@@ -99,7 +119,7 @@ nav a.active {
     display: inline-block;
     background-color: var(--primary-color);
     color: var(--nav-bg-color);
-    padding: 8px 16px;
+    padding: 6px 12px;
     border-radius: 5px;
     text-decoration: none;
     font-weight: 500;
@@ -179,4 +199,168 @@ nav a.active {
 
 .download-btn-large .btn-text {
     font-weight: 500;
+}
+
+/* Hamburger menu */
+.hamburger-menu {
+    display: none;
+    cursor: pointer;
+}
+
+.hamburger-icon {
+    width: 30px;
+    height: 20px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.hamburger-icon span {
+    display: block;
+    height: 3px;
+    width: 100%;
+    background-color: var(--primary-color);
+    border-radius: 3px;
+    transition: all 0.3s ease;
+}
+
+.hamburger-icon.active span:nth-child(1) {
+    transform: translateY(8.5px) rotate(45deg);
+}
+
+.hamburger-icon.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger-icon.active span:nth-child(3) {
+    transform: translateY(-8.5px) rotate(-45deg);
+}
+
+/* Mobile navigation */
+.mobile-nav {
+    display: none;
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 280px;
+    height: 100vh;
+    background-color: var(--nav-bg-color);
+    padding-top: 60px;
+    transition: all 0.4s ease;
+    z-index: 1000;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-nav.active {
+    right: 0;
+}
+
+.mobile-nav ul {
+    list-style: none;
+    padding: 0 20px;
+    margin-top: 20px;
+}
+
+.mobile-nav li {
+    margin: 15px 0;
+}
+
+.mobile-nav a {
+    color: var(--nav-text-color);
+    text-decoration: none;
+    font-size: 1.1rem;
+    display: block;
+    padding: 10px 15px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.mobile-nav a:hover,
+.mobile-nav a.active {
+    color: var(--primary-color);
+    background-color: var(--nav-hover-bg);
+}
+
+.mobile-download-btn {
+    background-color: var(--primary-color);
+    color: var(--nav-bg-color) !important;
+    text-align: center;
+    margin-top: 20px;
+}
+
+.mobile-download-btn i {
+    margin-right: 8px;
+}
+
+/* Close button */
+.close-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001;
+}
+
+.close-icon {
+    width: 25px;
+    height: 25px;
+    position: relative;
+}
+
+.close-icon span {
+    display: block;
+    height: 3px;
+    width: 100%;
+    background-color: var(--nav-text-color);
+    border-radius: 3px;
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transition: all 0.3s ease;
+}
+
+.close-icon span:nth-child(1) {
+    transform: translateY(-50%) rotate(45deg);
+}
+
+.close-icon span:nth-child(2) {
+    transform: translateY(-50%) rotate(-45deg);
+}
+
+.close-btn:hover .close-icon span {
+    background-color: var(--primary-color);
+}
+
+/* Controls group for download button and hamburger menu */
+.controls-group {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+/* Media queries for responsive design */
+@media screen and (max-width: 992px) {
+    .nav-menu {
+        display: none;
+    }
+    
+    .hamburger-menu {
+        display: block;
+    }
+    
+    .controls-group {
+        order: 2;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .controls-group {
+        gap: 10px;
+    }
 }
