@@ -22,24 +22,33 @@ document.addEventListener('DOMContentLoaded', function() {
                   </ul>
               </nav>
               
-              <!-- Right: Download button -->
-              <div class="download-btn">
-                  <a href="#" class="btn-download" id="download-template-btn">
-                      <i class="fas fa-download"></i> Download Template
-                  </a>
-              </div>
-              
-              <!-- Mobile menu button (hidden on desktop) -->
-              <div class="hamburger-menu">
-                  <div class="hamburger-icon">
-                      <span></span>
-                      <span></span>
-                      <span></span>
+              <!-- Right: Controls group (download button and hamburger) -->
+              <div class="controls-group">
+                  <!-- Download button -->
+                  <div class="download-btn">
+                      <a href="#" class="btn-download" id="download-template-btn">
+                          <i class="fas fa-download"></i> Download Template
+                      </a>
+                  </div>
+                  
+                  <!-- Mobile menu button (hidden on desktop) -->
+                  <div class="hamburger-menu">
+                      <div class="hamburger-icon">
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                      </div>
                   </div>
               </div>
               
               <!-- Mobile navigation (hidden initially) -->
               <div class="mobile-nav">
+                  <div class="close-btn">
+                      <div class="close-icon">
+                          <span></span>
+                          <span></span>
+                      </div>
+                  </div>
                   <ul>
                       <li><a href="index.html">Home</a></li>
                       <li><a href="quickConvert.html">Quick Convert</a></li>
@@ -109,6 +118,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
     });
+  
+    // Add close button functionality
+    const closeButton = document.querySelector('.close-btn');
+    if (closeButton) {
+      closeButton.addEventListener('click', function() {
+        hamburgerMenu.classList.remove('active');
+        mobileNav.classList.remove('active');
+      });
+    }
   
     // Ensure both download buttons have the same functionality
     const desktopDownloadBtn = document.getElementById('download-template-btn');
@@ -224,7 +242,14 @@ document.addEventListener('DOMContentLoaded', function() {
         background-color: rgba(255, 184, 28, 0.3);
       }
       
-      /* Right: Download button */
+      /* Right: Controls group */
+      .controls-group {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+      
+      /* Download button */
       .download-btn {
         display: flex;
         justify-content: flex-end;
@@ -293,7 +318,7 @@ document.addEventListener('DOMContentLoaded', function() {
         width: 270px;
         height: 100vh;
         background-color: #121212;
-        padding-top: 70px;
+        padding-top: 80px; /* Match navbar height */
         transition: all 0.4s ease;
         z-index: 999;
         box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
@@ -357,9 +382,16 @@ document.addEventListener('DOMContentLoaded', function() {
           display: none;
         }
         
+        .container-nav {
+          justify-content: space-between;
+        }
+        
+        .controls-group {
+          order: 2;
+        }
+        
         .hamburger-menu {
           display: block;
-          order: 3;
         }
         
         .mobile-nav {
@@ -368,12 +400,12 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       @media screen and (max-width: 768px) {
-        .download-btn {
-          display: none;
+        .container-nav {
+          padding: 0 15px;
         }
         
-        .container-nav {
-          padding: 15px;
+        .controls-group {
+          gap: 10px;
         }
       }
       
@@ -383,7 +415,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         .logo-img {
-          height: 30px;
+          height: 25px;
         }
       }
     `;
