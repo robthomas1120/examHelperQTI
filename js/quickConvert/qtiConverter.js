@@ -82,68 +82,68 @@ class QTIConverter {
             .substring(1);
     }
     
-    /**
-     * Process a single question and generate QTI XML
-     * @param {Object} question - Question data
-     */
-    processQuestion(question) {
-        // Skip if question is not an array or is empty
-        if (!Array.isArray(question) || question.length === 0) {
-            console.warn('Invalid question format, skipping:', question);
-            return;
-        }
-        
-        this.questionCounter++;
-        const questionId = `question_${this.generateUniqueId()}`;
-        
-        // Determine question type and create item XML
-        const qType = (question[0] || '').toString().trim().toUpperCase();
-        const questionText = this.escapeXML(question[1] || '');
-        
-        try {
-            let itemXml = '';
-            let questionType = '';
-            
-            switch (qType) {
-                case 'MC': // Multiple Choice
-                    itemXml = this.createMultipleChoiceItem(questionId, questionText, question);
-                    questionType = 'multiple_choice_question';
-                    break;
-                case 'MA': // Multiple Answer
-                    itemXml = this.createMultipleAnswerItem(questionId, questionText, question);
-                    questionType = 'multiple_answers_question';
-                    break;
-                case 'TF': // True/False
-                    itemXml = this.createTrueFalseItem(questionId, questionText, question);
-                    questionType = 'true_false_question';
-                    break;
-                case 'ESS': // Essay
-                    itemXml = this.createEssayItem(questionId, questionText);
-                    questionType = 'essay_question';
-                    break;
-                case 'FIB': // Fill in the Blank
-                    itemXml = this.createFillInBlankItem(questionId, questionText, question);
-                    questionType = 'short_answer_question';
-                    break;
-                default:
-                    console.warn(`Unsupported question type: ${qType}`);
-                    return;
-            }
-            
-            // Only add the question if we successfully generated XML
-            if (itemXml) {
-                this.itemsXML.push({
-                    id: questionId,
-                    xml: itemXml,
-                    title: questionText.substring(0, 50) || `Question`,
-                    type: questionType
-                });
-            }
-        } catch (error) {
-            console.error(`Error processing question ${this.questionCounter}:`, error);
-            console.error('Question data:', question);
-        }
+  /**
+   * Process a single question and generate QTI XML
+   * @param {Object} question - Question data
+   */
+  processQuestion(question) {
+    // Skip if question is not an array or is empty
+    if (!Array.isArray(question) || question.length === 0) {
+        console.warn('Invalid question format, skipping:', question);
+        return;
     }
+    
+    this.questionCounter++;
+    const questionId = `question_${this.generateUniqueId()}`;
+    
+    // Determine question type and create item XML
+    const qType = (question[0] || '').toString().trim().toUpperCase();
+    const questionText = this.escapeXML(question[1] || '');
+    
+    try {
+        let itemXml = '';
+        let questionType = '';
+        
+        switch (qType) {
+            case 'MC': // Multiple Choice
+                itemXml = this.createMultipleChoiceItem(questionId, questionText, question);
+                questionType = 'multiple_choice_question';
+                break;
+            case 'MA': // Multiple Answer
+                itemXml = this.createMultipleAnswerItem(questionId, questionText, question);
+                questionType = 'multiple_answers_question';
+                break;
+            case 'TF': // True/False
+                itemXml = this.createTrueFalseItem(questionId, questionText, question);
+                questionType = 'true_false_question';
+                break;
+            case 'ESS': // Essay
+                itemXml = this.createEssayItem(questionId, questionText);
+                questionType = 'essay_question';
+                break;
+            case 'FIB': // Fill in the Blank
+                itemXml = this.createFillInBlankItem(questionId, questionText, question);
+                questionType = 'short_answer_question';
+                break;
+            default:
+                console.warn(`Unsupported question type: ${qType}`);
+                return;
+        }
+        
+        // Only add the question if we successfully generated XML
+        if (itemXml) {
+            this.itemsXML.push({
+                id: questionId,
+                xml: itemXml,
+                title: questionText.substring(0, 50) || `Question`,
+                type: questionType
+            });
+        }
+    } catch (error) {
+        console.error(`Error processing question ${this.questionCounter}:`, error);
+        console.error('Question data:', question);
+    }
+  }
     
     /**
      * Create a complete questions XML file
@@ -178,226 +178,238 @@ class QTIConverter {
         return xml;
     }
     
-    /**
-     * Create Multiple Choice question item
-     * @param {String} id - Question ID
-     * @param {String} questionText - Question text
-     * @param {Array} questionData - Full question data
-     * @returns {String} - QTI XML for multiple choice item
-     */
-    createMultipleChoiceItem(id, questionText, questionData) {
-        // Generate answer IDs
-        const answerIds = [];
-        const options = [];
-        let correctAnswerId = null;
-        
-        // Process options (starting from index 2, in pairs)
-        for (let i = 2; i < questionData.length; i += 2) {
-            if (questionData[i] && questionData[i+1]) {
-                const answerId = `question_${this.generateUniqueId()}`;
-                answerIds.push(answerId);
-                
-                options.push({
-                    id: answerId,
-                    text: this.escapeXML(questionData[i]),
-                    correct: (questionData[i+1].toLowerCase() === 'correct')
-                });
-                
-                if (questionData[i+1].toLowerCase() === 'correct') {
-                    correctAnswerId = answerId;
-                }
-            }
-        }
-        
-        // Create original_answer_ids string
-        const originalAnswerIds = answerIds.join(',');
-        
-        // Generate item XML
-        let xml = `<item ident="${id}" title="Question">
-      <itemmetadata>
-        <qtimetadata>
-          <qtimetadatafield>
-            <fieldlabel>question_type</fieldlabel>
-            <fieldentry>multiple_choice_question</fieldentry>
-          </qtimetadatafield>
-          <qtimetadatafield>
-            <fieldlabel>points_possible</fieldlabel>
-            <fieldentry>1</fieldentry>
-          </qtimetadatafield>
-          <qtimetadatafield>
-            <fieldlabel>original_answer_ids</fieldlabel>
-            <fieldentry>${originalAnswerIds}</fieldentry>
-          </qtimetadatafield>
-          <qtimetadatafield>
-            <fieldlabel>assessment_question_identifierref</fieldlabel>
-            <fieldentry>question_ref_${id.substring(9)}</fieldentry>
-          </qtimetadatafield>
-        </qtimetadata>
-      </itemmetadata>
-      <presentation>
-        <material>
-          <mattext texttype="text/html">&lt;p&gt;${questionText}&lt;/p&gt;</mattext>
-        </material>
-        <response_lid ident="response1" rcardinality="Single">
-          <render_choice>`;
-        
-        // Add each option
-        options.forEach(option => {
-            xml += `
-            <response_label ident="${option.id}">
-              <material>
-                <mattext texttype="text/html">&lt;p&gt;${option.text}&lt;/p&gt;</mattext>
-              </material>
-            </response_label>`;
-        });
-        
-        xml += `
-          </render_choice>
-        </response_lid>
-      </presentation>
-      <resprocessing>
-        <outcomes>
-          <decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/>
-        </outcomes>`;
-        
-        // Add correct answer condition
-        if (correctAnswerId) {
-            xml += `
-        <respcondition continue="No">
-          <conditionvar>
-            <varequal respident="response1">${correctAnswerId}</varequal>
-          </conditionvar>
-          <setvar action="Set" varname="SCORE">100</setvar>
-        </respcondition>`;
-        }
-        
-        xml += `
-      </resprocessing>
-    </item>`;
-        
-        return xml;
-    }
+/**
+ * Create Multiple Choice question item
+ * @param {String} id - Question ID
+ * @param {String} questionText - Question text
+ * @param {Array} questionData - Full question data
+ * @returns {String} - QTI XML for multiple choice item
+ */
+createMultipleChoiceItem(id, questionText, questionData) {
+  // Generate answer IDs
+  const answerIds = [];
+  const options = [];
+  let correctAnswerId = null;
+  
+  // Process options (starting from index 2, in pairs)
+  for (let i = 2; i < questionData.length; i += 2) {
+      if (i + 1 < questionData.length) {  // Ensure we have both the option and its tag
+          const optionText = questionData[i];
+          const tagValue = questionData[i+1];
+          
+          if (optionText && optionText.toString().trim() !== '') {  // Only process non-empty options
+              const answerId = `question_${this.generateUniqueId()}`;
+              answerIds.push(answerId);
+              
+              const isCorrect = tagValue && tagValue.toString().toLowerCase() === 'correct';
+              
+              options.push({
+                  id: answerId,
+                  text: this.escapeXML(optionText.toString()),
+                  correct: isCorrect
+              });
+              
+              if (isCorrect) {
+                  correctAnswerId = answerId;
+              }
+          }
+      }
+  }
+  
+  // Create original_answer_ids string
+  const originalAnswerIds = answerIds.join(',');
+  
+  // Generate item XML
+  let xml = `<item ident="${id}" title="Question">
+    <itemmetadata>
+      <qtimetadata>
+        <qtimetadatafield>
+          <fieldlabel>question_type</fieldlabel>
+          <fieldentry>multiple_choice_question</fieldentry>
+        </qtimetadatafield>
+        <qtimetadatafield>
+          <fieldlabel>points_possible</fieldlabel>
+          <fieldentry>1</fieldentry>
+        </qtimetadatafield>
+        <qtimetadatafield>
+          <fieldlabel>original_answer_ids</fieldlabel>
+          <fieldentry>${originalAnswerIds}</fieldentry>
+        </qtimetadatafield>
+        <qtimetadatafield>
+          <fieldlabel>assessment_question_identifierref</fieldlabel>
+          <fieldentry>question_ref_${id.substring(9)}</fieldentry>
+        </qtimetadatafield>
+      </qtimetadata>
+    </itemmetadata>
+    <presentation>
+      <material>
+        <mattext texttype="text/html">&lt;p&gt;${questionText}&lt;/p&gt;</mattext>
+      </material>
+      <response_lid ident="response1" rcardinality="Single">
+        <render_choice>`;
+  
+  // Add each option
+  options.forEach(option => {
+      xml += `
+          <response_label ident="${option.id}">
+            <material>
+              <mattext texttype="text/html">&lt;p&gt;${option.text}&lt;/p&gt;</mattext>
+            </material>
+          </response_label>`;
+  });
+  
+  xml += `
+        </render_choice>
+      </response_lid>
+    </presentation>
+    <resprocessing>
+      <outcomes>
+        <decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/>
+      </outcomes>`;
+  
+  // Add correct answer condition
+  if (correctAnswerId) {
+      xml += `
+      <respcondition continue="No">
+        <conditionvar>
+          <varequal respident="response1">${correctAnswerId}</varequal>
+        </conditionvar>
+        <setvar action="Set" varname="SCORE">100</setvar>
+      </respcondition>`;
+  }
+  
+  xml += `
+    </resprocessing>
+  </item>`;
+  
+  return xml;
+}
     
-    /**
-     * Create Multiple Answer question item
-     * @param {String} id - Question ID
-     * @param {String} questionText - Question text
-     * @param {Array} questionData - Full question data
-     * @returns {String} - QTI XML for multiple answer item
-     */
-    createMultipleAnswerItem(id, questionText, questionData) {
-        // Generate answer IDs
-        const answerIds = [];
-        const options = [];
-        const correctAnswerIds = [];
-        
-        // Process options (starting from index 2, in pairs)
-        for (let i = 2; i < questionData.length; i += 2) {
-            if (questionData[i] && questionData[i+1]) {
-                const answerId = `question_${this.generateUniqueId()}`;
-                answerIds.push(answerId);
-                
-                const isCorrect = questionData[i+1].toLowerCase() === 'correct';
-                
-                options.push({
-                    id: answerId,
-                    text: this.escapeXML(questionData[i]),
-                    correct: isCorrect
-                });
-                
-                if (isCorrect) {
-                    correctAnswerIds.push(answerId);
-                }
-            }
-        }
-        
-        // Create original_answer_ids string
-        const originalAnswerIds = answerIds.join(',');
-        
-        // Generate item XML
-        let xml = `<item ident="${id}" title="Question">
-      <itemmetadata>
-        <qtimetadata>
-          <qtimetadatafield>
-            <fieldlabel>question_type</fieldlabel>
-            <fieldentry>multiple_answers_question</fieldentry>
-          </qtimetadatafield>
-          <qtimetadatafield>
-            <fieldlabel>points_possible</fieldlabel>
-            <fieldentry>1</fieldentry>
-          </qtimetadatafield>
-          <qtimetadatafield>
-            <fieldlabel>original_answer_ids</fieldlabel>
-            <fieldentry>${originalAnswerIds}</fieldentry>
-          </qtimetadatafield>
-          <qtimetadatafield>
-            <fieldlabel>assessment_question_identifierref</fieldlabel>
-            <fieldentry>question_ref_${id.substring(9)}</fieldentry>
-          </qtimetadatafield>
-        </qtimetadata>
-      </itemmetadata>
-      <presentation>
-        <material>
-          <mattext texttype="text/html">&lt;p&gt;${questionText}&lt;/p&gt;</mattext>
-        </material>
-        <response_lid ident="response1" rcardinality="Multiple">
-          <render_choice>`;
-        
-        // Add each option
-        options.forEach(option => {
-            xml += `
-            <response_label ident="${option.id}">
-              <material>
-                <mattext texttype="text/html">&lt;p&gt;${option.text}&lt;/p&gt;</mattext>
-              </material>
-            </response_label>`;
-        });
-        
-        xml += `
-          </render_choice>
-        </response_lid>
-      </presentation>
-      <resprocessing>
-        <outcomes>
-          <decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/>
-        </outcomes>`;
-        
-        // Add correct answer condition using AND logic
-        if (correctAnswerIds.length > 0) {
-            xml += `
-        <respcondition continue="No">
-          <conditionvar>
-            <and>`;
-            
-            // All correct answers must be selected
-            correctAnswerIds.forEach(id => {
-                xml += `
-              <varequal respident="response1">${id}</varequal>`;
-            });
-            
-            // All incorrect answers must not be selected
-            options.forEach(option => {
-                if (!option.correct) {
-                    xml += `
-              <not>
-                <varequal respident="response1">${option.id}</varequal>
-              </not>`;
-                }
-            });
-            
-            xml += `
-            </and>
-          </conditionvar>
-          <setvar action="Set" varname="SCORE">100</setvar>
-        </respcondition>`;
-        }
-        
-        xml += `
-      </resprocessing>
-    </item>`;
-        
-        return xml;
-    }
+/**
+ * Create Multiple Answer question item
+ * @param {String} id - Question ID
+ * @param {String} questionText - Question text
+ * @param {Array} questionData - Full question data
+ * @returns {String} - QTI XML for multiple answer item
+ */
+createMultipleAnswerItem(id, questionText, questionData) {
+  // Generate answer IDs
+  const answerIds = [];
+  const options = [];
+  const correctAnswerIds = [];
+  
+  // Process options (starting from index 2, in pairs)
+  for (let i = 2; i < questionData.length; i += 2) {
+      if (i + 1 < questionData.length) {  // Ensure we have both the option and its tag
+          const optionText = questionData[i];
+          const tagValue = questionData[i+1];
+          
+          if (optionText && optionText.toString().trim() !== '') {  // Only process non-empty options
+              const answerId = `question_${this.generateUniqueId()}`;
+              answerIds.push(answerId);
+              
+              const isCorrect = tagValue && tagValue.toString().toLowerCase() === 'correct';
+              
+              options.push({
+                  id: answerId,
+                  text: this.escapeXML(optionText.toString()),
+                  correct: isCorrect
+              });
+              
+              if (isCorrect) {
+                  correctAnswerIds.push(answerId);
+              }
+          }
+      }
+  }
+  
+  // Create original_answer_ids string
+  const originalAnswerIds = answerIds.join(',');
+  
+  // Generate item XML
+  let xml = `<item ident="${id}" title="Question">
+    <itemmetadata>
+      <qtimetadata>
+        <qtimetadatafield>
+          <fieldlabel>question_type</fieldlabel>
+          <fieldentry>multiple_answers_question</fieldentry>
+        </qtimetadatafield>
+        <qtimetadatafield>
+          <fieldlabel>points_possible</fieldlabel>
+          <fieldentry>1</fieldentry>
+        </qtimetadatafield>
+        <qtimetadatafield>
+          <fieldlabel>original_answer_ids</fieldlabel>
+          <fieldentry>${originalAnswerIds}</fieldentry>
+        </qtimetadatafield>
+        <qtimetadatafield>
+          <fieldlabel>assessment_question_identifierref</fieldlabel>
+          <fieldentry>question_ref_${id.substring(9)}</fieldentry>
+        </qtimetadatafield>
+      </qtimetadata>
+    </itemmetadata>
+    <presentation>
+      <material>
+        <mattext texttype="text/html">&lt;p&gt;${questionText}&lt;/p&gt;</mattext>
+      </material>
+      <response_lid ident="response1" rcardinality="Multiple">
+        <render_choice>`;
+  
+  // Add each option
+  options.forEach(option => {
+      xml += `
+          <response_label ident="${option.id}">
+            <material>
+              <mattext texttype="text/html">&lt;p&gt;${option.text}&lt;/p&gt;</mattext>
+            </material>
+          </response_label>`;
+  });
+  
+  xml += `
+        </render_choice>
+      </response_lid>
+    </presentation>
+    <resprocessing>
+      <outcomes>
+        <decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/>
+      </outcomes>`;
+  
+  // Add correct answer condition using AND logic
+  if (correctAnswerIds.length > 0) {
+      xml += `
+      <respcondition continue="No">
+        <conditionvar>
+          <and>`;
+      
+      // All correct answers must be selected
+      correctAnswerIds.forEach(id => {
+          xml += `
+            <varequal respident="response1">${id}</varequal>`;
+      });
+      
+      // All incorrect answers must not be selected
+      options.forEach(option => {
+          if (!option.correct) {
+              xml += `
+            <not>
+              <varequal respident="response1">${option.id}</varequal>
+            </not>`;
+          }
+      });
+      
+      xml += `
+          </and>
+        </conditionvar>
+        <setvar action="Set" varname="SCORE">100</setvar>
+      </respcondition>`;
+  }
+  
+  xml += `
+    </resprocessing>
+  </item>`;
+  
+  return xml;
+}
     
     /**
      * Create True/False question item

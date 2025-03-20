@@ -228,6 +228,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 alternateAnswersContainer.appendChild(altAnswerEntry);
             }
             
+            // Add answer option button for multiple choice
+            if (e.target.classList.contains('add-option-btn')) {
+                e.stopPropagation(); // Prevent event bubbling
+                
+                const optionsContainer = e.target.closest('.options-container');
+                const newOptionId = `option${optionsContainer.querySelectorAll('.option-entry').length + 1}-${generateUUID()}`;
+                
+                const optionEntry = document.createElement('div');
+                optionEntry.className = 'option-entry';
+                optionEntry.innerHTML = `
+                    <input type="radio" name="${optionsContainer.closest('.question-entry').dataset.radioGroupId}" id="${newOptionId}">
+                    <label></label>
+                    <input type="text" placeholder="Option ${optionsContainer.querySelectorAll('.option-entry').length + 1}">
+                    <button type="button" class="remove-option-btn"><i class="fas fa-times"></i></button>
+                `;
+                
+                // Insert before the add button
+                optionsContainer.insertBefore(optionEntry, e.target);
+            }
+            
             // Remove answer button
             if (e.target.classList.contains('remove-answer-btn') || (e.target.parentElement && e.target.parentElement.classList.contains('remove-answer-btn'))) {
                 const button = e.target.classList.contains('remove-answer-btn') ? e.target : e.target.parentElement;
@@ -240,6 +260,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const button = e.target.classList.contains('remove-alt-answer-btn') ? e.target : e.target.parentElement;
                 const altAnswerEntry = button.closest('.alt-answer-entry');
                 altAnswerEntry.remove();
+            }
+            
+            // Remove option button
+            if (e.target.classList.contains('remove-option-btn') || (e.target.parentElement && e.target.parentElement.classList.contains('remove-option-btn'))) {
+                const button = e.target.classList.contains('remove-option-btn') ? e.target : e.target.parentElement;
+                const optionEntry = button.closest('.option-entry');
+                optionEntry.remove();
             }
         }
     }
@@ -427,14 +454,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
 
-            // Check if multiple choice questions have exactly 4 options filled and one selected
+            // Check if multiple choice questions have at least 2 options filled and one selected
             const questionType = questionEntries[i].querySelector('.question-type').textContent.trim();
             if (questionType === 'Multiple Choice') {
                 const optionEntries = questionEntries[i].querySelectorAll('.option-entry');
                 
-                // Check if there are exactly 4 options
-                if (optionEntries.length !== 4) {
-                    alert(`Question ${i + 1}: Multiple choice questions must have exactly 4 options.`);
+                // Check if there are at least 2 options
+                if (optionEntries.length < 2) {
+                    alert(`Question ${i + 1}: Multiple choice questions must have at least 2 options.`);
                     return false;
                 }
                 
@@ -483,10 +510,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            // Check if fill in the blank questions have all answers filled and the question contains EXACTLY ___
+            // Check if fill in the blank questions have all answers filled
             if (questionType === 'Fill In The Blank') {
                 const answerEntries = questionEntries[i].querySelectorAll('.answer-entry');
-                
+            
                 if (answerEntries.length === 0) {
                     alert(`Question ${i + 1}: Please add at least one answer for the fill in the blank question.`);
                     return false;
@@ -505,24 +532,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     return false;
                 }
                 
-                // Check if the question contains exactly three underscores (___) as placeholder
-                if (!questionText.includes('___')) {
-                    alert(`Question ${i + 1}: Fill in the blank questions must contain the placeholder (___). Please add ___ where you want students to fill in the answer.`);
-                    return false;
-                }
-                
-                // Make sure the underscores are exactly three consecutive underscores
-                const matches = questionText.match(/_{3}/g) || [];
-                if (matches.length === 0) {
-                    alert(`Question ${i + 1}: Fill in the blank questions must contain exactly three consecutive underscores (___) as a placeholder.`);
-                    return false;
-                }
-                
-                // Check to prevent more than one set of triple underscores
-                if (matches.length > 1) {
-                    alert(`Question ${i + 1}: Fill in the blank questions should contain only one placeholder (___). Please use only one set of three underscores.`);
-                    return false;
-                }
+                // No validation for underscores - they are not required anymore
             }
             
             // Check if true or false questions have a selected answer
@@ -759,17 +769,32 @@ document.addEventListener('DOMContentLoaded', function() {
             // Collect options/answers based on question type
             if (questionType === 'Multiple Choice') {
                 const optionEntries = entry.querySelectorAll('.option-entry');
-                optionEntries.forEach((optionEntry, optIndex) => {
-                    const optionText = optionEntry.querySelector('input[type="text"]').value.trim();
-                    const isCorrect = optionEntry.querySelector('input[type="radio"]').checked;
-                    if (optionText) {
-                        questionData.options.push({
-                            id: `q${index + 1}_opt${optIndex + 1}`,
-                            text: optionText,
-                            isCorrect: isCorrect
-                        });
+                
+                // Make sure we have at least one option
+                if (optionEntries.length === 0) {
+                    console.warn(`Question ${index + 1} has no options.`);
+                } else {
+                    optionEntries.forEach((optionEntry, optIndex) => {
+                        const optionText = optionEntry.querySelector('input[type="text"]').value.trim();
+                        const isCorrect = optionEntry.querySelector('input[type="radio"]').checked;
+                        if (optionText) {
+                            questionData.options.push({
+                                id: `q${index + 1}_opt${optIndex + 1}`,
+                                text: optionText,
+                                isCorrect: isCorrect
+                            });
+                        }
+                    });
+                    
+                    // Make sure at least one option is marked as correct
+                    if (!questionData.options.some(opt => opt.isCorrect)) {
+                        // If no option is marked as correct, mark the first one
+                        if (questionData.options.length > 0) {
+                            console.warn(`Question ${index + 1} has no correct answer selected. Marking the first option as correct.`);
+                            questionData.options[0].isCorrect = true;
+                        }
                     }
-                });
+                }
             } else if (questionType === 'Multiple Answer') {
                 const answerEntries = entry.querySelectorAll('.answer-entry');
                 answerEntries.forEach((answerEntry, ansIndex) => {
@@ -798,7 +823,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Collect alternate answers
                 const alternateAnswersContainer = entry.querySelector('.alternate-answers-container');
-                const alternateAnswerEntries = alternateAnswersContainer.querySelectorAll('.alt-answer-entry');
+                const alternateAnswerEntries = alternateAnswersContainer.querySelectorAll('.answer-entry');
                 alternateAnswerEntries.forEach((altAnswerEntry, altAnsIndex) => {
                     const altAnswerText = altAnswerEntry.querySelector('input[type="text"]').value.trim();
                     if (altAnswerText) {
@@ -812,6 +837,10 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (questionType === 'True Or False') {
                 const trueOption = entry.querySelector('input[value="true"]');
                 const falseOption = entry.querySelector('input[value="false"]');
+                const fillBlankCheckbox = entry.querySelector('.fill-blank-checkbox');
+                
+                // Add the fill-in-the-blank flag to the question data
+                questionData.isFillInTheBlank = fillBlankCheckbox && fillBlankCheckbox.checked;
                 
                 questionData.options.push({
                     id: `q${index + 1}_true`,
@@ -945,7 +974,17 @@ document.addEventListener('DOMContentLoaded', function() {
             xml += '</resprocessing></item>';
         } else if (question.type === 'True Or False') {
             xml += '<item ident="' + question.id + '" title="' + escapeXML(question.text) + '">';
-            xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>true_false_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+            
+            // Check if this is a fill-in-the-blank style true/false question
+            if (question.isFillInTheBlank) {
+                // Use the fill-in-the-blank question type
+                xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>true_false_question</fieldentry></qtimetadatafield>';
+                xml += '<qtimetadatafield><fieldlabel>is_fill_in_the_blank</fieldlabel><fieldentry>true</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+            } else {
+                // Use the standard true/false question type
+                xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>true_false_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+            }
+            
             xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
             xml += '<response_lid ident="response1" rcardinality="Single"><render_choice>';
             
@@ -1019,22 +1058,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         <input type="radio" name="${radioGroupId}" id="option1-${generateUUID()}">
                         <label></label>
                         <input type="text" placeholder="Option 1">
+                        <button type="button" class="remove-option-btn"><i class="fas fa-times"></i></button>
                     </div>
                     <div class="option-entry">
                         <input type="radio" name="${radioGroupId}" id="option2-${generateUUID()}">
                         <label></label>
                         <input type="text" placeholder="Option 2">
+                        <button type="button" class="remove-option-btn"><i class="fas fa-times"></i></button>
                     </div>
-                    <div class="option-entry">
-                        <input type="radio" name="${radioGroupId}" id="option3-${generateUUID()}">
-                        <label></label>
-                        <input type="text" placeholder="Option 3">
-                    </div>
-                    <div class="option-entry">
-                        <input type="radio" name="${radioGroupId}" id="option4-${generateUUID()}">
-                        <label></label>
-                        <input type="text" placeholder="Option 4">
-                    </div>
+                    <button type="button" class="add-option-btn">+ Add Answer Option</button>
                 </div>
             `,
             'multiple-answer': `
@@ -1061,10 +1093,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         <label></label>
                         <span>False</span>
                     </div>
+                    <div class="fill-blank-option">
+                        ${(function() {
+                            const checkboxId = `fill-blank-${generateUUID()}`;
+                            return `
+                                <input type="checkbox" id="${checkboxId}" class="fill-blank-checkbox">
+                                <label for="${checkboxId}">Format as fill-in-the-blank</label>
+                            `;
+                        })()}
+                    </div>
                 </div>
             `,
             'fill-in-the-blank': `
-                <textarea placeholder="Enter your question here with ___ for the blank..."></textarea>
+                <textarea placeholder="Enter your question here (underscores ___ are optional)..."></textarea>
                 <div class="options-container">
                     <div class="answer-entry">
                         <input type="text" placeholder="Correct Answer">

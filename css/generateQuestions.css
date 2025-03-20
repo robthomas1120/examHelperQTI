@@ -60,10 +60,6 @@ header {
     margin-right: 10px;
 }
 
-
-
-
-
 main {
     max-width: 1200px;
     margin: 0 auto;
@@ -348,68 +344,57 @@ button i {
 .option-entry, .answer-entry {
     display: flex;
     align-items: center;
-    margin-bottom: 12px;
-    padding: 10px;
-    border-radius: 6px;
-    background-color: var(--light-gray);
-    transition: background-color 0.2s;
-}
-
-.option-entry:hover, .answer-entry:hover {
-    background-color: #eef2f7;
+    margin-bottom: 10px;
+    position: relative;
 }
 
 .option-entry input[type="radio"],
 .option-entry input[type="checkbox"],
 .answer-entry input[type="checkbox"] {
-    margin-right: 12px;
-    width: 18px;
-    height: 18px;
-    flex: 0 0 auto;
+    margin-right: 10px;
 }
 
 .option-entry input[type="text"],
 .answer-entry input[type="text"] {
     flex-grow: 1;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 8px 12px;
 }
 
-.remove-answer {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    padding: 0;
-    margin-left: 10px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: #f8f9fa;
+.remove-option-btn, .remove-answer-btn {
+    background-color: transparent;
     color: var(--danger-color);
-    font-size: 18px;
-    border: 1px solid var(--border-color);
-}
-
-.remove-answer:hover {
-    background-color: var(--danger-color);
-    color: white;
-}
-
-.add-answer {
-    margin-top: 10px;
-    background-color: var(--light-gray);
-    color: var(--primary-color);
-    border: 1px dashed var(--border-color);
-    padding: 10px 15px;
-    font-weight: 500;
+    border: none;
+    padding: 5px;
+    margin-left: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: all 0.2s ease;
 }
 
-.add-answer:hover {
-    background-color: white;
-    border-color: var(--primary-color);
-    box-shadow: 0 2px 6px rgba(74, 108, 247, 0.2);
+.remove-option-btn:hover, .remove-answer-btn:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+    transform: scale(1.1);
+}
+
+.add-option-btn, .add-answer-btn, .add-alternate-answer-btn {
+    background-color: var(--light-gray);
+    color: var(--text-color);
+    border: 1px dashed var(--border-color);
+    padding: 8px 12px;
+    margin-top: 10px;
+    width: 100%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.add-option-btn:hover, .add-answer-btn:hover, .add-alternate-answer-btn:hover {
+    background-color: var(--border-color);
+    border-color: var(--text-secondary);
 }
 
 /* Action buttons at bottom */
@@ -501,7 +486,6 @@ button i {
         width: 100%;
     }
 }
-
 
 .help-text {
     font-size: 0.85rem;

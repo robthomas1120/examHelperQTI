@@ -23,6 +23,14 @@ document.addEventListener('DOMContentLoaded', function() {
         window.excelHandler = new ExcelHandler();
     }
     
+    // Track separate validation concerns
+    const validationState = {
+        hasFile: false,
+        hasTitle: false,
+        hasDescription: false,
+        hasCellErrors: false
+    };
+    
     // Event Listeners
     dropArea.addEventListener('dragover', handleDragOver);
     dropArea.addEventListener('dragleave', handleDragLeave);
@@ -30,8 +38,24 @@ document.addEventListener('DOMContentLoaded', function() {
     fileInput.addEventListener('change', handleFileSelect);
     removeFileBtn.addEventListener('click', removeFile);
     dropArea.addEventListener('click', triggerFileInput);
-    quizTitle.addEventListener('input', validateForm);
-    quizDescription.addEventListener('input', validateForm);
+    
+    // Modified form field listeners to only update their own validation state
+    quizTitle.addEventListener('input', function() {
+        validationState.hasTitle = quizTitle.value.trim() !== '';
+        updateConvertButtonState();
+    });
+    
+    quizDescription.addEventListener('input', function() {
+        validationState.hasDescription = quizDescription.value.trim() !== '';
+        updateConvertButtonState();
+    });
+    
+    // Listen for validation state changes from ExcelHandler
+    document.addEventListener('validationStateChanged', function(e) {
+        validationState.hasCellErrors = e.detail.hasErrors;
+        updateConvertButtonState();
+    });
+    
     convertBtn.addEventListener('click', handleConversion);
     
     // Functions
@@ -91,6 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         currentFile = file;
+        validationState.hasFile = true;
         
         // Show file info
         fileName.textContent = file.name;
@@ -104,10 +129,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!quizTitle.value) {
             const baseName = file.name.split('.')[0];
             quizTitle.value = baseName.replace(/_/g, ' ');
+            validationState.hasTitle = quizTitle.value.trim() !== '';
         }
         
-        // Validate form
-        validateForm();
+        // Update the convert button state
+        updateConvertButtonState();
     }
     
     function formatFileSize(bytes) {
@@ -130,8 +156,12 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (['xls', 'xlsx'].includes(fileExtension)) {
                 // Use enhanced Excel handler
                 questionData = await window.excelHandler.processExcelFile(file);
-                // Validate form after processing
-                validateForm();
+                
+                // Set initial validation state based on Excel handler
+                validationState.hasCellErrors = window.excelHandler.hasValidationErrors;
+                
+                // Update the convert button state
+                updateConvertButtonState();
             } else {
                 csvPreview.innerHTML = '<p class="placeholder-text">Unsupported file format</p>';
             }
@@ -163,8 +193,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             // Process the data
                             questionData = window.excelHandler.processQuestionData();
                             
-                            // Validate form
-                            validateForm();
+                            // Set validation state based on Excel handler
+                            validationState.hasCellErrors = window.excelHandler.hasValidationErrors;
+                            
+                            // Update the convert button state
+                            updateConvertButtonState();
                             
                             resolve();
                         } catch (error) {
@@ -202,56 +235,63 @@ document.addEventListener('DOMContentLoaded', function() {
         currentFile = null;
         questionData = null;
         
-        // Disable convert button
-        convertBtn.disabled = true;
+        // Update validation state
+        validationState.hasFile = false;
+        validationState.hasCellErrors = false;
+        
+        // Update button state
+        updateConvertButtonState();
         
         // Hide results section
         resultsSection.classList.add('hidden');
     }
     
-    function validateForm() {
-        // Check if we have a file, title, and description
-        const isValid = currentFile && 
-                       quizTitle.value.trim() !== '' && 
-                       quizDescription.value.trim() !== '';
+    function updateConvertButtonState() {
+        // Check all validation conditions
+        const hasAllRequiredFields = 
+            validationState.hasFile && 
+            validationState.hasTitle &&
+            validationState.hasDescription;
         
-        // Check for validation errors in the Excel handler
-        const hasValidationErrors = window.excelHandler && window.excelHandler.hasValidationErrors;
+        // Enable convert button only if all required fields present AND no cell errors
+        const shouldEnable = hasAllRequiredFields && !validationState.hasCellErrors;
+        convertBtn.disabled = !shouldEnable;
         
-        // Only enable the convert button if all conditions are met
-        convertBtn.disabled = !isValid || hasValidationErrors;
-        
-        // Add error notification if there are validation errors
-        if (hasValidationErrors) {
-            // Check if notification already exists
-            let notification = document.querySelector('.validation-notification');
-            if (!notification) {
-                notification = document.createElement('div');
-                notification.className = 'validation-notification';
-                notification.style = 'margin-top: 10px; padding: 8px 12px; background-color: #fee2e2; border-radius: 4px; color: #b91c1c; font-size: 14px;';
-                notification.innerHTML = '<i class="fas fa-exclamation-circle"></i> Please fix all validation errors before converting.';
-                
-                // Insert after convert button
-                convertBtn.parentNode.insertBefore(notification, convertBtn.nextSibling);
-            }
-        } else {
-            // Remove notification if it exists
-            const notification = document.querySelector('.validation-notification');
-            if (notification) {
-                notification.remove();
-            }
+        // Update validation notification
+        updateValidationNotification(shouldEnable, validationState.hasCellErrors);
+    }
+    
+    function updateValidationNotification(isValid, hasCellErrors) {
+        // Remove existing notification if any
+        const existingNotification = document.querySelector('.validation-notification');
+        if (existingNotification) {
+            existingNotification.remove();
         }
         
-        return isValid && !hasValidationErrors;
+        // Add notification if there are cell errors
+        if (hasCellErrors) {
+            const notification = document.createElement('div');
+            notification.className = 'validation-notification';
+            notification.style = 'margin-top: 10px; padding: 8px 12px; background-color: #fee2e2; border-radius: 4px; color: #b91c1c; font-size: 14px;';
+            notification.innerHTML = '<i class="fas fa-exclamation-circle"></i> Please fix all validation errors before converting.';
+            
+            // Insert after convert button
+            convertBtn.parentNode.insertBefore(notification, convertBtn.nextSibling);
+        }
     }
     
     function handleConversion() {
-        // Validate form before conversion
-        if (!validateForm()) {
-            // Show error message if validation fails
-            const hasValidationErrors = window.excelHandler && window.excelHandler.hasValidationErrors;
-            
-            if (hasValidationErrors) {
+        // Final validation before conversion
+        const hasAllRequiredFields = 
+            validationState.hasFile && 
+            validationState.hasTitle &&
+            validationState.hasDescription;
+        
+        const hasCellErrors = window.excelHandler && window.excelHandler.hasValidationErrors;
+        
+        // Only proceed if everything is valid
+        if (!hasAllRequiredFields || hasCellErrors) {
+            if (hasCellErrors) {
                 // Scroll to error container to make it visible
                 const errorContainer = document.getElementById('error-container');
                 if (errorContainer) {
@@ -261,7 +301,6 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 alert('Please fill in all required fields.');
             }
-            
             return;
         }
         
@@ -335,6 +374,13 @@ document.addEventListener('DOMContentLoaded', function() {
             alert(`Error during conversion: ${error.message}`);
         }
     }
+    
+    // Initialize validation state for title and description
+    validationState.hasTitle = quizTitle.value.trim() !== '';
+    validationState.hasDescription = quizDescription.value.trim() !== '';
+    
+    // Initial update of the convert button state
+    updateConvertButtonState();
     
     // Count question types in data
     function countQuestionTypes(data) {
