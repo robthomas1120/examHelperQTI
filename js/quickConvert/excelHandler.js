@@ -149,27 +149,55 @@ class ExcelHandler {
             return;
         }
     
-        // Create fixed headers
-        const headers = ['#', 'Exam Type', 'Question'];
-        // Add empty headers for remaining columns based on the first row's length
-        const firstRow = this.questionData[0];
-        for (let i = 3; i < firstRow.length; i++) {
-            headers.push('');
+        // Inject CSS for sticky headers directly
+        const styleId = 'sticky-header-styles';
+        if (!document.getElementById(styleId)) {
+            const styleElement = document.createElement('style');
+            styleElement.id = styleId;
+            styleElement.textContent = `
+                .sticky-header-cell {
+                    position: sticky !important;
+                    top: 0 !important;
+                    z-index: 100 !important;
+                    background-color: #f3f4f6 !important;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+                }
+                .table-wrapper {
+                    max-height: 70vh !important; 
+                    overflow-y: auto !important;
+                    overflow-x: auto !important;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 4px;
+                    width: 100%;
+                }
+                .data-table {
+                    table-layout: fixed !important;
+                    width: max-content !important;
+                    min-width: 100% !important;
+                    border-collapse: separate !important;
+                    border-spacing: 0 !important;
+                    border: none !important;
+                }
+                .data-table th {
+                    white-space: nowrap;
+                    padding: 10px;
+                    border: 1px solid #e5e7eb !important;
+                    text-align: left;
+                }
+                /* Make sure all columns from the table body align with header */
+                .data-table tbody td {
+                    border: 1px solid #e5e7eb;
+                    padding: 6px;
+                }
+                /* Ensure table takes full width */
+                #csv-preview {
+                    width: 100%;
+                    overflow: visible;
+                }
+            `;
+            document.head.appendChild(styleElement);
         }
     
-        // Create main structure for the preview only
-        let fullHtml = '';
-        
-        // Table without its own scroll container
-        fullHtml += '<table class="data-table" style="width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb;">';
-        
-        // Regular non-sticky header
-        fullHtml += '<tr>';
-        headers.forEach((header, index) => {
-            fullHtml += `<th style="padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: left;">${header}</th>`;
-        });
-        fullHtml += '</tr>';
-        
         // Get all data rows
         const dataRows = this.questionData;
         
@@ -178,6 +206,32 @@ class ExcelHandler {
         dataRows.forEach(row => {
             maxColumns = Math.max(maxColumns, row.length);
         });
+    
+        // Create fixed headers with one column for each possible cell
+        const headers = ['#', 'Exam Type', 'Question'];
+        // Add empty headers for remaining columns
+        for (let i = 3; i < maxColumns; i++) {
+            headers.push(''); // Empty header cells instead of numbers
+        }
+    
+        // Create main structure for the preview only
+        let fullHtml = '';
+        
+        // Create a wrapper div with scrolling capability
+        fullHtml += '<div class="table-wrapper">';
+        fullHtml += '<table class="data-table">';
+        
+        // Sticky header
+        fullHtml += '<thead>';
+        fullHtml += '<tr>';
+        headers.forEach((header, index) => {
+            fullHtml += `<th class="sticky-header-cell">${header}</th>`;
+        });
+        fullHtml += '</tr>';
+        fullHtml += '</thead>';
+        
+        // Table body
+        fullHtml += '<tbody>';
         
         // Filter out completely empty rows
         const nonEmptyRows = dataRows.filter(row => 
@@ -186,53 +240,64 @@ class ExcelHandler {
     
         nonEmptyRows.forEach((row, rowIndex) => {
             const displayRowNumber = rowIndex + 1;
-            // Fix: Use displayRowNumber instead of rowIndex for the data-row-index attribute
             fullHtml += `<tr data-row-index="${displayRowNumber}">`;
             
             // Add row number column
-            fullHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; background-color: #f3f4f6; font-weight: 500; text-align: center;">${displayRowNumber}</td>`;
+            fullHtml += `<td style="background-color: #f3f4f6; font-weight: 500; text-align: center;">${displayRowNumber}</td>`;
             
             // Get question type for this row (if available)
-            // The first column of your data is the Exam Type
             const questionType = row[0]?.toString().toUpperCase() || '';
             
             // Add data cells
-            for (let colIndex = 0; colIndex < maxColumns; colIndex++) {
-                const cell = row[colIndex];
-                const cellValue = (cell !== null && cell !== undefined) ? cell.toString() : '';
-                const isEditable = true;
-                
-                // Determine cell style based on content
-                let cellStyle = '';
-                if (cellValue.toLowerCase() === 'correct') {
-                    cellStyle = 'color: #10b981; font-weight: 500;'; // Green for correct
-                } else if (cellValue.toLowerCase() === 'incorrect') {
-                    cellStyle = 'color: #ef4444; font-weight: 500;'; // Red for incorrect
+            for (let colIndex = 0; colIndex < maxColumns - 1; colIndex++) {
+                // Check if this column exists in the row
+                if (colIndex < row.length) {
+                    const cell = row[colIndex];
+                    const cellValue = (cell !== null && cell !== undefined) ? cell.toString() : '';
+                    const isEditable = true;
+                    
+                    // Determine cell style based on content
+                    let cellStyle = ''; 
+                    if (cellValue.toLowerCase() === 'correct') {
+                        cellStyle += 'color: #10b981; font-weight: 500;'; // Green for correct
+                    } else if (cellValue.toLowerCase() === 'incorrect') {
+                        cellStyle += 'color: #ef4444; font-weight: 500;'; // Red for incorrect
+                    }
+                    
+                    // Add error highlighting for invalid tag values
+                    if (this.isTagColumn(colIndex + 1, questionType) && cellValue && !['correct', 'incorrect', ''].includes(cellValue.toLowerCase())) {
+                        cellStyle += ' background-color: #fee2e2;'; // Red background for invalid tags
+                    }
+                    
+                    fullHtml += `<td 
+                        class="${isEditable ? 'editable-cell' : ''}" 
+                        data-row="${displayRowNumber}" 
+                        data-col="${colIndex}" 
+                        data-question-type="${questionType}"
+                        data-value="${this.escapeHTML(cellValue)}" 
+                        style="${cellStyle}"
+                        ${isEditable ? 'contenteditable="true"' : ''}
+                    >${cellValue}</td>`;
+                } else {
+                    // Add an empty cell to maintain table structure
+                    fullHtml += `<td 
+                        class="editable-cell" 
+                        data-row="${displayRowNumber}" 
+                        data-col="${colIndex}" 
+                        data-value=""
+                        contenteditable="true"
+                    ></td>`;
                 }
-                
-                // Add error highlighting for invalid tag values
-                if (this.isTagColumn(colIndex + 1, questionType) && cellValue && !['correct', 'incorrect', ''].includes(cellValue.toLowerCase())) {
-                    cellStyle += ' background-color: #fee2e2;'; // Red background for invalid tags
-                }
-                
-                // Fix: Use displayRowNumber instead of rowIndex for the data-row attribute
-                fullHtml += `<td 
-                    class="${isEditable ? 'editable-cell' : ''}" 
-                    data-row="${displayRowNumber}" 
-                    data-col="${colIndex}" 
-                    data-question-type="${questionType}"
-                    data-value="${this.escapeHTML(cellValue)}" 
-                    style="padding: 8px; border: 1px solid #e5e7eb; ${cellStyle}"
-                    ${isEditable ? 'contenteditable="true"' : ''}
-                >${cellValue}</td>`;
             }
             
             fullHtml += '</tr>';
         });
         
+        fullHtml += '</tbody>';
         fullHtml += '</table>';
+        fullHtml += '</div>';
         
-        // Update preview - note that the table is now directly in the preview
+        // Update preview
         this.previewElement.innerHTML = fullHtml;
         
         // Create other UI elements outside the preview div
@@ -244,6 +309,11 @@ class ExcelHandler {
         
         // Update the cell editing event listeners to use double-click
         this.updateCellEditListeners();
+        
+        // Force browser to recalculate layout to ensure sticky headers work
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+        }, 100);
     }
 
     /**
