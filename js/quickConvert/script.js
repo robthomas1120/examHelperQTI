@@ -461,4 +461,44 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.removeChild(link);
         }
     });
+
+    setTimeout(function() {
+        const previewSection = document.querySelector('.preview-section');
+        const csvPreview = document.getElementById('csv-preview');
+        
+        if (previewSection && csvPreview) {
+            // Set explicit height to ensure the preview is tall enough
+            previewSection.style.minHeight = '70vh';
+            csvPreview.style.minHeight = '65vh';
+            
+            // Force the layout to recalculate
+            window.dispatchEvent(new Event('resize'));
+            
+            console.log('Preview area maximized');
+        }
+    }, 500);
+    
+    // Add resize observer to dynamically adjust height
+    const resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+            const csvPreview = document.getElementById('csv-preview');
+            if (csvPreview) {
+                // Calculate available space
+                const windowHeight = window.innerHeight;
+                const previewRect = entry.target.getBoundingClientRect();
+                const availableHeight = windowHeight - previewRect.top - 50; // 50px buffer for footer
+                
+                // Set the preview height to use available space
+                csvPreview.style.height = `${availableHeight}px`;
+                
+                console.log(`Adjusted preview height to ${availableHeight}px`);
+            }
+        }
+    });
+    
+    // Observe the preview section
+    const previewSection = document.querySelector('.preview-section');
+    if (previewSection) {
+        resizeObserver.observe(previewSection);
+    }
 });
