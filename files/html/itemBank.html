@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Item Bank - Quiz Converter</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/itemBank.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="../css/nav-styles.css">
+    <script src="../js/navbar.js"></script>
+    <script src="../js/modal.js"></script>
+    <style>
+        /* Additional styles for quiz details */
+        .quiz-details {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .quiz-details h2 {
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+           color: #ffb81c; 
+            display: flex;
+            align-items: center;
+        }
+        
+        .quiz-details h2 i {
+            margin-right: 10px;
+        }
+        
+        .quiz-details .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .quiz-details label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #2d3748;
+        }
+        
+        .quiz-details input, 
+        .quiz-details textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .quiz-details input:focus, 
+        .quiz-details textarea:focus {
+            outline: none;
+            border-color: #ffb81c; 
+            box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.2);
+        }
+        
+        .quiz-details textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+
+    <main>
+        <div class="container">
+            <section class="page-header">
+                <h1>Item Bank</h1>
+                <p>Upload an Excel file with questions, select and reorder questions, then convert to QTI format.</p>
+            </section>
+
+            <section class="file-upload-section">
+                <div id="dropArea" class="drop-area">
+                    <div class="drop-message">
+                        <i class="fas fa-file-excel"></i>
+                        <h3>Drag & Drop Excel File</h3>
+                        <p>or</p>
+                        <label class="file-input-label">Browse Files</label>
+                        <input type="file" id="excelFile" accept=".xlsx, .xls" hidden>
+                    </div>
+                    <div id="fileInfo" class="file-info hidden">
+                        <div class="file-details">
+                            <i class="fas fa-file-excel"></i>
+                            <div>
+                                <h4 id="file-name">filename.xlsx</h4>
+                                <span id="file-size">0 KB</span>
+                            </div>
+                        </div>
+                        <button id="removeFile" class="remove-file-btn">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="sample-file">
+                    <p>Don't have a file? <button id="loadSampleBtn" class="sample-btn">Load Sample File</button></p>
+                </div>
+            </section>
+
+            <section class="quiz-details">
+                <h2><i class="fas fa-clipboard-list"></i> Quiz Details</h2>
+                <div class="form-group">
+                    <label for="quiz-title">Quiz Title:</label>
+                    <input type="text" id="quiz-title" placeholder="Enter quiz title">
+                </div>
+                <div class="form-group">
+                    <label for="quiz-description">Quiz Description (optional):</label>
+                    <textarea id="quiz-description" placeholder="Enter quiz description"></textarea>
+                </div>
+            </section>
+
+            <!-- Insert the CSV Preview component here -->
+            <section class="preview-section">
+                <div class="card">
+                    <h2><i class="fas fa-table"></i> File Preview</h2>
+                    <div id="csv-preview">
+                        <p class="placeholder-text">File content will appear here after upload</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="summary-section" class="summary-section hidden">
+                <h2>Question Summary</h2>
+                <div class="summary-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-list-ol"></i></div>
+                        <div class="stat-info">
+                            <h3 id="total-questions">0</h3>
+                            <p>Total Questions</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon mc-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="stat-info">
+                            <h3 id="mc-questions">0</h3>
+                            <p>Multiple Choice</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon ma-icon"><i class="fas fa-tasks"></i></div>
+                        <div class="stat-info">
+                            <h3 id="ma-questions">0</h3>
+                            <p>Multiple Answer</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon tf-icon"><i class="fas fa-toggle-on"></i></div>
+                        <div class="stat-info">
+                            <h3 id="tf-questions">0</h3>
+                            <p>True/False</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon ess-icon"><i class="fas fa-pen"></i></div>
+                        <div class="stat-info">
+                            <h3 id="ess-questions">0</h3>
+                            <p>Essay</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon fib-icon"><i class="fas fa-pencil-alt"></i></div>
+                        <div class="stat-info">
+                            <h3 id="fib-questions">0</h3>
+                            <p>Fill in Blank</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tabs-section">
+                <div class="tabs">
+                    <button class="tab active" data-target="mc-tab">Multiple Choice</button>
+                    <button class="tab" data-target="ma-tab">Multiple Answer</button>
+                    <button class="tab" data-target="tf-tab">True/False</button>
+                    <button class="tab" data-target="ess-tab">Essay</button>
+                    <button class="tab" data-target="fib-tab">Fill in Blank</button>
+                </div>
+
+                <div class="question-selection-container">
+                    <div class="available-questions">
+                        <h2>Available Questions</h2>
+                        <div class="tab-contents">
+                            <div id="mc-tab" class="tab-content active">
+                                <div id="mc-container" class="question-list"></div>
+                            </div>
+                            <div id="ma-tab" class="tab-content">
+                                <div id="ma-container" class="question-list"></div>
+                            </div>
+                            <div id="tf-tab" class="tab-content">
+                                <div id="tf-container" class="question-list"></div>
+                            </div>
+                            <div id="ess-tab" class="tab-content">
+                                <div id="ess-container" class="question-list"></div>
+                            </div>
+                            <div id="fib-tab" class="tab-content">
+                                <div id="fib-container" class="question-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="selected-questions">
+                        <h2>Selected Questions</h2>
+                        <div id="selected-questions-container" class="selected-questions-container">
+                            <div id="empty-selection" class="empty-selection">
+                                <i class="fas fa-inbox"></i>
+                                <p>Drag questions here to create your quiz</p>
+                            </div>
+                        </div>
+                        <div class="selected-questions-actions">
+                            <div class="selected-count">
+                                Selected: <span id="selected-count">0</span> questions
+                            </div>
+                            <div class="action-buttons">
+                                <button id="clear-selected-btn" class="clear-selected-btn">
+                                    <i class="fas fa-trash"></i> Clear
+                                </button>
+                                <button id="convert-btn" class="convert-btn">
+                                    <i class="fas fa-file-export"></i> Convert to QTI
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="loading-container" class="loading-container">
+        <div class="loading-spinner"></div>
+        <p>Processing your file...</p>
+    </div>
+
+    <footer>
+        <p class="copyright">Exam Helper by STAR EdTech Interns 2025</p>
+    </footer>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <!-- Application JavaScript -->
+    <script src="../js/itemBank/fileHandler.js"></script>
+    <script src="../js/itemBank/questionProcessor.js"></script>
+    <script src="../js/itemBank/uiController.js"></script>
+    <script src="../js/itemBank/qtiExport.js"></script>
+    <script src="../js/itemBank/qtiExportUI.js"></script>
+    <script src="../js/itemBank/main.js"></script>
+    <script src="../js/itemBank/excelFilePreview.js"></script>
+</body>
+</html>

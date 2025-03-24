@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QTI Converter</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/nav-styles.css">
+    <link rel="stylesheet" href="../css/quickConvert.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/nav-styles.css">
+    <script src="../js/navbar.js"></script>
+    <script src="../js/modal.js"></script>
+    <style>
+      
+        
+        /* Sheet navigation styles */
+        .sheet-navigation {
+            margin-top: 15px;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            background-color: #f5f7fa;
+            border-radius: 5px;
+        }
+        
+        .sheet-button {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .sheet-button[data-active="true"] {
+            background-color: #4361ee;
+            color: white;
+        }
+        
+        .sheet-button:hover:not([data-active="true"]) {
+            background-color: #f0f4ff;
+            border-color: #4361ee;
+        }
+
+        .container {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .preview-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 600px; /* Minimum height for preview section */
+    }
+    
+    .preview-section .card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #csv-preview {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 500px;
+    }
+    
+    /* Fix the layout of the initial upload container */
+    .upload-container {
+        flex-shrink: 0; /* Don't allow this to shrink */
+    }
+    
+    /* Make the table container take remaining space */
+    .table-container {
+        height: 100% !important;
+        max-height: none !important;
+        overflow-y: auto;
+    }
+    
+    /* Ensure the footer stays at the bottom */
+    footer {
+        flex-shrink: 0;
+    }
+    
+    /* Make cells more compact */
+    .data-table td, .data-table th {
+        padding: 6px !important;
+        font-size: 14px;
+    }
+
+    .data-table th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background-color: #f3f4f6 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+  }
+
+  /* Make sure the table container has a fixed height and scrolls properly */
+  #csv-preview, .table-container {
+    max-height: 800px !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Make table rows more compact */
+  .data-table td {
+    padding: 5px !important; 
+  }
+    </style>
+      
+</head>
+<body>
+    <div class="container">
+
+        <div class="header">
+
+            <h1>Excel to QTI Converter</h1>
+            <p>Convert Excel quiz files to QTI format for LMS import</p>
+        
+        </div>
+
+        <main>
+            <div class="upload-container">
+                <div class="upload-area" id="dropArea">
+                    <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                    <h2>Please Upload File</h2>
+                    <p class="upload-text">Drag and drop your file here or click to browse</p>
+                    <p class="supported-formats">Supported format: .xlsx</p>
+                    
+                    <div class="file-info hidden" id="fileInfo">
+                        <div class="file-preview">
+                            <i class="fas fa-file-csv file-icon"></i>
+                            <div class="file-details">
+                                <span id="file-name">No file selected</span>
+                                <span id="file-size" class="file-size"></span>
+                            </div>
+                        </div>
+                        <button class="remove-file" id="removeFile">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <button class="browse-btn">Browse Files</button>
+                    <input type="file" id="csvFile" accept=".csv,.xlsx" class="hidden-input">
+                </div>
+                
+                <div class="settings-container">
+                    <div class="form-group">
+                        <label for="quizTitle">Quiz Title:</label>
+                        <input type="text" id="quizTitle" placeholder="Enter quiz title">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quizDescription">Quiz Description:</label>
+                        <textarea id="quizDescription" placeholder="Enter quiz description"></textarea>
+                    </div>
+
+                    <button id="convertBtn" class="primary-btn" disabled>
+                        <i class="fas fa-sync-alt"></i> Convert to QTI
+                    </button>
+                </div>
+            </div>
+            
+            <section class="preview-section">
+                <div class="card">
+                    <h2><i class="fas fa-table"></i> File Preview</h2>
+                    <!-- Error container will be inserted here by JavaScript -->
+                    <div id="csv-preview" style="max-height: 800px; overflow-y: auto;">
+                        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="position: sticky; top: 0; z-index: 100; background-color: #f3f4f6; padding: 10px; border: 1px solid #e5e7eb;">#</th>
+                                    <th style="position: sticky; top: 0; z-index: 100; background-color: #f3f4f6; padding: 10px; border: 1px solid #e5e7eb;">Exam Type</th>
+                                    <th style="position: sticky; top: 0; z-index: 100; background-color: #f3f4f6; padding: 10px; border: 1px solid #e5e7eb;">Question</th>
+                                    <!-- Additional headers will be added by JavaScript -->
+                                </tr>
+                            </thead>
+                            <tbody id="csv-preview-body">
+                                <tr>
+                                    <td colspan="3">
+                                        <p class="placeholder-text">Excel content will appear here after upload</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="results-section hidden" id="results-section">
+                <div class="card">
+                    <h2><i class="fas fa-check-circle"></i> Conversion Results</h2>
+                    <div id="conversion-summary"></div>
+                    <button id="downloadBtn" class="secondary-btn">
+                        <i class="fas fa-download"></i> Download QTI Package
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+    <footer>
+        <p class="copyright">Exam Helper by STAR EdTech Interns 2025</p>
+    </footer>
+
+    <!-- JSZip library for creating zip files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- XLSX library for Excel file support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- QTI Converter code -->
+    <script src="../js/quickConvert/qtiConverter.js"></script>
+    <!-- Excel Handler -->
+    <script src="../js/quickConvert/excelHandler.js"></script>
+    <!-- Your custom script - load this last -->
+    <script src="../js/quickConvert/script.js"></script>
+</body>
+</html>

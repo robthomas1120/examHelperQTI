@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modal Test</title>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    
+    <style>
+        /* Include essential styles directly for testing */
+        /* This ensures the modal has basic styling even if styles.css doesn't load */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            visibility: hidden;
+            opacity: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .download-card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        /* Test button */
+        .test-button {
+            padding: 10px 15px;
+            background-color: #4a6cf7;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Modal Test Page</h1>
+    
+    <button id="test-direct-button" class="test-button">
+        Test Modal Directly
+    </button>
+    
+    <div id="download-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="download-card">
+            <div class="modal-close">&times;</div>
+            <h2>Download Quiz Template</h2>
+            <p>Choose your preferred format to download the quiz template.</p>
+            
+            <div class="download-options">
+                <a href="#" class="download-btn-large">
+                    <i class="fab fa-google-drive"></i>
+                    <span class="btn-text">Google Sheet</span>
+                </a>
+                
+                <a href="#" class="download-btn-large">
+                    <i class="far fa-file-excel"></i>
+                    <span class="btn-text">Excel/CSV</span>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Direct test code
+        document.addEventListener('DOMContentLoaded', function() {
+            const testButton = document.getElementById('test-direct-button');
+            const modal = document.getElementById('download-modal');
+            
+            if (testButton && modal) {
+                testButton.addEventListener('click', function() {
+                    console.log('Test button clicked');
+                    modal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                });
+                
+                // Close functionality
+                const closeBtn = document.querySelector('.modal-close');
+                const overlay = document.querySelector('.modal-overlay');
+                
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function() {
+                        modal.classList.remove('active');
+                        document.body.style.overflow = '';
+                    });
+                }
+                
+                if (overlay) {
+                    overlay.addEventListener('click', function() {
+                        modal.classList.remove('active');
+                        document.body.style.overflow = '';
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>

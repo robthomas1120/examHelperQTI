@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QTI to PDF Converter</title>
+    <!-- Update CSS path with proper relative paths -->
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/qtiToPdf.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/nav-styles.css">
+    <script src="../js/navbar.js"></script>
+    <script src="../js/modal.js"></script>
+    <style>
+        /* Basic loading overlay styles in case the CSS file isn't loaded */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .loading-overlay.hidden {
+            display: none;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #4a6cf7;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        
+        .loading-overlay p {
+            color: white;
+            font-size: 1.1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <div class="header">
+
+            <h1>QTI to PDF Converter</h1>
+            <p>Convert QTI files to PDF format for easy printing and distribution</p>
+        </div>
+
+        <main>
+            <div class="upload-container">
+                <div class="upload-area" id="dropArea">
+                    <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                    <h2>Upload QTI File</h2>
+                    <p class="upload-text">Drag and drop your QTI file here or click to browse</p>
+                    <p class="supported-formats">Supported formats: .zip (QTI package)</p>
+                    
+                    <div class="file-info hidden" id="fileInfo">
+                        <div class="file-preview">
+                            <i class="fas fa-file-archive file-icon"></i>
+                            <div class="file-details">
+                                <span id="file-name">No file selected</span>
+                                <span id="file-size" class="file-size"></span>
+                            </div>
+                        </div>
+                        <button class="remove-file" id="removeFile">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <button class="browse-btn">Browse Files</button>
+                    <input type="file" id="qtiFile" accept=".zip" class="hidden-input">
+                </div>
+                
+                <div class="settings-container">
+                    <div class="form-group">
+                        <label for="documentTitle">Document Title:</label>
+                        <input type="text" id="documentTitle" placeholder="Enter document title">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="collegeSelect">College:</label>
+                        <select id="collegeSelect">
+                            <option value="College of Accountancy">College of Accountancy</option>
+                            <option value="College of Architecture">College of Architecture</option>
+                            <option value="College of Commerce and Business Administration">College of Commerce and Business Administration</option>
+                            <option value="College of Education">College of Education</option>
+                            <option value="College of Fine Arts and Design">College of Fine Arts and Design</option>
+                            <option value="College of Information and Computing Sciences">College of Information and Computing Sciences</option>
+                            <option value="College of Nursing">College of Nursing</option>
+                            <option value="College of Rehabilitation Sciences">College of Rehabilitation Sciences</option>
+                            <option value="College of Science">College of Science</option>
+                            <option value="College of Tourism and Hospitality Management">College of Tourism and Hospitality Management</option>
+                            <option value="Conservatory of Music">Conservatory of Music</option>
+                            <option value="Education High School">Education High School</option>
+                            <option value="Faculty of Arts and Letters">Faculty of Arts and Letters</option>
+                            <option value="Faculty of Canon Law">Faculty of Canon Law</option>
+                            <option value="Faculty of Civil Law">Faculty of Civil Law</option>
+                            <option value="Faculty of Engineering">Faculty of Engineering</option>
+                            <option value="Faculty of Medicine and Surgery">Faculty of Medicine and Surgery</option>
+                            <option value="Faculty of Pharmacy">Faculty of Pharmacy</option>
+                            <option value="Faculty of Philosophy">Faculty of Philosophy</option>
+                            <option value="Faculty of Sacred Theology">Faculty of Sacred Theology</option>
+                            <option value="Graduate School">Graduate School</option>
+                            <option value="Graduate School of Law">Graduate School of Law</option>
+                            <option value="Institute of Physical Education and Athletics">Institute of Physical Education and Athletics</option>
+                            <option value="Junior High School">Junior High School</option>
+                            <option value="Senior High School">Senior High School</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pdfOptions">PDF Options:</label>
+                        <div class="checkbox-group">
+                            <div class="option-group full-width">
+                                <label for="generalDirections">General Directions:</label>
+                                <textarea id="generalDirections" rows="3" placeholder="Enter general directions for the exam"></textarea>
+                            </div>
+                            <div class="checkbox-item"  style="display: flex; align-items: center; gap: 5px;"">
+                                <input type="checkbox" id="includeAnswers" name="includeAnswers" checked>
+                                <label for="includeAnswers">Generate Answer Key</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="paperSize">Paper Size:</label>
+                        <select id="paperSize">
+                            <option value="a4">A4</option>
+                            <option value="letter">Letter</option>
+                            <option value="legal">Legal</option>
+                        </select>
+                    </div>
+
+                    <button id="convertBtn" class="primary-btn" disabled>
+                        <i class="fas fa-file-export"></i> Convert to PDF
+                    </button>
+                </div>
+            </div>
+            
+            <section class="results-section hidden" id="results-section">
+                <div class="card">
+                    <h2><i class="fas fa-check-circle"></i> Conversion Results</h2>
+                    <div id="conversion-summary"></div>
+                    <button id="downloadBtn" class="secondary-btn">
+                        <i class="fas fa-download"></i> Download PDF
+                    </button>
+                    <button id="downloadAnswerKeyBtn" class="secondary-btn hidden">
+                        <i class="fas fa-download"></i> Download Answer Key PDF
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <div id="qti-loading-overlay" class="loading-overlay hidden">
+            <div class="spinner"></div>
+            <p>Converting QTI to PDF...</p>
+        </div>
+
+
+    </div>
+    <footer>
+        <p class="copyright">Exam Helper by STAR EdTech Interns 2025</p>
+    </footer>
+
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Update JS paths with proper relative paths -->
+    <script src="../js/qtiToPdf/qtiToPdf.js"></script>
+    <script src="../js/qtiToPdf/customQtiToPdf.js"></script>
+</body>
+</html>
