@@ -766,6 +766,7 @@ commitChanges() {
 
 /**
  * Display table with headers and rows - includes validation and editing
+ * with comprehensive error handling
  * @param {Array} headers - Table headers
  * @param {Array} rows - Table rows
  * @param {Array} columnIndices - Indices of columns to display
@@ -773,331 +774,723 @@ commitChanges() {
  * @param {Boolean} isMASheet - Whether this is a Multiple Answer sheet
  */
 displayTable(headers, rows, columnIndices, isTFSheet = false, isMASheet = false) {
-    // Show all rows instead of limiting to 10
-    const previewRows = rows;
-    
-    // Create a container for the scrollable table
-    let tableHtml = '<div style="max-height: 600px; overflow-y: auto; margin-bottom: 15px;">';
-    tableHtml += '<table class="editable-table" style="width: 100%; border-collapse: collapse;">';
-    
-    // Table header
-    tableHtml += '<thead><tr>';
-    // Add row number header
-    tableHtml += '<th style="position: sticky; top: 0; padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: center; z-index: 10; width: 50px;">#</th>';
-    // Add existing headers
-    headers.forEach(header => {
-        tableHtml += `<th style="position: sticky; top: 0; padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: left; z-index: 10;">${header}</th>`;
-    });
-    tableHtml += '</tr></thead>';
-    
-    // Table body
-    tableHtml += '<tbody>';
-    let errors = [];
-    let multipleCorrectErrors = [];
-    let singleCorrectMAErrors = []; // New array for MA questions with only 1 correct answer
-    let tfErrors = []; // New array for TF validation errors
-    
-    // Check for True/False validation errors
-    if (isTFSheet) {
-        tfErrors = this.validateTFChoices(headers, rows, columnIndices);
-    }
-    
-    // Identify "tagging" columns
-    const taggingColumns = columnIndices.filter(index => 
-        headers[index] && (headers[index].toLowerCase().includes("tag") || 
-                        headers[index].toLowerCase().includes("correct") ||
-                        headers[index].toLowerCase().includes("incorrect"))
-    );
-    
-    console.log("Detected tagging columns:", taggingColumns);
-
-    // Find option-tag column pairs
-    // Assuming the structure is [option1, tag1, option2, tag2, ...]
-    const tagPairs = [];
-    for (let i = 0; i < columnIndices.length; i++) {
-        if (taggingColumns.includes(columnIndices[i])) {
-            // This is a tag column, check if the previous column is an option
-            const tagColIndex = columnIndices[i];
-            const optionColIndex = columnIndices[i-1]; // Assuming the option is always the previous column
-            
-            if (optionColIndex !== undefined) {
-                tagPairs.push({
-                    tagColIndex: tagColIndex,
-                    optionColIndex: optionColIndex
-                });
-            }
-        }
-    }
-    
-    // Determine if this is an MC (Multiple Choice) sheet
-    const isMCSheet = (this.workbook && this.workbook.SheetNames[this.currentSheetIndex] && 
-                    this.workbook.SheetNames[this.currentSheetIndex].includes("MC")) ||
-                    headers.some(header => header && header.includes("MC"));
-    
-    previewRows.forEach((row, rowIndex) => {
-        let rowErrors = [];
-        let rowStyle = "";
-        let isMultipleCorrect = false;
-        let isSingleCorrectMA = false;
+    try {
+        console.log('Starting displayTable method');
+        console.log(`Table data: ${headers ? headers.length : 0} headers, ${rows ? rows.length : 0} rows, ${columnIndices ? columnIndices.length : 0} columns`);
+        console.log(`Sheet types: isTFSheet=${isTFSheet}, isMASheet=${isMASheet}`);
         
-        // Check for MA sheet and question type
-        const isMAQuestion = isMASheet || (row.length > 0 && row[0] === "MA");
-        
-        if (isMAQuestion) {
-            let correctCount = 0;
-            
-            // Count the number of "correct" values in tagging columns
-            taggingColumns.forEach(colIndex => {
-                if (!row[colIndex]) return;
-                const value = row[colIndex].toString().trim().toLowerCase();
-                if (value === 'correct') {
-                    correctCount++;
-                }
-            });
-
-            // For MA questions, check if there's only 1 correct answer
-            if (correctCount === 1) {
-                isSingleCorrectMA = true;
-                rowStyle = 'border-left: 6px solid #f97316;'; // Orange highlight on the left side
-                singleCorrectMAErrors.push({
-                    row: rowIndex + 1,
-                    count: correctCount
-                });
-            }
-        }
-        // For MC questions, check how many "correct" values exist in the row
-        else if (isMCSheet || (row.length > 0 && row[0] === "MC")) {
-            let correctCount = 0;
-            
-            // Count the number of "correct" values in tagging columns
-            taggingColumns.forEach(colIndex => {
-                if (!row[colIndex]) return;
-                const value = row[colIndex].toString().trim().toLowerCase();
-                if (value === 'correct') {
-                    correctCount++;
-                }
-            });
-
-            // If there are multiple correct answers, flag this row
-            if (correctCount > 1) {
-                isMultipleCorrect = true;
-                rowStyle = 'border-left: 6px solid #f97316;'; // Orange highlight on the left side
-                multipleCorrectErrors.push({
-                    row: rowIndex + 1,
-                    count: correctCount
-                });
-            }
+        // Validate inputs
+        if (!headers || !Array.isArray(headers)) {
+            console.error('Invalid headers provided to displayTable: not an array');
+            headers = [];
         }
         
-        // Check for TF errors in this row
-        const rowTFErrors = tfErrors.filter(err => err.row === rowIndex + 1);
-        if (rowTFErrors.length > 0) {
-            // Add red left border for TF errors
-            rowStyle = 'border-left: 6px solid #ef4444;'; // Red highlight
+        if (!rows || !Array.isArray(rows)) {
+            console.error('Invalid rows provided to displayTable: not an array');
+            rows = [];
         }
-    
-        // Check for tagging errors
-        tagPairs.forEach(pair => {
-            if (!row[pair.optionColIndex] || !row[pair.tagColIndex]) return;
-            
-            const optionValue = row[pair.optionColIndex].toString().trim();
-            const tagValue = row[pair.tagColIndex].toString().trim();
-            
-            // Only validate if the option has a value but the tag is invalid
-            if (optionValue && !["correct", "incorrect"].includes(tagValue.toLowerCase())) {
-                rowErrors.push(`Row: ${rowIndex + 1}, Column: "${headers[columnIndices.indexOf(pair.tagColIndex)]}" has invalid value "${tagValue}" for option "${optionValue}"`);
-            }
-        });
         
-        tableHtml += `<tr style="background-color: ${rowIndex % 2 === 0 ? 'white' : '#f9fafb'}; ${rowStyle}" data-row-id="${rowIndex}">`;
+        if (!columnIndices || !Array.isArray(columnIndices)) {
+            console.error('Invalid columnIndices provided to displayTable: not an array');
+            columnIndices = [];
+        }
         
-        // Add row number cell
-        tableHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; text-align: center; font-weight: 500; background-color: #f3f4f6;" class="row-number-cell">${rowIndex + 1}</td>`;
-    
-        columnIndices.forEach((colIndex, cellIndex) => {
-            const value = row[colIndex] !== undefined ? row[colIndex].toString().trim() : '';
-            let cellStyle = '';
+        // Show all rows instead of limiting to 10
+        const previewRows = rows;
+        console.log(`Using all ${previewRows.length} rows for display`);
+        
+        // Create a container for the scrollable table
+        let tableHtml = '<div style="max-height: 600px; overflow-y: auto; margin-bottom: 15px;">';
+        tableHtml += '<table class="editable-table" style="width: 100%; border-collapse: collapse;">';
+        
+        try {
+            // Table header
+            console.log('Creating table header');
+            tableHtml += '<thead><tr>';
+            // Add row number header
+            tableHtml += '<th style="position: sticky; top: 0; padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: center; z-index: 10; width: 50px;">#</th>';
             
-            // If this is a TF sheet and this cell contains a TF value that's invalid
-            const isTFChoiceCell = isTFSheet && 
-                                 headers[cellIndex] && 
-                                 headers[cellIndex].toLowerCase().includes('choice');
-                                 
-            if (isTFChoiceCell) {
-                const normalizedValue = value.toLowerCase();
-                if (value && normalizedValue !== 'true' && normalizedValue !== 'false') {
-                    cellStyle += 'background-color: #fee2e2; color: #b91c1c; font-weight: 500;'; // Red highlight
-                }
-            }
-    
-            // Apply standard styling
-            if (value.toLowerCase() === 'correct') {
-                cellStyle = 'color: #10b981; font-weight: 500;'; // Green for correct
-            } else if (value.toLowerCase() === 'incorrect') {
-                cellStyle = 'color: #ef4444; font-weight: 500;'; // Red for incorrect
-            }
-    
-            // Add error highlighting for tag cells
-            if (taggingColumns.includes(colIndex)) {
-                // Find the corresponding option column
-                const pairInfo = tagPairs.find(p => p.tagColIndex === colIndex);
-                if (pairInfo) {
-                    const optionColIndex = pairInfo.optionColIndex;
-                    const optionValue = row[optionColIndex] !== undefined ? row[optionColIndex].toString().trim() : '';
+            // Add existing headers
+            headers.forEach((header, idx) => {
+                try {
+                    if (header === undefined || header === null) {
+                        console.warn(`Header at index ${idx} is undefined or null, using empty string`);
+                        header = '';
+                    }
                     
-                    // Only highlight if option exists but tag is invalid
-                    if (optionValue && !["correct", "incorrect"].includes(value.toLowerCase())) {
-                        cellStyle += ' background-color: #fee2e2; color: #b91c1c; font-weight: 500;'; // Red highlight
+                    tableHtml += `<th style="position: sticky; top: 0; padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: left; z-index: 10;">${header}</th>`;
+                } catch (headerError) {
+                    console.error(`Error processing header at index ${idx}:`, headerError);
+                    tableHtml += `<th style="position: sticky; top: 0; padding: 10px; background-color: #f3f4f6; border: 1px solid #e5e7eb; text-align: left; z-index: 10;">Column ${idx}</th>`;
+                }
+            });
+            
+            tableHtml += '</tr></thead>';
+        } catch (headerError) {
+            console.error('Error creating table header:', headerError);
+            tableHtml += '<thead><tr><th>#</th><th>Error creating headers</th></tr></thead>';
+        }
+        
+        // Initialize error collections
+        let errors = [];
+        let multipleCorrectErrors = [];
+        let singleCorrectMAErrors = [];
+        let tfErrors = [];
+        
+        try {
+            // Table body
+            console.log('Starting table body creation');
+            tableHtml += '<tbody>';
+            
+            // Check for True/False validation errors
+            if (isTFSheet) {
+                try {
+                    console.log('Validating True/False choices');
+                    tfErrors = this.validateTFChoices(headers, rows, columnIndices);
+                    console.log(`Found ${tfErrors.length} True/False validation errors`);
+                } catch (tfValidationError) {
+                    console.error('Error validating True/False choices:', tfValidationError);
+                    tfErrors = [];
+                }
+            }
+            
+            // Identify "tagging" columns
+            let taggingColumns = [];
+            try {
+                console.log('Identifying tagging columns');
+                taggingColumns = columnIndices.filter(index => {
+                    try {
+                        if (!headers[index]) return false;
+                        
+                        const headerText = headers[index].toLowerCase();
+                        return headerText.includes("tag") || 
+                               headerText.includes("correct") || 
+                               headerText.includes("incorrect");
+                    } catch (columnFilterError) {
+                        console.error(`Error checking if column ${index} is a tagging column:`, columnFilterError);
+                        return false;
+                    }
+                });
+                
+                console.log("Detected tagging columns:", taggingColumns);
+            } catch (taggingColumnsError) {
+                console.error('Error identifying tagging columns:', taggingColumnsError);
+                taggingColumns = [];
+            }
+            
+            // Find option-tag column pairs
+            let tagPairs = [];
+            try {
+                console.log('Finding option-tag column pairs');
+                // Assuming the structure is [option1, tag1, option2, tag2, ...]
+                for (let i = 0; i < columnIndices.length; i++) {
+                    try {
+                        if (taggingColumns.includes(columnIndices[i])) {
+                            // This is a tag column, check if the previous column is an option
+                            const tagColIndex = columnIndices[i];
+                            const optionColIndex = columnIndices[i-1]; // Assuming the option is always the previous column
+                            
+                            if (optionColIndex !== undefined) {
+                                tagPairs.push({
+                                    tagColIndex: tagColIndex,
+                                    optionColIndex: optionColIndex
+                                });
+                                console.log(`Found tag pair: option col=${optionColIndex}, tag col=${tagColIndex}`);
+                            }
+                        }
+                    } catch (pairError) {
+                        console.error(`Error processing tag pair at index ${i}:`, pairError);
                     }
                 }
+                
+                console.log(`Found ${tagPairs.length} option-tag column pairs`);
+            } catch (tagPairsError) {
+                console.error('Error finding option-tag column pairs:', tagPairsError);
+                tagPairs = [];
             }
-    
-            // Make the cell editable with appropriate attributes
-            tableHtml += `
-                <td 
-                    style="padding: 8px; border: 1px solid #e5e7eb; ${cellStyle}; cursor: pointer;" 
-                    data-row="${rowIndex}" 
-                    data-col="${cellIndex}" 
-                    data-original-col="${colIndex}"
-                    data-value="${this.escapeHTML(value)}"
-                    class="editable-cell"
-                    title="Double-click to edit"
-                    ondblclick="document.dispatchEvent(new CustomEvent('cell-click', {detail: {row: ${rowIndex}, col: ${cellIndex}, originalCol: ${colIndex}, value: '${this.escapeHTML(value)}'}}))"
-                >${value}</td>`;
-        });
-    
-        tableHtml += '</tr>';
-    
-        if (rowErrors.length > 0) {
-            errors.push(...rowErrors);
-        }
-    });
-    
-    tableHtml += '</tbody></table>';
-    tableHtml += '</div>'; // Close the scrollable container
-    
-    // Clear previous errors
-    document.querySelectorAll(".validation-errors-container").forEach(el => el.remove());
-    document.querySelectorAll(".multiple-correct-container").forEach(el => el.remove());
-    document.querySelectorAll(".single-correct-ma-container").forEach(el => el.remove());
-    document.querySelectorAll(".tf-errors-container").forEach(el => el.remove());
-    
-    // Add TF validation errors if any
-    if (tfErrors.length > 0) {
-        let tfErrorHtml = '<div class="tf-errors-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #fee2e2; border-radius: 6px; border: 1px solid #ef4444;">';
-        tfErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #b91c1c; font-size: 1rem; font-weight: 600;">True/False Validation Errors:</h3><ul style="margin: 0; padding-left: 20px;">';
-        
-        tfErrors.forEach(error => {
-            tfErrorHtml += `<li style="color: #7f1d1d; margin-bottom: 4px;">${error.message}</li>`;
-        });
-        
-        tfErrorHtml += '</ul></div>';
-
-        if (this.previewElement.parentNode) {
-            this.previewElement.parentNode.insertBefore(
-                document.createRange().createContextualFragment(tfErrorHtml),
-                this.previewElement
-            );
-        }
-    }
-    
-    // Add single correct MA errors warning if needed
-    if (singleCorrectMAErrors.length > 0) {
-        let maErrorHtml = '<div class="single-correct-ma-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
-        maErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Only 1 Correct Answer Found:</h3><ul style="margin: 0; padding-left: 20px;">';
-        
-        singleCorrectMAErrors.forEach(error => {
-            maErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: Contains Only 1 Correct Answer. Multiple Answer Questions should have at least 2 correct answers.</li>`;
-        });
-        
-        maErrorHtml += '</ul></div>';
-
-        if (this.previewElement.parentNode) {
-            this.previewElement.parentNode.insertBefore(
-                document.createRange().createContextualFragment(maErrorHtml),
-                this.previewElement
-            );
-        }
-    }
-    
-    // Add multiple correct answers warning if needed
-    if (multipleCorrectErrors.length > 0) {
-        let mcErrorHtml = '<div class="multiple-correct-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
-        mcErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Correct Answers Found:</h3><ul style="margin: 0; padding-left: 20px;">';
-        
-        multipleCorrectErrors.forEach(error => {
-            mcErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: Contains ${error.count} Correct Answers. Multiple Choice Questions should only have 1 correct answer.</li>`;
-        });
-        
-        mcErrorHtml += '</ul></div>';
-
-        if (this.previewElement.parentNode) {
-            this.previewElement.parentNode.insertBefore(
-                document.createRange().createContextualFragment(mcErrorHtml),
-                this.previewElement
-            );
-        }
-    }
-    
-    // Add error summary
-    if (errors.length > 0) {
-        let errorHtml = '<div class="validation-errors-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #fee2e2; border-radius: 6px; border: 1px solid #ef4444;">';
-        errorHtml += '<h3 style="margin: 0 0 8px 0; color: #b91c1c; font-size: 1rem; font-weight: 600;">Tagging Errors Found:</h3><ul style="margin: 0; padding-left: 20px;">';
-        errors.forEach(error => {
-            errorHtml += `<li style="color: #7f1d1d; margin-bottom: 4px;">${error}</li>`;
-        });
-        errorHtml += '</ul></div>';
-    
-        if (this.previewElement.parentNode) {
-            this.previewElement.parentNode.insertBefore(
-                document.createRange().createContextualFragment(errorHtml),
-                this.previewElement
-            );
-        }
-    }
-    
-    // Add CSS style for row number column
-    const styleId = 'row-number-styles';
-    if (!document.getElementById(styleId)) {
-        const style = document.createElement('style');
-        style.id = styleId;
-        style.textContent = `
-            .row-number-cell {
-                user-select: none;
-                cursor: default !important;
+            
+            // Determine if this is an MC (Multiple Choice) sheet
+            let isMCSheet = false;
+            try {
+                console.log('Determining if this is a Multiple Choice sheet');
+                isMCSheet = (this.workbook && 
+                             this.workbook.SheetNames[this.currentSheetIndex] && 
+                             this.workbook.SheetNames[this.currentSheetIndex].includes("MC")) ||
+                             headers.some(header => header && header.includes("MC"));
+                
+                console.log(`Sheet is ${isMCSheet ? '' : 'not '}identified as Multiple Choice`);
+            } catch (mcSheetError) {
+                console.error('Error determining if this is a Multiple Choice sheet:', mcSheetError);
+                isMCSheet = false;
             }
-            .row-number-cell:hover {
-                background-color: #f3f4f6 !important;
+            
+            // Process each row
+            console.log(`Processing ${previewRows.length} rows`);
+            previewRows.forEach((row, rowIndex) => {
+                try {
+                    console.log(`Processing row ${rowIndex + 1}`);
+                    let rowErrors = [];
+                    let rowStyle = "";
+                    let isMultipleCorrect = false;
+                    let isSingleCorrectMA = false;
+                    
+                    // Check for MA sheet and question type
+                    try {
+                        const isMAQuestion = isMASheet || (row.length > 0 && row[0] === "MA");
+                        console.log(`Row ${rowIndex + 1} is ${isMAQuestion ? '' : 'not '}a Multiple Answer question`);
+                        
+                        if (isMAQuestion) {
+                            let correctCount = 0;
+                            
+                            // Count the number of "correct" values in tagging columns
+                            taggingColumns.forEach(colIndex => {
+                                try {
+                                    if (!row[colIndex]) return;
+                                    const value = row[colIndex].toString().trim().toLowerCase();
+                                    if (value === 'correct') {
+                                        correctCount++;
+                                    }
+                                } catch (maColumnError) {
+                                    console.error(`Error checking MA column ${colIndex} for row ${rowIndex + 1}:`, maColumnError);
+                                }
+                            });
+                            
+                            console.log(`Row ${rowIndex + 1} (MA) has ${correctCount} correct answers`);
+
+                            // For MA questions, check if there's only 1 correct answer
+                            if (correctCount === 1) {
+                                console.log(`Row ${rowIndex + 1} has only 1 correct answer - flagging as MA error`);
+                                isSingleCorrectMA = true;
+                                rowStyle = 'border-left: 6px solid #f97316;'; // Orange highlight on the left side
+                                singleCorrectMAErrors.push({
+                                    row: rowIndex + 1,
+                                    count: correctCount
+                                });
+                            }
+                        }
+                    } catch (maCheckError) {
+                        console.error(`Error checking if row ${rowIndex + 1} is a MA question:`, maCheckError);
+                    }
+                    
+                    // For MC questions, check how many "correct" values exist in the row
+                    try {
+                        if (isMCSheet || (row.length > 0 && row[0] === "MC")) {
+                            console.log(`Row ${rowIndex + 1} is a Multiple Choice question`);
+                            let correctCount = 0;
+                            
+                            // Count the number of "correct" values in tagging columns
+                            taggingColumns.forEach(colIndex => {
+                                try {
+                                    if (!row[colIndex]) return;
+                                    const value = row[colIndex].toString().trim().toLowerCase();
+                                    if (value === 'correct') {
+                                        correctCount++;
+                                    }
+                                } catch (mcColumnError) {
+                                    console.error(`Error checking MC column ${colIndex} for row ${rowIndex + 1}:`, mcColumnError);
+                                }
+                            });
+                            
+                            console.log(`Row ${rowIndex + 1} (MC) has ${correctCount} correct answers`);
+
+                            // If there are multiple correct answers, flag this row
+                            if (correctCount > 1) {
+                                console.log(`Row ${rowIndex + 1} has multiple correct answers - flagging as MC error`);
+                                isMultipleCorrect = true;
+                                rowStyle = 'border-left: 6px solid #f97316;'; // Orange highlight on the left side
+                                multipleCorrectErrors.push({
+                                    row: rowIndex + 1,
+                                    count: correctCount
+                                });
+                            }
+                        }
+                    } catch (mcCheckError) {
+                        console.error(`Error checking if row ${rowIndex + 1} is a MC question:`, mcCheckError);
+                    }
+                    
+                    // Check for TF errors in this row
+                    try {
+                        if (isTFSheet) {
+                            const rowTFErrors = tfErrors.filter(err => err.row === rowIndex + 1);
+                            if (rowTFErrors.length > 0) {
+                                console.log(`Row ${rowIndex + 1} has ${rowTFErrors.length} TF errors`);
+                                // Add red left border for TF errors
+                                rowStyle = 'border-left: 6px solid #ef4444;'; // Red highlight
+                            }
+                        }
+                    } catch (tfCheckError) {
+                        console.error(`Error checking TF errors for row ${rowIndex + 1}:`, tfCheckError);
+                    }
+                
+                    // Check for tagging errors
+                    try {
+                        tagPairs.forEach((pair, pairIndex) => {
+                            try {
+                                if (!row[pair.optionColIndex] || !row[pair.tagColIndex]) return;
+                                
+                                const optionValue = row[pair.optionColIndex].toString().trim();
+                                const tagValue = row[pair.tagColIndex].toString().trim();
+                                
+                                // Only validate if the option has a value but the tag is invalid
+                                if (optionValue && !["correct", "incorrect"].includes(tagValue.toLowerCase())) {
+                                    console.log(`Row ${rowIndex + 1} has invalid tag value "${tagValue}" for option "${optionValue}"`);
+                                    const headerIndex = columnIndices.indexOf(pair.tagColIndex);
+                                    const headerName = headerIndex >= 0 && headerIndex < headers.length ? 
+                                                   headers[headerIndex] : `Column ${pair.tagColIndex}`;
+                                    
+                                    rowErrors.push(`Row: ${rowIndex + 1}, Column: "${headerName}" has invalid value "${tagValue}" for option "${optionValue}"`);
+                                }
+                            } catch (pairCheckError) {
+                                console.error(`Error checking tag pair ${pairIndex} for row ${rowIndex + 1}:`, pairCheckError);
+                            }
+                        });
+                        
+                        if (rowErrors.length > 0) {
+                            console.log(`Row ${rowIndex + 1} has ${rowErrors.length} tagging errors`);
+                        }
+                    } catch (taggingCheckError) {
+                        console.error(`Error checking tagging errors for row ${rowIndex + 1}:`, taggingCheckError);
+                    }
+                    
+                    // Create the row HTML
+                    try {
+                        const rowBgColor = rowIndex % 2 === 0 ? 'white' : '#f9fafb';
+                        tableHtml += `<tr style="background-color: ${rowBgColor}; ${rowStyle}" data-row-id="${rowIndex}">`;
+                        
+                        // Add row number cell
+                        tableHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; text-align: center; font-weight: 500; background-color: #f3f4f6;" class="row-number-cell">${rowIndex + 1}</td>`;
+                    
+                        // Process each cell in the row
+                        columnIndices.forEach((colIndex, cellIndex) => {
+                            try {
+                                // Get cell value
+                                let value = '';
+                                try {
+                                    value = row[colIndex] !== undefined ? row[colIndex].toString().trim() : '';
+                                } catch (valueError) {
+                                    console.error(`Error getting cell value at row ${rowIndex + 1}, column ${colIndex}:`, valueError);
+                                    value = '';
+                                }
+                                
+                                let cellStyle = '';
+                                
+                                // If this is a TF sheet and this cell contains a TF value that's invalid
+                                try {
+                                    const isTFChoiceCell = isTFSheet && 
+                                                        headers[cellIndex] && 
+                                                        headers[cellIndex].toLowerCase().includes('choice');
+                                                        
+                                    if (isTFChoiceCell) {
+                                        const normalizedValue = value.toLowerCase();
+                                        if (value && normalizedValue !== 'true' && normalizedValue !== 'false') {
+                                            console.log(`Invalid TF value "${value}" at row ${rowIndex + 1}, column ${cellIndex}`);
+                                            cellStyle += 'background-color: #fee2e2; color: #b91c1c; font-weight: 500;'; // Red highlight
+                                        }
+                                    }
+                                } catch (tfCellError) {
+                                    console.error(`Error checking TF cell at row ${rowIndex + 1}, column ${cellIndex}:`, tfCellError);
+                                }
+                        
+                                // Apply standard styling
+                                try {
+                                    const lowerValue = value.toLowerCase();
+                                    if (lowerValue === 'correct') {
+                                        cellStyle = 'color: #10b981; font-weight: 500;'; // Green for correct
+                                    } else if (lowerValue === 'incorrect') {
+                                        cellStyle = 'color: #ef4444; font-weight: 500;'; // Red for incorrect
+                                    }
+                                } catch (styleCellError) {
+                                    console.error(`Error applying standard cell style at row ${rowIndex + 1}, column ${cellIndex}:`, styleCellError);
+                                }
+                        
+                                // Add error highlighting for tag cells
+                                try {
+                                    if (taggingColumns.includes(colIndex)) {
+                                        // Find the corresponding option column
+                                        const pairInfo = tagPairs.find(p => p.tagColIndex === colIndex);
+                                        if (pairInfo) {
+                                            const optionColIndex = pairInfo.optionColIndex;
+                                            const optionValue = row[optionColIndex] !== undefined ? row[optionColIndex].toString().trim() : '';
+                                            
+                                            // Only highlight if option exists but tag is invalid
+                                            if (optionValue && !["correct", "incorrect"].includes(value.toLowerCase())) {
+                                                console.log(`Invalid tag value "${value}" for option "${optionValue}" at row ${rowIndex + 1}, column ${cellIndex}`);
+                                                cellStyle += ' background-color: #fee2e2; color: #b91c1c; font-weight: 500;'; // Red highlight
+                                            }
+                                        }
+                                    }
+                                } catch (tagCellError) {
+                                    console.error(`Error checking tag cell at row ${rowIndex + 1}, column ${cellIndex}:`, tagCellError);
+                                }
+                        
+                                // Safely escape HTML and create cell
+                                let escapedValue = '';
+                                try {
+                                    escapedValue = this.escapeHTML(value);
+                                } catch (escapeError) {
+                                    console.error(`Error escaping HTML at row ${rowIndex + 1}, column ${cellIndex}:`, escapeError);
+                                    escapedValue = '';
+                                }
+                                
+                                // Make the cell editable with appropriate attributes
+                                tableHtml += `
+                                    <td 
+                                        style="padding: 8px; border: 1px solid #e5e7eb; ${cellStyle}; cursor: pointer;" 
+                                        data-row="${rowIndex}" 
+                                        data-col="${cellIndex}" 
+                                        data-original-col="${colIndex}"
+                                        data-value="${escapedValue}"
+                                        class="editable-cell"
+                                        title="Double-click to edit"
+                                        ondblclick="document.dispatchEvent(new CustomEvent('cell-click', {detail: {row: ${rowIndex}, col: ${cellIndex}, originalCol: ${colIndex}, value: '${escapedValue}'}}))"
+                                    >${value}</td>`;
+                            } catch (cellError) {
+                                console.error(`Error creating cell at row ${rowIndex + 1}, column ${cellIndex}:`, cellError);
+                                tableHtml += `<td>Error</td>`;
+                            }
+                        });
+                    
+                        tableHtml += '</tr>';
+                    
+                        if (rowErrors.length > 0) {
+                            errors.push(...rowErrors);
+                        }
+                    } catch (rowHtmlError) {
+                        console.error(`Error creating HTML for row ${rowIndex + 1}:`, rowHtmlError);
+                        tableHtml += `<tr><td colspan="${columnIndices.length + 1}">Error rendering row ${rowIndex + 1}</td></tr>`;
+                    }
+                } catch (rowError) {
+                    console.error(`Fatal error processing row ${rowIndex + 1}:`, rowError);
+                    tableHtml += `<tr><td colspan="${columnIndices.length + 1}">Error processing row ${rowIndex + 1}</td></tr>`;
+                }
+            });
+            
+            console.log(`Finished processing ${previewRows.length} rows`);
+            console.log(`Found ${errors.length} tagging errors, ${multipleCorrectErrors.length} MC errors, ${singleCorrectMAErrors.length} MA errors, ${tfErrors.length} TF errors`);
+            
+            tableHtml += '</tbody></table>';
+            tableHtml += '</div>'; // Close the scrollable container
+        } catch (bodyError) {
+            console.error('Error creating table body:', bodyError);
+            tableHtml += '<tbody><tr><td colspan="2">Error creating table content</td></tr></tbody></table></div>';
+        }
+        
+        // Clear previous errors
+        try {
+            console.log('Clearing previous error notifications');
+            document.querySelectorAll(".validation-errors-container").forEach(el => {
+                try {
+                    el.remove();
+                } catch (removeError) {
+                    console.error('Error removing validation-errors-container:', removeError);
+                }
+            });
+            
+            document.querySelectorAll(".multiple-correct-container").forEach(el => {
+                try {
+                    el.remove();
+                } catch (removeError) {
+                    console.error('Error removing multiple-correct-container:', removeError);
+                }
+            });
+            
+            document.querySelectorAll(".single-correct-ma-container").forEach(el => {
+                try {
+                    el.remove();
+                } catch (removeError) {
+                    console.error('Error removing single-correct-ma-container:', removeError);
+                }
+            });
+            
+            document.querySelectorAll(".tf-errors-container").forEach(el => {
+                try {
+                    el.remove();
+                } catch (removeError) {
+                    console.error('Error removing tf-errors-container:', removeError);
+                }
+            });
+        } catch (clearError) {
+            console.error('Error clearing previous error notifications:', clearError);
+        }
+        
+        // Add error notifications
+        try {
+            console.log('Adding error notifications');
+            
+            // Add TF validation errors if any
+            if (tfErrors.length > 0) {
+                try {
+                    console.log(`Adding ${tfErrors.length} TF validation errors`);
+                    let tfErrorHtml = '<div class="tf-errors-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #fee2e2; border-radius: 6px; border: 1px solid #ef4444;">';
+                    tfErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #b91c1c; font-size: 1rem; font-weight: 600;">True/False Validation Errors:</h3><ul style="margin: 0; padding-left: 20px;">';
+                    
+                    tfErrors.forEach(error => {
+                        try {
+                            tfErrorHtml += `<li style="color: #7f1d1d; margin-bottom: 4px;">${error.message}</li>`;
+                        } catch (errorItemError) {
+                            console.error('Error adding TF error item:', errorItemError);
+                        }
+                    });
+                    
+                    tfErrorHtml += '</ul></div>';
+
+                    if (this.previewElement && this.previewElement.parentNode) {
+                        try {
+                            this.previewElement.parentNode.insertBefore(
+                                document.createRange().createContextualFragment(tfErrorHtml),
+                                this.previewElement
+                            );
+                        } catch (insertError) {
+                            console.error('Error inserting TF errors container:', insertError);
+                        }
+                    } else {
+                        console.warn('Preview element or its parent node not found, cannot add TF errors');
+                    }
+                } catch (tfErrorContainerError) {
+                    console.error('Error creating TF errors container:', tfErrorContainerError);
+                }
             }
-        `;
-        document.head.appendChild(style);
+            
+            // Add single correct MA errors warning if needed
+            if (singleCorrectMAErrors.length > 0) {
+                try {
+                    console.log(`Adding ${singleCorrectMAErrors.length} single correct MA warnings`);
+                    let maErrorHtml = '<div class="single-correct-ma-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
+                    maErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Only 1 Correct Answer Found:</h3><ul style="margin: 0; padding-left: 20px;">';
+                    
+                    singleCorrectMAErrors.forEach(error => {
+                        try {
+                            maErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: Contains Only 1 Correct Answer. Multiple Answer Questions should have at least 2 correct answers.</li>`;
+                        } catch (errorItemError) {
+                            console.error('Error adding MA error item:', errorItemError);
+                        }
+                    });
+                    
+                    maErrorHtml += '</ul></div>';
+
+                    if (this.previewElement && this.previewElement.parentNode) {
+                        try {
+                            this.previewElement.parentNode.insertBefore(
+                                document.createRange().createContextualFragment(maErrorHtml),
+                                this.previewElement
+                            );
+                        } catch (insertError) {
+                            console.error('Error inserting MA errors container:', insertError);
+                        }
+                    } else {
+                        console.warn('Preview element or its parent node not found, cannot add MA errors');
+                    }
+                } catch (maErrorContainerError) {
+                    console.error('Error creating MA errors container:', maErrorContainerError);
+                }
+            }
+            
+            // Add multiple correct answers warning if needed
+            if (multipleCorrectErrors.length > 0) {
+                try {
+                    console.log(`Adding ${multipleCorrectErrors.length} multiple correct MC warnings`);
+                    let mcErrorHtml = '<div class="multiple-correct-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
+                    mcErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Correct Answers Found:</h3><ul style="margin: 0; padding-left: 20px;">';
+                    
+                    multipleCorrectErrors.forEach(error => {
+                        try {
+                            mcErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: Contains ${error.count} Correct Answers. Multiple Choice Questions should only have 1 correct answer.</li>`;
+                        } catch (errorItemError) {
+                            console.error('Error adding MC error item:', errorItemError);
+                        }
+                    });
+                    
+                    mcErrorHtml += '</ul></div>';
+
+                    if (this.previewElement && this.previewElement.parentNode) {
+                        try {
+                            this.previewElement.parentNode.insertBefore(
+                                document.createRange().createContextualFragment(mcErrorHtml),
+                                this.previewElement
+                            );
+                        } catch (insertError) {
+                            console.error('Error inserting MC errors container:', insertError);
+                        }
+                    } else {
+                        console.warn('Preview element or its parent node not found, cannot add MC errors');
+                    }
+                } catch (mcErrorContainerError) {
+                    console.error('Error creating MC errors container:', mcErrorContainerError);
+                }
+            }
+            
+            // Add general error summary
+            if (errors.length > 0) {
+                try {
+                    console.log(`Adding ${errors.length} general tagging errors`);
+                    let errorHtml = '<div class="validation-errors-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #fee2e2; border-radius: 6px; border: 1px solid #ef4444;">';
+                    errorHtml += '<h3 style="margin: 0 0 8px 0; color: #b91c1c; font-size: 1rem; font-weight: 600;">Tagging Errors Found:</h3><ul style="margin: 0; padding-left: 20px;">';
+                    
+                    errors.forEach(error => {
+                        try {
+                            errorHtml += `<li style="color: #7f1d1d; margin-bottom: 4px;">${error}</li>`;
+                        } catch (errorItemError) {
+                            console.error('Error adding general error item:', errorItemError);
+                        }
+                    });
+                    
+                    errorHtml += '</ul></div>';
+                
+                    if (this.previewElement && this.previewElement.parentNode) {
+                        try {
+                            this.previewElement.parentNode.insertBefore(
+                                document.createRange().createContextualFragment(errorHtml),
+                                this.previewElement
+                            );
+                        } catch (insertError) {
+                            console.error('Error inserting general errors container:', insertError);
+                        }
+                    } else {
+                        console.warn('Preview element or its parent node not found, cannot add general errors');
+                    }
+                } catch (errorContainerError) {
+                    console.error('Error creating general errors container:', errorContainerError);
+                }
+            }
+        } catch (notificationsError) {
+            console.error('Error adding error notifications:', notificationsError);
+        }
+        
+        // Add CSS style for row number column
+        try {
+            console.log('Adding row number column styles');
+            const styleId = 'row-number-styles';
+            if (!document.getElementById(styleId)) {
+                try {
+                    const style = document.createElement('style');
+                    style.id = styleId;
+                    style.textContent = `
+                        .row-number-cell {
+                            user-select: none;
+                            cursor: default !important;
+                        }
+                        .row-number-cell:hover {
+                            background-color: #f3f4f6 !important;
+                        }
+                    `;
+                    document.head.appendChild(style);
+                    console.log('Row number styles added successfully');
+                } catch (styleError) {
+                    console.error('Error creating row number styles:', styleError);
+                }
+            } else {
+                console.log('Row number styles already exist, skipping');
+            }
+        } catch (rowNumberStyleError) {
+            console.error('Error handling row number styles:', rowNumberStyleError);
+        }
+        
+        // Set the table HTML in the preview element
+        try {
+            console.log('Setting table HTML in preview element');
+            
+            if (!this.previewElement) {
+                console.error('Preview element not found, cannot set table HTML');
+            } else {
+                this.previewElement.innerHTML = tableHtml;
+                
+                try {
+                    // Add row count info
+                    console.log('Adding row count information');
+                    const rowCountInfo = document.createElement('p');
+                    rowCountInfo.style = 'margin-top: 10px; color: #718096;';
+                    rowCountInfo.textContent = `Showing all ${rows.length} rows`;
+                    this.previewElement.appendChild(rowCountInfo);
+                    
+                    // Add help text for editing
+                    console.log('Adding help text for editing');
+                    const helpText = document.createElement('p');
+                    helpText.style = 'margin-top: 15px; color: #4a6cf7; font-style: italic;';
+                    helpText.innerHTML = '<i class="fas fa-info-circle"></i> <strong>Tip:</strong> Double-click any cell to edit its value. Press Enter to save changes or Esc to cancel.';
+                    this.previewElement.appendChild(helpText);
+                } catch (infoTextError) {
+                    console.error('Error adding info text elements:', infoTextError);
+                }
+                
+                // Add event listener for cell clicks via custom event
+                try {
+                    console.log('Setting up cell click event listener');
+                    // Remove existing listener first to avoid duplicates
+                    document.removeEventListener('cell-click', this.handleCellClickWrapper);
+                    
+                    // Create a wrapper function we can reference for removal
+                    this.handleCellClickWrapper = (e) => {
+                        try {
+                            console.log('Cell click event triggered:', e.detail);
+                            this.handleCellClick(e.detail);
+                        } catch (cellClickHandlerError) {
+                            console.error('Error in cell-click event handler:', cellClickHandlerError);
+                        }
+                    };
+                    
+                    document.addEventListener('cell-click', this.handleCellClickWrapper);
+                    console.log('Cell click event listener set up successfully');
+                } catch (eventListenerError) {
+                    console.error('Error setting up cell click event listener:', eventListenerError);
+                }
+                
+                // Enable the download button
+                try {
+                    if (this.downloadBtn) {
+                        console.log('Enabling download button');
+                        this.downloadBtn.disabled = false;
+                    } else {
+                        console.warn('Download button not found, cannot enable');
+                    }
+                } catch (buttonError) {
+                    console.error('Error enabling download button:', buttonError);
+                }
+                
+                // Update validation errors state
+                try {
+                    console.log('Updating validation errors state');
+                    this.hasValidationErrors = errors.length > 0 || 
+                                             multipleCorrectErrors.length > 0 || 
+                                             singleCorrectMAErrors.length > 0 || 
+                                             tfErrors.length > 0;
+                    
+                    console.log(`Validation errors state: ${this.hasValidationErrors ? 'Has errors' : 'No errors'}`);
+                } catch (validationStateError) {
+                    console.error('Error updating validation errors state:', validationStateError);
+                    this.hasValidationErrors = true; // Default to true if error
+                }
+                
+                console.log('Table display completed successfully');
+            }
+        } catch (previewError) {
+            console.error('Error updating preview element with table HTML:', previewError);
+            
+            // Create a minimal fallback display if everything else fails
+            try {
+                if (this.previewElement) {
+                    this.previewElement.innerHTML = `
+                        <div class="error-container" style="padding: 20px; background-color: #fee2e2; border-radius: 6px; border: 1px solid #ef4444;">
+                            <h3 style="margin: 0 0 10px 0; color: #b91c1c;">Error Displaying Table</h3>
+                            <p>There was an error rendering the table preview. Please try again or check the console for details.</p>
+                        </div>
+                    `;
+                }
+            } catch (fallbackError) {
+                console.error('Error creating fallback error display:', fallbackError);
+            }
+        }
+    } catch (error) {
+        console.error('Fatal error in displayTable method:', error);
+        
+        // Create a minimal error message if everything else fails
+        try {
+            if (this.previewElement) {
+                this.previewElement.innerHTML = '<div style="color: #ef4444;">Error displaying table data. Please refresh and try again.</div>';
+            }
+        } catch (finalError) {
+            console.error('Failed to create error message:', finalError);
+        }
     }
-    
-    this.previewElement.innerHTML = tableHtml;
-    
-    // Remove note about showing only 10 rows (since we're showing all rows now)
-    // Instead, add row count info
-    const rowCountInfo = document.createElement('p');
-    rowCountInfo.style = 'margin-top: 10px; color: #718096;';
-    rowCountInfo.textContent = `Showing all ${rows.length} rows`;
-    this.previewElement.appendChild(rowCountInfo);
-    
-    // Add help text for editing
-    const helpText = document.createElement('p');
-    helpText.style = 'margin-top: 15px; color: #4a6cf7; font-style: italic;';
-    helpText.innerHTML = '<i class="fas fa-info-circle"></i> <strong>Tip:</strong> Double-click any cell to edit its value. Press Enter to save changes or Esc to cancel.';
-    this.previewElement.appendChild(helpText);
-    
-    // Add event listener for cell clicks via custom event
-    document.addEventListener('cell-click', (e) => this.handleCellClick(e.detail));
-    
-    // Enable the download button
-    if (this.downloadBtn) {
-        this.downloadBtn.disabled = false;
-    }
-    
-    // Update validation errors state - include TF errors now
-    this.hasValidationErrors = errors.length > 0 || multipleCorrectErrors.length > 0 || singleCorrectMAErrors.length > 0 || tfErrors.length > 0;
 }
 
     /**
