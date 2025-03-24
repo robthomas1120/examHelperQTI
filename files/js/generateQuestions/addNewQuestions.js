@@ -887,138 +887,170 @@ document.addEventListener('DOMContentLoaded', function() {
         return xml;
     }
 
-    // Function to generate XML for a specific question
-    function generateQuestionXML(question) {
-        let xml = '';
+// Function to generate XML for a specific question
+function generateQuestionXML(question) {
+    let xml = '';
+    
+    if (question.type === 'Multiple Choice') {
+        xml += '<item ident="' + question.id + '" title="' + escapeXML(question.text) + '">';
+        xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>multiple_choice_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+        xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
+        xml += '<response_lid ident="response1" rcardinality="Single"><render_choice>';
         
-        if (question.type === 'Multiple Choice') {
-            xml += '<item ident="' + question.id + '" title="' + escapeXML(question.text) + '">';
-            xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>multiple_choice_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
-            xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
-            xml += '<response_lid ident="response1" rcardinality="Single"><render_choice>';
-            
-            question.options.forEach(option => {
-                xml += '<response_label ident="' + option.id + '"><material><mattext texttype="text/html">' + escapeXML(option.text) + '</mattext></material></response_label>';
-            });
-            
-            xml += '</render_choice></response_lid></presentation>';
-            xml += '<resprocessing><outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>';
-            
-            question.options.forEach(option => {
-                xml += '<respcondition>';
-                if (option.isCorrect) {
-                    xml += '<conditionvar><varequal respident="response1">' + option.id + '</varequal></conditionvar>';
-                    xml += '<setvar action="Set" varname="SCORE">100</setvar>';
-                } else {
-                    xml += '<conditionvar><not><varequal respident="response1">' + option.id + '</varequal></not></conditionvar>';
-                    xml += '<setvar action="Set" varname="SCORE">0</setvar>';
-                }
-                xml += '</respcondition>';
-            });
-            
-            xml += '</resprocessing></item>';
-        } else if (question.type === 'Multiple Answer') {
-            xml += '<item ident="' + question.id + '" title="' + escapeXML(question.text) + '">';
-            xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>multiple_answers_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
-            xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
-            xml += '<response_lid ident="response1" rcardinality="Multiple"><render_choice>';
-            
-            question.options.forEach(option => {
-                xml += '<response_label ident="' + option.id + '"><material><mattext texttype="text/html">' + escapeXML(option.text) + '</mattext></material></response_label>';
-            });
-            
-            xml += '</render_choice></response_lid></presentation>';
-            xml += '<resprocessing><outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>';
-            
-            // For multiple answer, all correct answers must be selected
+        question.options.forEach(option => {
+            xml += '<response_label ident="' + option.id + '"><material><mattext texttype="text/html">' + escapeXML(option.text) + '</mattext></material></response_label>';
+        });
+        
+        xml += '</render_choice></response_lid></presentation>';
+        xml += '<resprocessing><outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>';
+        
+        question.options.forEach(option => {
             xml += '<respcondition>';
-            xml += '<conditionvar>';
-            
-            const correctOptions = question.options.filter(opt => opt.isCorrect);
-            const incorrectOptions = question.options.filter(opt => !opt.isCorrect);
-            
-            correctOptions.forEach(option => {
-                xml += '<varequal respident="response1">' + option.id + '</varequal>';
-            });
-            
-            incorrectOptions.forEach(option => {
-                xml += '<not><varequal respident="response1">' + option.id + '</varequal></not>';
-            });
-            
-            xml += '</conditionvar>';
-            xml += '<setvar action="Set" varname="SCORE">100</setvar>';
-            xml += '</respcondition>';
-            
-            xml += '</resprocessing></item>';
-        } else if (question.type === 'Fill In The Blank') {
-            xml += '<item ident="' + question.id + '" title="' + escapeXML(question.text) + '">';
-            xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>fill_in_multiple_blanks_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
-            xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
-            xml += '<response_str ident="response1" rcardinality="Single"><render_fib>';
-            xml += '<response_label ident="answer1"><material><mattext texttype="text/html">Fill in the blank</mattext></material></response_label>';
-            xml += '</render_fib></response_str></presentation>';
-            xml += '<resprocessing><outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>';
-            
-            // For fill in the blank, any of the provided answers is acceptable
-            xml += '<respcondition>';
-            xml += '<conditionvar>';
-            
-            question.options.forEach(option => {
-                xml += '<varequal respident="response1">' + escapeXML(option.text) + '</varequal>';
-            });
-            
-            xml += '</conditionvar>';
-            xml += '<setvar action="Set" varname="SCORE">100</setvar>';
-            xml += '</respcondition>';
-            
-            xml += '</resprocessing></item>';
-        } else if (question.type === 'True Or False') {
-            xml += '<item ident="' + question.id + '" title="' + escapeXML(question.text) + '">';
-            
-            // Check if this is a fill-in-the-blank style true/false question
-            if (question.isFillInTheBlank) {
-                // Use the fill-in-the-blank question type
-                xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>true_false_question</fieldentry></qtimetadatafield>';
-                xml += '<qtimetadatafield><fieldlabel>is_fill_in_the_blank</fieldlabel><fieldentry>true</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+            if (option.isCorrect) {
+                xml += '<conditionvar><varequal respident="response1">' + option.id + '</varequal></conditionvar>';
+                xml += '<setvar action="Set" varname="SCORE">100</setvar>';
             } else {
-                // Use the standard true/false question type
-                xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>true_false_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+                xml += '<conditionvar><not><varequal respident="response1">' + option.id + '</varequal></not></conditionvar>';
+                xml += '<setvar action="Set" varname="SCORE">0</setvar>';
             }
-            
-            xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
-            xml += '<response_lid ident="response1" rcardinality="Single"><render_choice>';
-            
-            // Add True and False options
-            xml += '<response_label ident="' + question.id + '_true"><material><mattext texttype="text/html">True</mattext></material></response_label>';
-            xml += '<response_label ident="' + question.id + '_false"><material><mattext texttype="text/html">False</mattext></material></response_label>';
-            
-            xml += '</render_choice></response_lid></presentation>';
-            xml += '<resprocessing><outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>';
-            
-            // Determine which option is correct
-            const correctOption = question.options.find(opt => opt.isCorrect);
-            const correctValue = correctOption ? correctOption.text : 'True'; // Default to True if not found
-            
-            xml += '<respcondition>';
-            xml += '<conditionvar>';
-            xml += '<varequal respident="response1">' + question.id + '_' + correctValue.toLowerCase() + '</varequal>';
-            xml += '</conditionvar>';
-            xml += '<setvar action="Set" varname="SCORE">100</setvar>';
             xml += '</respcondition>';
+        });
+        
+        xml += '</resprocessing></item>';
+    } else if (question.type === 'Multiple Answer') {
+        xml += '<item ident="' + question.id + '" title="' + escapeXML(question.text) + '">';
+        xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>multiple_answers_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+        xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
+        xml += '<response_lid ident="response1" rcardinality="Multiple"><render_choice>';
+        
+        question.options.forEach(option => {
+            xml += '<response_label ident="' + option.id + '"><material><mattext texttype="text/html">' + escapeXML(option.text) + '</mattext></material></response_label>';
+        });
+        
+        xml += '</render_choice></response_lid></presentation>';
+        xml += '<resprocessing><outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>';
+        
+        // Count the number of correct answers for point calculation
+        const correctOptionsCount = question.options.filter(opt => opt.isCorrect).length;
+        const pointsPerCorrectAnswer = correctOptionsCount > 0 ? (100 / correctOptionsCount).toFixed(2) : 0;
+        
+        // Use a single respcondition with and/or logic for proper scoring
+        xml += '<respcondition>';
+        xml += '<conditionvar>';
+        
+        // Create logical conditions for scoring
+        if (correctOptionsCount > 0) {
+            // Start with an <and> tag to ensure all conditions must be met
+            xml += '<and>';
             
-            xml += '</resprocessing></item>';
-        } else if (question.type === 'Essay') {
-            xml += '<item ident="' + question.id + '" title="' + escapeXML(question.text) + '">';
-            xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>essay_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
-            xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
-            xml += '<response_str ident="response1" rcardinality="Single"><render_fib>';
-            xml += '<response_label ident="answer1"><material><mattext texttype="text/html">Essay response</mattext></material></response_label>';
-            xml += '</render_fib></response_str></presentation>';
-            xml += '</item>';
+            // All correct options must be selected
+            question.options.forEach(option => {
+                if (option.isCorrect) {
+                    xml += '<varequal respident="response1">' + option.id + '</varequal>';
+                } else {
+                    xml += '<not><varequal respident="response1">' + option.id + '</varequal></not>';
+                }
+            });
+            
+            xml += '</and>';
         }
         
-        return xml;
+        xml += '</conditionvar>';
+        xml += '<setvar action="Set" varname="SCORE">100</setvar>';
+        xml += '</respcondition>';
+        
+        // Add partial credit for partially correct answers
+        const correctOptions = question.options.filter(opt => opt.isCorrect);
+        correctOptions.forEach(option => {
+            xml += '<respcondition>';
+            xml += '<conditionvar>';
+            xml += '<varequal respident="response1">' + option.id + '</varequal>';
+            xml += '</conditionvar>';
+            xml += '<setvar action="Add" varname="SCORE">' + pointsPerCorrectAnswer + '</setvar>';
+            xml += '</respcondition>';
+        });
+        
+        // Penalize for incorrect selections
+        const incorrectOptions = question.options.filter(opt => !opt.isCorrect);
+        incorrectOptions.forEach(option => {
+            xml += '<respcondition>';
+            xml += '<conditionvar>';
+            xml += '<varequal respident="response1">' + option.id + '</varequal>';
+            xml += '</conditionvar>';
+            xml += '<setvar action="Add" varname="SCORE">-' + pointsPerCorrectAnswer + '</setvar>';
+            xml += '</respcondition>';
+        });
+        
+        xml += '</resprocessing></item>';
+    } else if (question.type === 'Fill In The Blank') {
+        xml += '<item ident="' + question.id + '" title="' + escapeXML(question.text) + '">';
+        xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>fill_in_multiple_blanks_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+        xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
+        xml += '<response_str ident="response1" rcardinality="Single"><render_fib>';
+        xml += '<response_label ident="answer1"><material><mattext texttype="text/html">Fill in the blank</mattext></material></response_label>';
+        xml += '</render_fib></response_str></presentation>';
+        xml += '<resprocessing><outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>';
+        
+        // For fill in the blank, any of the provided answers is acceptable
+        xml += '<respcondition>';
+        xml += '<conditionvar>';
+        
+        question.options.forEach(option => {
+            xml += '<varequal respident="response1">' + escapeXML(option.text) + '</varequal>';
+        });
+        
+        xml += '</conditionvar>';
+        xml += '<setvar action="Set" varname="SCORE">100</setvar>';
+        xml += '</respcondition>';
+        
+        xml += '</resprocessing></item>';
+    } else if (question.type === 'True Or False') {
+        xml += '<item ident="' + question.id + '" title="' + escapeXML(question.text) + '">';
+        
+        // Check if this is a fill-in-the-blank style true/false question
+        if (question.isFillInTheBlank) {
+            // Use the fill-in-the-blank question type
+            xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>true_false_question</fieldentry></qtimetadatafield>';
+            xml += '<qtimetadatafield><fieldlabel>is_fill_in_the_blank</fieldlabel><fieldentry>true</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+        } else {
+            // Use the standard true/false question type
+            xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>true_false_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+        }
+        
+        xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
+        xml += '<response_lid ident="response1" rcardinality="Single"><render_choice>';
+        
+        // Add True and False options
+        xml += '<response_label ident="' + question.id + '_true"><material><mattext texttype="text/html">True</mattext></material></response_label>';
+        xml += '<response_label ident="' + question.id + '_false"><material><mattext texttype="text/html">False</mattext></material></response_label>';
+        
+        xml += '</render_choice></response_lid></presentation>';
+        xml += '<resprocessing><outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>';
+        
+        // Determine which option is correct
+        const correctOption = question.options.find(opt => opt.isCorrect);
+        const correctValue = correctOption ? correctOption.text : 'True'; // Default to True if not found
+        
+        xml += '<respcondition>';
+        xml += '<conditionvar>';
+        xml += '<varequal respident="response1">' + question.id + '_' + correctValue.toLowerCase() + '</varequal>';
+        xml += '</conditionvar>';
+        xml += '<setvar action="Set" varname="SCORE">100</setvar>';
+        xml += '</respcondition>';
+        
+        xml += '</resprocessing></item>';
+    } else if (question.type === 'Essay') {
+        xml += '<item ident="' + question.id + '" title="' + escapeXML(question.text) + '">';
+        xml += '<itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>essay_question</fieldentry></qtimetadatafield></qtimetadata></itemmetadata>';
+        xml += '<presentation><material><mattext texttype="text/html">' + escapeXML(question.text) + '</mattext></material>';
+        xml += '<response_str ident="response1" rcardinality="Single"><render_fib>';
+        xml += '<response_label ident="answer1"><material><mattext texttype="text/html">Essay response</mattext></material></response_label>';
+        xml += '</render_fib></response_str></presentation>';
+        xml += '</item>';
     }
+    
+    return xml;
+}
 
     // Function to show success message
     function showSuccessMessage(message) {
