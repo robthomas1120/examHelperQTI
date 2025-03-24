@@ -396,6 +396,25 @@ button i {
     background-color: var(--border-color);
     border-color: var(--text-secondary);
 }
+/* Page Header */
+.page-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.page-header h1 {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+.page-header p {
+    color: var(--text-color);
+    max-width: 600px;
+    margin: 0 auto;
+    font-size: 1.1rem;
+}
 
 /* Action buttons at bottom */
 .action-buttons {
