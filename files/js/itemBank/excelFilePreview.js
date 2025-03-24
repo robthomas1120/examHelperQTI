@@ -1269,10 +1269,10 @@ finishEditing() {
     // Apply appropriate styling based on the new value
     this.applyCellStyling(cell, newValue);
     
-    // No need to call updateErrorNotifications() which redraws the entire table
-    // Instead, just validate without redrawing
-    this.validateDataWithoutRedraw();
+    // Update error notifications without redrawing the table
+    this.updateErrorNotificationsOnly();
 }
+
 
 /**
  * Apply styling to a cell based on its value
@@ -1884,6 +1884,299 @@ removeFile() {
             }
         }
     }
+
+    /**
+ * Update error notifications without redrawing the table
+ * This method extracts error detection logic from displayTable but doesn't redraw the table
+ */
+updateErrorNotificationsOnly() {
+    // Get current table data
+    const table = this.previewElement.querySelector('table');
+    if (!table) return;
+    
+    // Get headers
+    const headerCells = table.querySelectorAll('thead th');
+    const headers = Array.from(headerCells)
+        .map(th => th.textContent)
+        .filter((_, i) => i > 0); // Skip the row number header
+    
+    // Get rows
+    const rows = [];
+    const tableRows = table.querySelectorAll('tbody tr');
+    tableRows.forEach(tr => {
+        const rowData = [];
+        const cells = tr.querySelectorAll('td');
+        // Skip the first cell (row number) in each row
+        for (let i = 1; i < cells.length; i++) {
+            rowData.push(cells[i].textContent);
+        }
+        rows.push(rowData);
+    });
+    
+    // Get column indices
+    const columnIndices = [];
+    const dataCells = tableRows[0]?.querySelectorAll('td');
+    // Skip the first cell (row number)
+    for (let i = 1; i < dataCells?.length; i++) {
+        const originalCol = parseInt(dataCells[i].getAttribute('data-original-col'), 10);
+        if (!isNaN(originalCol)) {
+            columnIndices.push(originalCol);
+        }
+    }
+    
+    // Determine if this is a TF or MA sheet
+    const isTFSheet = this.workbook && 
+                      this.workbook.SheetNames[this.currentSheetIndex] && 
+                      this.workbook.SheetNames[this.currentSheetIndex].includes("TF");
+                     
+    const isMASheet = this.workbook && 
+                      this.workbook.SheetNames[this.currentSheetIndex] && 
+                      this.workbook.SheetNames[this.currentSheetIndex].includes("MA");
+    
+    // Collect all types of errors
+    let errors = [];
+    let multipleCorrectErrors = [];
+    let singleCorrectMAErrors = [];
+    let tfErrors = [];
+    
+    // Check for True/False validation errors
+    if (isTFSheet) {
+        tfErrors = this.validateTFChoices(headers, rows, columnIndices);
+    }
+    
+    // Identify "tagging" columns
+    const taggingColumns = columnIndices.filter(index => 
+        headers[columnIndices.indexOf(index)] && 
+        (headers[columnIndices.indexOf(index)].toLowerCase().includes("tag") || 
+         headers[columnIndices.indexOf(index)].toLowerCase().includes("correct") || 
+         headers[columnIndices.indexOf(index)].toLowerCase().includes("incorrect"))
+    );
+    
+    // Find option-tag column pairs
+    const tagPairs = [];
+    for (let i = 0; i < columnIndices.length; i++) {
+        if (taggingColumns.includes(columnIndices[i])) {
+            const tagColIndex = columnIndices[i];
+            const optionColIndex = columnIndices[i-1]; // Assuming option is previous column
+            
+            if (optionColIndex !== undefined) {
+                tagPairs.push({
+                    tagColIndex: tagColIndex,
+                    optionColIndex: optionColIndex
+                });
+            }
+        }
+    }
+    
+    // Determine if this is an MC sheet
+    const isMCSheet = (this.workbook && 
+                       this.workbook.SheetNames[this.currentSheetIndex] && 
+                       this.workbook.SheetNames[this.currentSheetIndex].includes("MC")) ||
+                      headers.some(header => header && header.includes("MC"));
+    
+    // Check each row for errors
+    rows.forEach((row, rowIndex) => {
+        let rowErrors = [];
+        
+        // Check for MA sheet and question type
+        const isMAQuestion = isMASheet || (row.length > 0 && row[0] === "MA");
+        
+        if (isMAQuestion) {
+            let correctCount = 0;
+            
+            // Count the number of "correct" values in tagging columns
+            taggingColumns.forEach(colIndex => {
+                const colPos = columnIndices.indexOf(colIndex);
+                if (colPos === -1 || !row[colPos]) return;
+                
+                const value = row[colPos].toString().trim().toLowerCase();
+                if (value === 'correct') {
+                    correctCount++;
+                }
+            });
+
+            // For MA questions, check if there's only 1 correct answer
+            if (correctCount === 1) {
+                singleCorrectMAErrors.push({
+                    row: rowIndex + 1,
+                    count: correctCount
+                });
+            }
+        }
+        // For MC questions, check how many "correct" values exist in the row
+        else if (isMCSheet || (row.length > 0 && row[0] === "MC")) {
+            let correctCount = 0;
+            
+            // Count the number of "correct" values in tagging columns
+            taggingColumns.forEach(colIndex => {
+                const colPos = columnIndices.indexOf(colIndex);
+                if (colPos === -1 || !row[colPos]) return;
+                
+                const value = row[colPos].toString().trim().toLowerCase();
+                if (value === 'correct') {
+                    correctCount++;
+                }
+            });
+
+            // If there are multiple correct answers, flag this row
+            if (correctCount > 1) {
+                multipleCorrectErrors.push({
+                    row: rowIndex + 1,
+                    count: correctCount
+                });
+            }
+        }
+        
+        // Check for tagging errors
+        tagPairs.forEach(pair => {
+            const optionColPos = columnIndices.indexOf(pair.optionColIndex);
+            const tagColPos = columnIndices.indexOf(pair.tagColIndex);
+            
+            if (optionColPos === -1 || tagColPos === -1) return;
+            if (!row[optionColPos] || !row[tagColPos]) return;
+            
+            const optionValue = row[optionColPos].toString().trim();
+            const tagValue = row[tagColPos].toString().trim();
+            
+            // Only validate if the option has a value but the tag is invalid
+            if (optionValue && !["correct", "incorrect"].includes(tagValue.toLowerCase())) {
+                rowErrors.push(`Row: ${rowIndex + 1}, Column: "${headers[tagColPos]}" has invalid value "${tagValue}" for option "${optionValue}"`);
+            }
+        });
+        
+        if (rowErrors.length > 0) {
+            errors.push(...rowErrors);
+        }
+    });
+    
+    // Clear previous errors
+    document.querySelectorAll(".validation-errors-container").forEach(el => el.remove());
+    document.querySelectorAll(".multiple-correct-container").forEach(el => el.remove());
+    document.querySelectorAll(".single-correct-ma-container").forEach(el => el.remove());
+    document.querySelectorAll(".tf-errors-container").forEach(el => el.remove());
+    
+    // Add TF validation errors if any
+    if (tfErrors.length > 0) {
+        let tfErrorHtml = '<div class="tf-errors-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #fee2e2; border-radius: 6px; border: 1px solid #ef4444;">';
+        tfErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #b91c1c; font-size: 1rem; font-weight: 600;">True/False Validation Errors:</h3><ul style="margin: 0; padding-left: 20px;">';
+        
+        tfErrors.forEach(error => {
+            tfErrorHtml += `<li style="color: #7f1d1d; margin-bottom: 4px;">${error.message}</li>`;
+        });
+        
+        tfErrorHtml += '</ul></div>';
+
+        if (this.previewElement.parentNode) {
+            this.previewElement.parentNode.insertBefore(
+                document.createRange().createContextualFragment(tfErrorHtml),
+                this.previewElement
+            );
+        }
+    }
+    
+    // Add single correct MA errors warning if needed
+    if (singleCorrectMAErrors.length > 0) {
+        let maErrorHtml = '<div class="single-correct-ma-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
+        maErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Only 1 Correct Answer Found:</h3><ul style="margin: 0; padding-left: 20px;">';
+        
+        singleCorrectMAErrors.forEach(error => {
+            maErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: Contains Only 1 Correct Answer. Multiple Answer Questions should have at least 2 correct answers.</li>`;
+        });
+        
+        maErrorHtml += '</ul></div>';
+
+        if (this.previewElement.parentNode) {
+            this.previewElement.parentNode.insertBefore(
+                document.createRange().createContextualFragment(maErrorHtml),
+                this.previewElement
+            );
+        }
+    }
+    
+    // Add multiple correct answers warning if needed
+    if (multipleCorrectErrors.length > 0) {
+        let mcErrorHtml = '<div class="multiple-correct-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
+        mcErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Correct Answers Found:</h3><ul style="margin: 0; padding-left: 20px;">';
+        
+        multipleCorrectErrors.forEach(error => {
+            mcErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: Contains ${error.count} Correct Answers. Multiple Choice Questions should only have 1 correct answer.</li>`;
+        });
+        
+        mcErrorHtml += '</ul></div>';
+
+        if (this.previewElement.parentNode) {
+            this.previewElement.parentNode.insertBefore(
+                document.createRange().createContextualFragment(mcErrorHtml),
+                this.previewElement
+            );
+        }
+    }
+    
+    // Add error summary
+    if (errors.length > 0) {
+        let errorHtml = '<div class="validation-errors-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #fee2e2; border-radius: 6px; border: 1px solid #ef4444;">';
+        errorHtml += '<h3 style="margin: 0 0 8px 0; color: #b91c1c; font-size: 1rem; font-weight: 600;">Tagging Errors Found:</h3><ul style="margin: 0; padding-left: 20px;">';
+        errors.forEach(error => {
+            errorHtml += `<li style="color: #7f1d1d; margin-bottom: 4px;">${error}</li>`;
+        });
+        errorHtml += '</ul></div>';
+    
+        if (this.previewElement.parentNode) {
+            this.previewElement.parentNode.insertBefore(
+                document.createRange().createContextualFragment(errorHtml),
+                this.previewElement
+            );
+        }
+    }
+    
+    // Update validation errors state - include TF errors now
+    this.hasValidationErrors = errors.length > 0 || multipleCorrectErrors.length > 0 || 
+                               singleCorrectMAErrors.length > 0 || tfErrors.length > 0;
+    
+    // Also update row styles based on errors
+    this.updateRowStyles(multipleCorrectErrors, singleCorrectMAErrors, tfErrors);
+}
+
+/**
+ * Update row styles based on error state without redrawing the table
+ * @param {Array} multipleCorrectErrors - Array of rows with multiple correct answers
+ * @param {Array} singleCorrectMAErrors - Array of MA rows with only one correct answer
+ * @param {Array} tfErrors - Array of TF validation errors
+ */
+updateRowStyles(multipleCorrectErrors, singleCorrectMAErrors, tfErrors) {
+    // Get all rows
+    const tableRows = this.previewElement.querySelectorAll('tbody tr');
+    
+    // Reset all row styles first
+    tableRows.forEach(row => {
+        row.style.borderLeft = '';
+    });
+    
+    // Apply styles for rows with multiple correct MC answers
+    multipleCorrectErrors.forEach(error => {
+        const rowIndex = error.row - 1; // Convert to 0-based index
+        if (tableRows[rowIndex]) {
+            tableRows[rowIndex].style.borderLeft = '6px solid #f97316'; // Orange highlight
+        }
+    });
+    
+    // Apply styles for MA rows with only one correct answer
+    singleCorrectMAErrors.forEach(error => {
+        const rowIndex = error.row - 1; // Convert to 0-based index
+        if (tableRows[rowIndex]) {
+            tableRows[rowIndex].style.borderLeft = '6px solid #f97316'; // Orange highlight
+        }
+    });
+    
+    // Apply styles for TF errors (highest priority)
+    tfErrors.forEach(error => {
+        const rowIndex = error.row - 1; // Convert to 0-based index
+        if (tableRows[rowIndex]) {
+            tableRows[rowIndex].style.borderLeft = '6px solid #ef4444'; // Red highlight
+        }
+    });
+}
+
     
     /**
      * Update error notifications after editing
