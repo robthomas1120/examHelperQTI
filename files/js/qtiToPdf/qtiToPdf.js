@@ -268,7 +268,10 @@ class QTIToPDFConverter {
                         }
                     });
                 } else if (questionType.includes("fill_in") || questionType.includes("short_answer")) {
-                    // For fill in the blank questions, find the correct answer
+                    // For fill in the blank questions, initialize an array for correct answers
+                    question.correctAnswers = []; // Changed from single correctAnswer to array
+                    
+                    // Find all possible correct answers
                     const respConditions = itemNode.querySelectorAll("respcondition");
                     
                     respConditions.forEach((condition) => {
@@ -279,7 +282,10 @@ class QTIToPDFConverter {
                             
                             if (varequal) {
                                 const correctAnswer = varequal.textContent.trim();
-                                question.correctAnswer = correctAnswer;
+                                // Push to array instead of overwriting
+                                if (!question.correctAnswers.includes(correctAnswer)) {
+                                    question.correctAnswers.push(correctAnswer);
+                                }
                             }
                         }
                     });
@@ -662,12 +668,37 @@ class QTIToPDFConverter {
                     y += 8;
                     
                     // Show correct answer if enabled
-                    if (this.includeAnswers && question.correctAnswer) {
-                        pdf.setFontSize(10);
-                        pdf.setTextColor(70, 130, 180); // Steel Blue color for answers
-                        pdf.text(`Answer: ${question.correctAnswer}`, margin.left, y);
-                        pdf.setTextColor(0, 0, 0); // Reset to black
-                        y += 8;
+                    if (this.includeAnswers) {
+                        if (question.correctAnswers && question.correctAnswers.length > 0) {
+                            // Multiple correct answers (FIB or short answer)
+                            pdf.setFontSize(10);
+                            pdf.setTextColor(70, 130, 180); // Steel Blue color for answers
+                            
+                            if (question.correctAnswers.length === 1) {
+                                pdf.text(`Answer: ${question.correctAnswers[0]}`, margin.left, y);
+                                y += 8;
+                            } else {
+                                pdf.text("Answers: ", margin.left, y);
+                                y += 5;
+                                
+                                question.correctAnswers.forEach((answer, index) => {
+                                    pdf.text(`   ${index + 1}. ${answer}`, margin.left, y);
+                                    y += 5;
+                                });
+                                
+                                y += 3; // Additional space after answers list
+                            }
+                            
+                            pdf.setTextColor(0, 0, 0); // Reset to black
+                        } 
+                        else if (question.correctAnswer) {
+                            // Backward compatibility for existing format
+                            pdf.setFontSize(10);
+                            pdf.setTextColor(70, 130, 180); // Steel Blue color for answers
+                            pdf.text(`Answer: ${question.correctAnswer}`, margin.left, y);
+                            pdf.setTextColor(0, 0, 0); // Reset to black
+                            y += 8;
+                        }
                     }
                 }
                 
