@@ -144,82 +144,224 @@ createDownloadButton() {
 }
 
 /**
- * Commit changes to the question data
+ * Commit changes to the question data with comprehensive error handling
  */
 commitChanges() {
+    console.log('Starting commitChanges process');
+    
+    // Validate edited data
     if (!this.editedData || !this.editedHeaders) {
+        console.warn('No edited data or headers available for commit');
         this.showMessage('No changes to commit', 'error');
         return;
     }
     
+    console.log(`Committing changes for ${this.editedData.length} rows with ${this.editedHeaders.length} columns`);
+    
     try {
         // If we have a workbook, update it with the edited data
         if (this.workbook && this.currentSheetIndex !== undefined) {
-            const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
-            if (sheetName) {
-                const sheet = this.workbook.Sheets[sheetName];
-                if (sheet) {
-                    // Create new worksheet from edited data
-                    const wsData = [this.editedHeaders, ...this.editedData];
-                    const newSheet = XLSX.utils.aoa_to_sheet(wsData);
+            try {
+                console.log(`Updating workbook at sheet index ${this.currentSheetIndex}`);
+                
+                // Validate sheet name
+                if (!this.workbook.SheetNames || this.currentSheetIndex >= this.workbook.SheetNames.length) {
+                    console.error(`Invalid sheet index ${this.currentSheetIndex} (total sheets: ${this.workbook.SheetNames ? this.workbook.SheetNames.length : 0})`);
+                } else {
+                    const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
+                    console.log(`Found sheet name: "${sheetName}"`);
                     
-                    // Replace the sheet in the workbook
-                    this.workbook.Sheets[sheetName] = newSheet;
+                    if (sheetName) {
+                        // Validate sheet exists
+                        if (!this.workbook.Sheets || !this.workbook.Sheets[sheetName]) {
+                            console.error(`Sheet "${sheetName}" not found in workbook`);
+                        } else {
+                            const sheet = this.workbook.Sheets[sheetName];
+                            console.log(`Retrieved sheet "${sheetName}" for updating`);
+                            
+                            try {
+                                // Create new worksheet from edited data
+                                console.log('Creating new worksheet from edited data');
+                                const wsData = [this.editedHeaders, ...this.editedData];
+                                console.log(`Worksheet data: ${wsData.length} rows (including header)`);
+                                
+                                const newSheet = XLSX.utils.aoa_to_sheet(wsData);
+                                if (!newSheet) {
+                                    console.error('Failed to create new sheet from data');
+                                } else {
+                                    console.log('Successfully created new sheet from edited data');
+                                    
+                                    // Replace the sheet in the workbook
+                                    console.log(`Replacing sheet "${sheetName}" in workbook`);
+                                    this.workbook.Sheets[sheetName] = newSheet;
+                                    console.log('Workbook updated successfully');
+                                }
+                            } catch (sheetCreationError) {
+                                console.error('Error creating new sheet from edited data:', sheetCreationError);
+                            }
+                        }
+                    } else {
+                        console.error('Sheet name is empty or invalid');
+                    }
                 }
+            } catch (workbookError) {
+                console.error('Error updating workbook with edited data:', workbookError);
             }
+        } else {
+            console.log('No workbook or current sheet index available, skipping workbook update');
         }
         
         // Update the fileHandler's processedData if available
-        if (window.app && window.app.fileHandler) {
-            // Determine the question type from the current sheet
-            let questionType = null;
-            if (this.workbook && this.currentSheetIndex !== undefined) {
-                const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
-                if (sheetName) {
-                    // Try to determine question type from sheet name
-                    if (sheetName.includes('MC')) questionType = 'MC';
-                    else if (sheetName.includes('MA')) questionType = 'MA';
-                    else if (sheetName.includes('TF')) questionType = 'TF';
-                    else if (sheetName.includes('ESS')) questionType = 'ESS';
-                    else if (sheetName.includes('FIB')) questionType = 'FIB';
+        try {
+            if (window.app && window.app.fileHandler) {
+                console.log('Found app.fileHandler, updating processed data');
+                
+                // Determine the question type from the current sheet
+                let questionType = null;
+                let sheetName = null;
+                
+                try {
+                    if (this.workbook && this.currentSheetIndex !== undefined) {
+                        if (this.workbook.SheetNames && this.currentSheetIndex < this.workbook.SheetNames.length) {
+                            sheetName = this.workbook.SheetNames[this.currentSheetIndex];
+                            console.log(`Determining question type from sheet name: "${sheetName}"`);
+                            
+                            if (sheetName) {
+                                // Try to determine question type from sheet name
+                                if (sheetName.includes('MC')) {
+                                    questionType = 'MC';
+                                } else if (sheetName.includes('MA')) {
+                                    questionType = 'MA';
+                                } else if (sheetName.includes('TF')) {
+                                    questionType = 'TF';
+                                } else if (sheetName.includes('ESS')) {
+                                    questionType = 'ESS';
+                                } else if (sheetName.includes('FIB')) {
+                                    questionType = 'FIB';
+                                }
+                                
+                                console.log(`Determined question type: ${questionType || 'unknown'}`);
+                            } else {
+                                console.warn('Sheet name is empty or invalid');
+                            }
+                        } else {
+                            console.warn(`Invalid sheet index ${this.currentSheetIndex} (total sheets: ${this.workbook.SheetNames ? this.workbook.SheetNames.length : 0})`);
+                        }
+                    } else {
+                        console.warn('No workbook or sheet index available for determining question type');
+                    }
+                } catch (sheetNameError) {
+                    console.error('Error determining sheet name or question type:', sheetNameError);
                 }
-            }
-            
-            // If we found a question type, update the corresponding data
-            if (questionType && window.app.fileHandler.processedData[questionType]) {
-                // Re-process the edited data
-                const processedQuestions = this.processEditedData(questionType);
                 
-                // Update processed data
-                window.app.fileHandler.processedData[questionType] = processedQuestions;
-                
-                // Also update 'all' array
-                window.app.fileHandler.processedData.all = window.app.fileHandler.processedData.all.filter(
-                    q => q.type !== questionType
-                );
-                window.app.fileHandler.processedData.all.push(...processedQuestions);
-                
-                // Update the question processor with the new data
-                if (window.app.questionProcessor) {
-                    window.app.questionProcessor.setQuestions(window.app.fileHandler.processedData);
-                }
-                
-                // Refresh the UI
-                if (window.app.uiController) {
-                    window.app.uiController.renderQuestions();
+                // Validate processed data
+                if (!window.app.fileHandler.processedData) {
+                    console.error('fileHandler.processedData is missing or invalid');
+                } else if (questionType === null) {
+                    console.warn('Could not determine question type, cannot update processed data');
+                } else if (!window.app.fileHandler.processedData[questionType]) {
+                    console.warn(`No processed data found for question type ${questionType}`);
+                } else {
+                    console.log(`Updating processed data for question type: ${questionType}`);
                     
-                    // Re-render selected questions if any
-                    if (window.app.questionProcessor.getSelectedCount() > 0) {
-                        window.app.uiController.renderSelectedQuestions();
+                    try {
+                        // Re-process the edited data
+                        console.log('Processing edited data into question objects');
+                        const processedQuestions = this.processEditedData(questionType);
+                        console.log(`Processed ${processedQuestions.length} questions`);
+                        
+                        // Update processed data
+                        console.log(`Updating processedData[${questionType}] with ${processedQuestions.length} questions`);
+                        window.app.fileHandler.processedData[questionType] = processedQuestions;
+                        
+                        // Update 'all' array
+                        try {
+                            console.log('Updating processedData.all array');
+                            
+                            if (!window.app.fileHandler.processedData.all) {
+                                console.warn('processedData.all is missing, creating new array');
+                                window.app.fileHandler.processedData.all = [...processedQuestions];
+                            } else {
+                                // First filter out questions of this type
+                                const filteredAll = window.app.fileHandler.processedData.all.filter(q => {
+                                    try {
+                                        return q.type !== questionType;
+                                    } catch (filterError) {
+                                        console.error('Error filtering question:', filterError);
+                                        return true; // Keep in array if error
+                                    }
+                                });
+                                
+                                console.log(`Filtered out questions of type ${questionType}, remaining: ${filteredAll.length}`);
+                                
+                                // Then add the new processed questions
+                                window.app.fileHandler.processedData.all = [...filteredAll, ...processedQuestions];
+                                console.log(`Updated all array, new size: ${window.app.fileHandler.processedData.all.length}`);
+                            }
+                        } catch (allArrayError) {
+                            console.error('Error updating processedData.all array:', allArrayError);
+                        }
+                        
+                        // Update the question processor with the new data
+                        try {
+                            if (window.app.questionProcessor) {
+                                console.log('Updating questionProcessor with new data');
+                                window.app.questionProcessor.setQuestions(window.app.fileHandler.processedData);
+                                console.log('Question processor updated successfully');
+                            } else {
+                                console.warn('questionProcessor not available, skipping update');
+                            }
+                        } catch (processorError) {
+                            console.error('Error updating question processor:', processorError);
+                        }
+                        
+                        // Refresh the UI
+                        try {
+                            if (window.app.uiController) {
+                                console.log('Refreshing UI with uiController.renderQuestions()');
+                                window.app.uiController.renderQuestions();
+                                
+                                // Re-render selected questions if any
+                                try {
+                                    if (window.app.questionProcessor && window.app.questionProcessor.getSelectedCount) {
+                                        const selectedCount = window.app.questionProcessor.getSelectedCount();
+                                        console.log(`Found ${selectedCount} selected questions`);
+                                        
+                                        if (selectedCount > 0) {
+                                            console.log('Re-rendering selected questions');
+                                            window.app.uiController.renderSelectedQuestions();
+                                        }
+                                    } else {
+                                        console.warn('Cannot check selected count, questionProcessor or getSelectedCount not available');
+                                    }
+                                } catch (selectedRenderError) {
+                                    console.error('Error re-rendering selected questions:', selectedRenderError);
+                                }
+                                
+                                console.log('UI refreshed successfully');
+                            } else {
+                                console.warn('uiController not available, skipping UI refresh');
+                            }
+                        } catch (uiError) {
+                            console.error('Error refreshing UI:', uiError);
+                        }
+                    } catch (processingError) {
+                        console.error(`Error processing edited data for question type ${questionType}:`, processingError);
                     }
                 }
+            } else {
+                console.log('window.app or app.fileHandler not available, skipping processed data update');
             }
+        } catch (fileHandlerError) {
+            console.error('Error updating fileHandler processed data:', fileHandlerError);
         }
         
         // Show success message
+        console.log('Commit completed successfully, showing success message');
         this.showMessage('Changes committed successfully!', 'success');
+        
     } catch (error) {
-        console.error('Error committing changes:', error);
+        console.error('Fatal error in commitChanges method:', error);
         this.showMessage(`Error committing changes: ${error.message}`, 'error');
     }
 }
@@ -509,48 +651,91 @@ commitChanges() {
         });
     }
 
-    /**
-     * Process Excel file
-     * @param {File} file - The Excel file to process
-     * @returns {Promise<Array>} - Promise resolving to processed question data
-     */
-    async processExcelFile(file) {
-        try {
-            // Read file as array buffer
-            const arrayBuffer = await this.readFileAsArrayBuffer(file);
-            
-            // Parse workbook
-            this.workbook = XLSX.read(arrayBuffer, { type: 'array' });
-            
-            // Get all sheet names (skip first sheet if it's Instructions)
-            const firstSheetName = this.workbook.SheetNames[0].toLowerCase();
-            const startIndex = (firstSheetName === 'instructions' || firstSheetName.includes('instruction')) ? 1 : 0;
-            
-            // Make sure we have valid sheets
-            if (this.workbook.SheetNames.length <= startIndex) {
-                throw new Error('Excel file does not contain any data sheets');
-            }
-            
-            // Get sheet names to display
-            const sheetNames = this.workbook.SheetNames.slice(startIndex);
-            
-            // Create sheet navigation
-            this.createSheetNavigation(sheetNames);
-            
-            // Set current sheet index to display first non-instruction sheet
-            this.currentSheetIndex = startIndex;
-            
-            // Display the first non-skipped sheet
-            this.displaySheet(this.currentSheetIndex);
-            
-            // Return processed data for all sheets
-            return this.processAllSheets(startIndex);
-        } catch (error) {
-            console.error('Error processing Excel file:', error);
-            this.previewElement.innerHTML = `<p class="error-text">Error processing Excel file: ${error.message}</p>`;
-            throw error;
+/**
+ * Process Excel file
+ * @param {File} file - The Excel file to process
+ * @returns {Promise<Array>} - Promise resolving to processed question data
+ */
+async processExcelFile(file) {
+    console.log(`Starting to process Excel file: ${file.name}, size: ${file.size} bytes`);
+    
+    try {
+        // Read file as array buffer
+        console.log('Reading file as array buffer...');
+        const arrayBuffer = await this.readFileAsArrayBuffer(file);
+        console.log('Successfully read file as array buffer');
+        
+        // Parse workbook
+        console.log('Parsing Excel workbook...');
+        this.workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        console.log(`Workbook parsed successfully. Found ${this.workbook.SheetNames.length} sheets: ${this.workbook.SheetNames.join(', ')}`);
+        
+        // Get all sheet names (skip first sheet if it's Instructions)
+        const firstSheetName = this.workbook.SheetNames[0].toLowerCase();
+        const startIndex = (firstSheetName === 'instructions' || firstSheetName.includes('instruction')) ? 1 : 0;
+        console.log(`First sheet name: "${firstSheetName}". Starting from sheet index: ${startIndex}`);
+        
+        // Make sure we have valid sheets
+        if (this.workbook.SheetNames.length <= startIndex) {
+            console.error('Excel file validation failed: No data sheets found after skipping instructions');
+            throw new Error('Excel file does not contain any data sheets');
         }
+        
+        // Get sheet names to display
+        const sheetNames = this.workbook.SheetNames.slice(startIndex);
+        console.log(`Sheets to display: ${sheetNames.join(', ')}`);
+        
+        // Create sheet navigation
+        console.log('Creating sheet navigation UI...');
+        try {
+            this.createSheetNavigation(sheetNames);
+            console.log('Sheet navigation created successfully');
+        } catch (navError) {
+            console.error('Error creating sheet navigation:', navError);
+            // Continue execution despite navigation creation error
+        }
+        
+        // Set current sheet index to display first non-instruction sheet
+        this.currentSheetIndex = startIndex;
+        console.log(`Setting current sheet index to ${this.currentSheetIndex}`);
+        
+        // Display the first non-skipped sheet
+        console.log(`Attempting to display sheet at index ${this.currentSheetIndex}...`);
+        try {
+            this.displaySheet(this.currentSheetIndex);
+            console.log(`Successfully displayed sheet "${this.workbook.SheetNames[this.currentSheetIndex]}"`);
+        } catch (displayError) {
+            console.error(`Error displaying sheet ${this.currentSheetIndex}:`, displayError);
+            this.previewElement.innerHTML = `<p class="error-text">Error displaying sheet: ${displayError.message}</p>`;
+            // Continue execution despite display error
+        }
+        
+        // Return processed data for all sheets
+        console.log('Processing all sheets...');
+        const processedData = this.processAllSheets(startIndex);
+        console.log(`Successfully processed ${processedData.length} sheets`);
+        return processedData;
+        
+    } catch (error) {
+        console.error('Critical error processing Excel file:', error);
+        console.error('Error stack:', error.stack);
+        console.error('File details:', {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            lastModified: new Date(file.lastModified).toISOString()
+        });
+        
+        if (this.workbook) {
+            console.log('Workbook was created before error. Sheet names:', this.workbook.SheetNames);
+        } else {
+            console.log('Error occurred before workbook could be created');
+        }
+        
+        this.previewElement.innerHTML = `<p class="error-text">Error processing Excel file: ${error.message}</p>`;
+        throw error;
     }
+}
 
     /**
      * Read file as array buffer
@@ -1884,38 +2069,87 @@ commitChanges() {
  * @returns {Array} - Array of processed question objects
  */
 processEditedData(questionType) {
-    if (!this.editedData || !this.editedHeaders) {
+    console.log(`Starting to process edited data for question type: ${questionType}`);
+    
+    // Check for required data
+    if (!this.editedData) {
+        console.error('Processing failed: editedData is missing or undefined');
         return [];
     }
     
+    if (!this.editedHeaders) {
+        console.error('Processing failed: editedHeaders is missing or undefined');
+        return [];
+    }
+    
+    console.log(`Processing ${this.editedData.length} rows with ${this.editedHeaders.length} columns`);
+    console.log('Headers:', this.editedHeaders);
+    
     const processedQuestions = [];
+    let successCount = 0;
+    let failureCount = 0;
     
     this.editedData.forEach((row, index) => {
+        console.log(`Processing row ${index + 1}/${this.editedData.length} for ${questionType} question`);
+        
+        // Log empty or problematic rows
+        const emptyValues = Object.values(row).filter(val => val === '' || val === null || val === undefined).length;
+        const totalValues = Object.values(row).length;
+        if (emptyValues > totalValues / 2) {
+            console.warn(`Row ${index + 1} has ${emptyValues}/${totalValues} empty values, may be incomplete`);
+        }
+        
         let question = null;
         
-        // Process based on question type
-        switch (questionType) {
-            case 'MC':
-                question = window.app.fileHandler.processMCQuestion(row, index);
-                break;
-            case 'MA':
-                question = window.app.fileHandler.processMAQuestion(row, index);
-                break;
-            case 'TF':
-                question = window.app.fileHandler.processTFQuestion(row, index);
-                break;
-            case 'ESS':
-                question = window.app.fileHandler.processESSQuestion(row, index);
-                break;
-            case 'FIB':
-                question = window.app.fileHandler.processFIBQuestion(row, index);
-                break;
-        }
-        
-        if (question) {
-            processedQuestions.push(question);
+        try {
+            // Process based on question type
+            switch (questionType) {
+                case 'MC':
+                    console.log(`Processing row ${index + 1} as Multiple Choice question`);
+                    question = window.app.fileHandler.processMCQuestion(row, index);
+                    break;
+                case 'MA':
+                    console.log(`Processing row ${index + 1} as Multiple Answer question`);
+                    question = window.app.fileHandler.processMAQuestion(row, index);
+                    break;
+                case 'TF':
+                    console.log(`Processing row ${index + 1} as True/False question`);
+                    question = window.app.fileHandler.processTFQuestion(row, index);
+                    break;
+                case 'ESS':
+                    console.log(`Processing row ${index + 1} as Essay question`);
+                    question = window.app.fileHandler.processESSQuestion(row, index);
+                    break;
+                case 'FIB':
+                    console.log(`Processing row ${index + 1} as Fill in the Blank question`);
+                    question = window.app.fileHandler.processFIBQuestion(row, index);
+                    break;
+                default:
+                    console.error(`Unknown question type: ${questionType} for row ${index + 1}`);
+                    break;
+            }
+            
+            if (question) {
+                console.log(`Successfully processed row ${index + 1} into question object:`, 
+                    { id: question.id, type: question.type });
+                processedQuestions.push(question);
+                successCount++;
+            } else {
+                console.warn(`Row ${index + 1} processing returned null or undefined question object`);
+                failureCount++;
+            }
+        } catch (error) {
+            console.error(`Error processing row ${index + 1} for ${questionType} question:`, error);
+            console.error('Problem row data:', row);
+            console.error('Error stack:', error.stack);
+            failureCount++;
         }
     });
+    
+    console.log(`Finished processing ${this.editedData.length} rows:`);
+    console.log(`- Successfully processed: ${successCount} questions`);
+    console.log(`- Failed to process: ${failureCount} questions`);
+    console.log(`- Final processed questions count: ${processedQuestions.length}`);
     
     return processedQuestions;
 }
