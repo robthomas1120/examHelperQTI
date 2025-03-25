@@ -185,6 +185,214 @@
             </div>
         </section>
 
+        <!-- Step-by-Step Video Tutorial Section -->
+        <section class="video-tutorials-section" style="width: 100%; margin: 60px 0; padding: 0;">
+            <h2 style="text-align: center; font-size: 28px; margin-bottom: 15px; color: #2d3748;">Step-by-Step Video Tutorial</h2>
+            <p style="text-align: center; max-width: 800px; margin: 0 auto 30px; color: #718096; font-size: 16px; line-height: 1.6;">Watch these tutorial videos to learn how to use the Excel to QTI Converter tool effectively.</p>
+            
+            <div class="video-container" style="position: relative; max-width: 900px; margin: 0 auto; border-radius: 20px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); background-color: white; padding: 40px 80px; overflow: hidden;">
+                <!-- Video Title -->
+                <h3 id="video-title" style="text-align: center; color: #000; margin-bottom: 25px; font-size: 28px; font-weight: bold;">Home Page & Downloading of Template</h3>
+                
+                <!-- Slider Container -->
+                <div class="slider-container" style="position: relative; width: 100%; overflow: hidden;">
+                    <div id="video-slider" style="display: flex; transition: transform 0.5s ease-in-out; width: 100%;">
+                        <!-- Videos will be dynamically added here -->
+                    </div>
+                </div>
+                
+                <!-- Navigation Arrows -->
+                <button id="prev-video" class="nav-arrow" style="position: absolute; left: 20px; top: 50%; transform: translateY(-50%); background-color: rgba(255, 255, 255, 0.8); color: #333; border: none; width: 50px; height: 50px; border-radius: 50%; font-size: 24px; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); z-index: 10;">&#10094;</button>
+                <button id="next-video" class="nav-arrow" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); background-color: rgba(255, 255, 255, 0.8); color: #333; border: none; width: 50px; height: 50px; border-radius: 50%; font-size: 24px; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); z-index: 10;">&#10095;</button>
+                
+                <!-- Pagination Indicators -->
+                <div id="pagination" style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
+                    <!-- Dots will be dynamically added here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- JavaScript for Video Navigation -->
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Video data
+                const videos = [
+                    {
+                        title: "Home Page & Downloading of Template",
+                        src: "https://drive.google.com/file/d/1_X8BVpHG2sd7T_q5xQEp4ROCSSJCbLe3/preview"
+                    },
+                    {
+                        title: "Quick Convert",
+                        src: "https://drive.google.com/file/d/1aBdVOfYcdS8SFIDpFbl7ZISTUOLo-NWC/preview"
+                    },
+                    {
+                        title: "Generate Questions",
+                        src: "https://drive.google.com/file/d/16guDNf0TCALdURp-PejPvHo8SX0AHE0o/preview"
+                    },
+                    {
+                        title: "Item Bank",
+                        src: "https://drive.google.com/file/d/1_48UZNir9rvnBIKFk6bg76fyhpP37-kB/preview"
+                    },
+                    {
+                        title: "QTI to PDF",
+                        src: "https://drive.google.com/file/d/1CB4aZ1GH0LugmeEDo3AvKXnU9_B6qzo2/preview"
+                    },
+                    {
+                        title: "Import to Canvas",
+                        src: "https://drive.google.com/file/d/1HkcQwLMqV0KA5svGkDuImqwJNt4A7Vmz/preview"
+                    }
+                ];
+                
+                // Elements
+                const videoTitle = document.getElementById('video-title');
+                const videoSlider = document.getElementById('video-slider');
+                const prevButton = document.getElementById('prev-video');
+                const nextButton = document.getElementById('next-video');
+                const pagination = document.getElementById('pagination');
+                
+                // Current video index
+                let currentIndex = 0;
+                let isAnimating = false;
+                
+                // Create video elements
+                videos.forEach((video, index) => {
+                    // Create video frame
+                    const videoFrame = document.createElement('div');
+                    videoFrame.className = 'video-frame';
+                    videoFrame.style.flex = '0 0 100%';
+                    videoFrame.style.transition = 'opacity 0.3s ease';
+                    
+                    // Create iframe
+                    const iframe = document.createElement('iframe');
+                    iframe.src = video.src;
+                    iframe.width = '100%';
+                    iframe.height = '400';
+                    iframe.allow = 'autoplay';
+                    iframe.style.borderRadius = '10px';
+                    
+                    videoFrame.appendChild(iframe);
+                    videoSlider.appendChild(videoFrame);
+                    
+                    // Create pagination dot
+                    const dot = document.createElement('div');
+                    dot.className = 'pagination-dot';
+                    dot.style.width = '12px';
+                    dot.style.height = '12px';
+                    dot.style.borderRadius = '50%';
+                    dot.style.backgroundColor = index === 0 ? '#4a6cf7' : '#ccc';
+                    dot.style.transition = 'background-color 0.3s ease';
+                    dot.style.cursor = 'pointer';
+                    
+                    // Add click event to dot
+                    dot.addEventListener('click', () => {
+                        if (!isAnimating && currentIndex !== index) {
+                            goToSlide(index);
+                        }
+                    });
+                    
+                    pagination.appendChild(dot);
+                });
+                
+                // Update video display
+                function updateVideo() {
+                    // Update title
+                    videoTitle.textContent = videos[currentIndex].title;
+                    
+                    // Update slider position
+                    videoSlider.style.transform = `translateX(-${currentIndex * 100}%)`;
+                    
+                    // Update pagination dots
+                    const dots = pagination.querySelectorAll('.pagination-dot');
+                    dots.forEach((dot, index) => {
+                        dot.style.backgroundColor = index === currentIndex ? '#4a6cf7' : '#ccc';
+                    });
+                    
+                    // Update button states
+                    prevButton.style.opacity = currentIndex === 0 ? "0.5" : "1";
+                    prevButton.style.pointerEvents = currentIndex === 0 ? "none" : "auto";
+                    
+                    nextButton.style.opacity = currentIndex === videos.length - 1 ? "0.5" : "1";
+                    nextButton.style.pointerEvents = currentIndex === videos.length - 1 ? "none" : "auto";
+                }
+                
+                // Go to specific slide with animation
+                function goToSlide(index) {
+                    if (isAnimating) return;
+                    
+                    isAnimating = true;
+                    currentIndex = index;
+                    
+                    // Apply transition
+                    videoSlider.style.transition = 'transform 0.5s ease-in-out';
+                    updateVideo();
+                    
+                    // Reset animation flag after transition completes
+                    setTimeout(() => {
+                        isAnimating = false;
+                    }, 500);
+                }
+                
+                // Previous button click
+                prevButton.addEventListener('click', function() {
+                    if (!isAnimating && currentIndex > 0) {
+                        goToSlide(currentIndex - 1);
+                    }
+                });
+                
+                // Next button click
+                nextButton.addEventListener('click', function() {
+                    if (!isAnimating && currentIndex < videos.length - 1) {
+                        goToSlide(currentIndex + 1);
+                    }
+                });
+                
+                // Touch swipe functionality
+                let touchStartX = 0;
+                let touchEndX = 0;
+                
+                const sliderContainer = document.querySelector('.slider-container');
+                
+                sliderContainer.addEventListener('touchstart', (e) => {
+                    touchStartX = e.changedTouches[0].screenX;
+                });
+                
+                sliderContainer.addEventListener('touchend', (e) => {
+                    touchEndX = e.changedTouches[0].screenX;
+                    handleSwipe();
+                });
+                
+                function handleSwipe() {
+                    const swipeThreshold = 50; // Minimum distance to register as swipe
+                    
+                    if (touchEndX < touchStartX - swipeThreshold) {
+                        // Swipe left (next)
+                        if (!isAnimating && currentIndex < videos.length - 1) {
+                            goToSlide(currentIndex + 1);
+                        }
+                    }
+                    
+                    if (touchEndX > touchStartX + swipeThreshold) {
+                        // Swipe right (previous)
+                        if (!isAnimating && currentIndex > 0) {
+                            goToSlide(currentIndex - 1);
+                        }
+                    }
+                }
+                
+                // Keyboard navigation
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowLeft' && !isAnimating && currentIndex > 0) {
+                        goToSlide(currentIndex - 1);
+                    } else if (e.key === 'ArrowRight' && !isAnimating && currentIndex < videos.length - 1) {
+                        goToSlide(currentIndex + 1);
+                    }
+                });
+                
+                // Initialize
+                updateVideo();
+            });
+        </script>
+
         <!-- Instructions Section -->
         <section class="instructions-section" style="width: 100%; margin: 60px 0 0 0; padding: 0;">
             <h2 style="text-align: center; font-size: 28px; margin-bottom: 15px; color: #2d3748;">Instructions Manual</h2>
