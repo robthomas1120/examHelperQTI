@@ -16,11 +16,6 @@ class ExcelHandler {
         this.mcErrorContainer = null;
     }
 
-    /**
-     * Process Excel file and display preview
-     * @param {File} file - Excel file to process
-     * @returns {Promise<Array>} - Promise resolving to processed question data
-     */
     async processExcelFile(file) {
         try {
             this.errorMessages = [];
@@ -29,16 +24,23 @@ class ExcelHandler {
             // Read file as array buffer
             const arrayBuffer = await this.readFileAsArrayBuffer(file);
             
-            // Parse workbook
-            this.workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            // Parse workbook with all options to preserve content
+            this.workbook = XLSX.read(arrayBuffer, { 
+                type: 'array',
+                cellStyles: true,
+                cellFormulas: true,
+                cellDates: true,
+                cellNF: true,
+                sheetStubs: true
+            });
             
-            // Validate we have at least one sheet
-            if (this.workbook.SheetNames.length < 1) {
-                throw new Error('Excel file must contain at least one sheet');
+            // Validate we have at least two sheets
+            if (this.workbook.SheetNames.length < 2) {
+                throw new Error('Excel file must contain at least two sheets');
             }
             
-            // Get the first sheet
-            const sheetName = this.workbook.SheetNames[0];
+            // Get the second sheet (index 1)
+            const sheetName = this.workbook.SheetNames[1];
             const sheet = this.workbook.Sheets[sheetName];
             
             // Convert to JSON (with headers in row 1)
@@ -46,8 +48,8 @@ class ExcelHandler {
             
             // Ensure we have data
             if (jsonData.length < 2) {
-                this.previewElement.innerHTML = '<p>No data found in this sheet or invalid format</p>';
-                throw new Error('No valid data found in Excel file');
+                this.previewElement.innerHTML = '<p>No data found in Sheet 2 or invalid format</p>';
+                throw new Error('No valid data found in Sheet 2 of Excel file');
             }
             
             // Store the question data
@@ -794,27 +796,30 @@ class ExcelHandler {
         this.updateErrorDisplay();
     }
 
-    /**
-     * Download the edited Excel file
-     */
     downloadEditedFile() {
         try {
-            // Create a new workbook
+            // Create a new workbook based on the original to preserve all sheets
             const wb = XLSX.utils.book_new();
             
-            // Convert edited data to worksheet
+            // First, add sheet 1 from the original workbook
+            const sheet1Name = this.workbook.SheetNames[0];
+            const sheet1 = this.workbook.Sheets[sheet1Name];
+            XLSX.utils.book_append_sheet(wb, sheet1, sheet1Name);
+            
+            // Then, create the new sheet 2 from the edited data
             const ws = XLSX.utils.aoa_to_sheet(this.editedData);
             
-            // Add worksheet to workbook
-            XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+            // Add worksheet as sheet 2 with the same name as in the original workbook
+            const sheet2Name = this.workbook.SheetNames[1];
+            XLSX.utils.book_append_sheet(wb, ws, sheet2Name);
             
-// Generate Excel file
-XLSX.writeFile(wb, "edited_quiz.xlsx");
-} catch (error) {
-    console.error('Error downloading Excel file:', error);
-    alert('Error downloading Excel file: ' + error.message);
-}
-}
+            // Generate Excel file
+            XLSX.writeFile(wb, "edited_quiz.xlsx");
+        } catch (error) {
+            console.error('Error downloading Excel file:', error);
+            alert('Error downloading Excel file: ' + error.message);
+        }
+    }
 
 /**
 * Process question data for conversion
