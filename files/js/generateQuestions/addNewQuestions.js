@@ -1479,15 +1479,12 @@ document.addEventListener("DOMContentLoaded", function () {
                         <label></label>
                         <span>False</span>
                     </div>
-                    <div class="fill-blank-option">
-                        ${(function () {
-                          const checkboxId = `fill-blank-${generateUUID()}`;
-                          return `
-                                <input type="checkbox" id="${checkboxId}" class="fill-blank-checkbox">
-                                <label for="${checkboxId}">Format as fill-in-the-blank</label>
-                            `;
-                        })()}
-                    </div>
+<div class="fill-blank-option">
+    ${(function () {
+      // Return an empty string instead of the checkbox and label
+      return "";
+    })()}
+</div>
                 </div>
             `,
       "fill-in-the-blank": `
