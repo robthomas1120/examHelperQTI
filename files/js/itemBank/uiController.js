@@ -66,7 +66,7 @@ class UIController {
         this.elements.clearSelectedBtn.addEventListener('click', this.clearSelectedQuestions.bind(this));
         
         // Initialize load sample button
-        this.elements.loadSampleBtn.addEventListener('click', this.loadSampleFile.bind(this));
+        //this.elements.loadSampleBtn.addEventListener('click', this.loadSampleFile.bind(this));
     }
 
     /**
@@ -1088,11 +1088,11 @@ class UIController {
     /**
      * Load sample file for demonstration
      */
-    loadSampleFile() {
-        // In a real implementation, this would load a sample file from the server
-        // For now, we'll just show an alert as a placeholder
-        alert('Sample file loading not implemented in this demo. Please upload your own file.');
-    }
+    // loadSampleFile() {
+    //     // In a real implementation, this would load a sample file from the server
+    //     // For now, we'll just show an alert as a placeholder
+    //     alert('Sample file loading not implemented in this demo. Please upload your own file.');
+    // }
 
     /**
      * Show or hide loading indicator
