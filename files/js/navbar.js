@@ -6,8 +6,9 @@ document.addEventListener('DOMContentLoaded', function() {
               <!-- Left: Logo -->
               <div class="logo-nav">
                   <a href="index.html">
+                  <img src="../images/edtech.png" alt="UST Logo" class="edlogo-img">
                       <img src="../images/ustlogo.png" alt="UST Logo" class="logo-img">
-                      <span>ExamHelper</span>
+                     <span class="white-text">Ed</span>STAR<span class="white-text">Helper</span>
                   </a>
               </div>
               
@@ -203,10 +204,13 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       .logo-img {
+        height: 50px;
+        margin-right: 10px;
+      }
+      .edlogo-img {
         height: 35px;
         margin-right: 10px;
       }
-      
       /* Center: Navigation menu */
       .nav-menu {
         flex: 1;
@@ -398,7 +402,9 @@ document.addEventListener('DOMContentLoaded', function() {
           display: block;
         }
       }
-      
+          .white-text {
+      color: white;
+    }
       @media screen and (max-width: 768px) {
         .container-nav {
           padding: 0 15px;
@@ -408,6 +414,7 @@ document.addEventListener('DOMContentLoaded', function() {
           gap: 10px;
         }
       }
+        
       
       @media screen and (max-width: 480px) {
         .logo-nav span {
