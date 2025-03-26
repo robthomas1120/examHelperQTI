@@ -1,16 +1,19 @@
 /* QuickConvert CSS */
 :root {
-    --primary-color: #4a6cf7;
-    --primary-dark: #3451b2;
-    --secondary-color: #2d3748;
-    --light-gray: #f5f7fa;
-    --text-color: #333;
-    --text-secondary: #718096;
-    --border-color: #e2e8f0;
-    --success-color: #48bb78;
-    --warning-color: #ed8936;
-    --danger-color: #e53e3e;
-    --info-color: #4299e1;
+    --primary-color: #ffb81c;      /* UST gold */
+    --primary-dark: #e6a619;       /* Darker gold for hover/active states */
+    --primary-light: #ffc84d;      /* Lighter gold for highlights */
+    --secondary-color: #d4980f;    /* Darker yellow */
+    --light-gray: #f8f9fa;         /* Light background */
+    --text-color: #212529;         /* Main text color */
+    --text-secondary: #6c757d;     /* Secondary text color */
+    --border-color: #dee2e6;       /* Border color */
+    --success-color: #198754;      /* Green */
+    --warning-color: #ffc107;      /* Amber/gold */
+    --danger-color: #dc3545;       /* Red */
+    --info-color: #0066cc;         /* UST light blue */
+    --font-main: 'Segoe UI', Arial, sans-serif;  /* Keeping the same font */
+    --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Keeping the same shadow */
 }
 
 /* Upload Container Layout */
