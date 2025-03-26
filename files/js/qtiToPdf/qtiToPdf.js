@@ -439,222 +439,242 @@ class QTIToPDFConverter {
         });
     }
 
-    /**
-     * Generate PDF from QTI questions
-     * @returns {Blob} PDF as blob
-     */
-    generatePDF() {
-        // Configure paper size
-        const paperConfig = this.paperSizes[this.paperSize];
-        const margin = {
-            top: 20,
-            right: 20,
-            bottom: 20,
-            left: 20
-        };
+/**
+ * Generate PDF from QTI questions
+ * @returns {Blob} PDF as blob
+ */
+generatePDF() {
+    // Configure paper size
+    const paperConfig = this.paperSizes[this.paperSize];
+    const margin = {
+        top: 20,
+        right: 20,
+        bottom: 20,
+        left: 20
+    };
+    
+    // Calculate content width
+    const contentWidth = paperConfig.width - margin.left - margin.right;
+    
+    // Create PDF document
+    const pdf = new this.jspdf({
+        orientation: paperConfig.orientation,
+        unit: 'mm',
+        format: [paperConfig.width, paperConfig.height]
+    });
+    
+    // Set initial y position
+    let y = margin.top;
+    
+    // Add university header
+    pdf.setFontSize(12);
+    pdf.setFont("times", "normal");  // Change to Times New Roman
+    
+    // Center the "Pontifical and Royal" text
+    const pontificalText = "Pontifical and Royal";
+    const pontificalWidth = pdf.getStringUnitWidth(pontificalText) * 12 / pdf.internal.scaleFactor;
+    const pontificalX = (paperConfig.width - pontificalWidth) / 2;
+    pdf.text(pontificalText, pontificalX, y);
+    y += 6;  // Smaller spacing after first line
+    
+    // Center the "UNIVERSITY OF SANTO TOMAS" text with larger font size
+    pdf.setFontSize(18);  // Increased font size from 16 to 18
+    pdf.setFont("times", "bold");  // Bold Times New Roman
+    const universityName = "UNIVERSITY OF SANTO TOMAS";  // Changed to all caps
+    const universityWidth = pdf.getStringUnitWidth(universityName) * 18 / pdf.internal.scaleFactor;
+    const universityX = (paperConfig.width - universityWidth) / 2;
+    pdf.text(universityName, universityX, y);
+    y += 6;  // Smaller spacing after university name
+    
+    // Center "The Catholic University of the Philippines" text
+    pdf.setFontSize(12);  // Back to smaller font
+    pdf.setFont("times", "normal");  // Normal Times New Roman
+    const catholicText = "The Catholic University of the Philippines";
+    const catholicWidth = pdf.getStringUnitWidth(catholicText) * 12 / pdf.internal.scaleFactor;
+    const catholicX = (paperConfig.width - catholicWidth) / 2;
+    pdf.text(catholicText, catholicX, y);
+    y += 8;  // Space after the university header section
+    
+    // Add college name if provided
+    if (this.college) {
+        pdf.setFontSize(14);
+        pdf.setFont("times", "normal");  // Changed to Times New Roman
         
-        // Calculate content width
-        const contentWidth = paperConfig.width - margin.left - margin.right;
+        // Center the college name
+        const collegeWidth = pdf.getStringUnitWidth(this.college) * 14 / pdf.internal.scaleFactor;
+        const collegeX = (paperConfig.width - collegeWidth) / 2;
         
-        // Create PDF document
-        const pdf = new this.jspdf({
-            orientation: paperConfig.orientation,
-            unit: 'mm',
-            format: [paperConfig.width, paperConfig.height]
-        });
+        pdf.text(this.college, collegeX, y);
+        y += 20; // Reduced spacing after college name from 25 to 20
+    }
+    
+    // Add student information fields with lines for writing
+    pdf.setFontSize(12);
+    pdf.setFont("times", "normal");  // Changed to Times New Roman
+    pdf.setDrawColor(0, 0, 0); // Black lines
+    
+    // Left side - Name field
+    pdf.text("Name:", margin.left, y);
+    // Add line for name (leaving space after the label)
+    pdf.line(margin.left + 25, y, paperConfig.width/2 - 10, y);
+    
+    // Right side - Date field
+    pdf.text("Date:", paperConfig.width/2 + 10, y);
+    // Add line for date (leaving space after the label)
+    pdf.line(paperConfig.width/2 + 30, y, paperConfig.width - margin.right, y);
+    
+    y += 8; // Reduced vertical spacing between fields
+    
+    // Left side - Section field
+    pdf.text("Section:", margin.left, y);
+    // Add line for section (leaving space after the label)
+    pdf.line(margin.left + 35, y, paperConfig.width/2 - 10, y);
+    
+    // Right side - Student Number field
+    pdf.text("Student Number:", paperConfig.width/2 + 10, y);
+    // Add line for student number (leaving space after the label)
+    pdf.line(paperConfig.width/2 + 60, y, paperConfig.width - margin.right, y);
+    
+    y += 15; // Space before divider
+    
+    // Add divider line before quiz description
+    pdf.setLineWidth(0.5);
+    pdf.line(margin.left, y, paperConfig.width - margin.right, y);
+    pdf.setLineWidth(0.2); // Reset line width
+    
+    y += 10; // Space after divider
+    
+    // Add general directions if provided
+    if (this.generalDirections && this.generalDirections.trim() !== '') {
+        pdf.setFontSize(11);
+        pdf.setFont("times", "normal");  // Changed to Times New Roman
         
-        // Set initial y position
-        let y = margin.top;
+        // Split text to fit within margins
+        const directionsLines = pdf.splitTextToSize(this.generalDirections, contentWidth);
+        pdf.text(directionsLines, margin.left, y);
         
-        // Add university header
-        pdf.setFontSize(16);
-        pdf.setFont("helvetica", "bold");
+        // Increase y position based on number of lines
+        y += directionsLines.length * 7 + 10;
+    }
+    
+    // Process each question
+    for (let i = 0; i < this.questions.length; i++) {
+        const question = this.questions[i];
         
-        // Center the university name
-        const universityName = "University of Santo Tomas";
-        const universityWidth = pdf.getStringUnitWidth(universityName) * 16 / pdf.internal.scaleFactor;
-        const universityX = (paperConfig.width - universityWidth) / 2;
-        
-        pdf.text(universityName, universityX, y);
-        y += 8; // Reduced spacing after university name from 10 to 8
-        
-        // Add college name if provided
-        if (this.college) {
-            pdf.setFontSize(14);
-            pdf.setFont("helvetica", "normal");
+        // Check if we need a new page
+        if (y > paperConfig.height - margin.bottom - 40) {
+            pdf.addPage();
+            y = margin.top;
             
-            // Center the college name
-            const collegeWidth = pdf.getStringUnitWidth(this.college) * 14 / pdf.internal.scaleFactor;
-            const collegeX = (paperConfig.width - collegeWidth) / 2;
-            
-            pdf.text(this.college, collegeX, y);
-            y += 20; // Reduced spacing after college name from 25 to 20
-            
+            // Add page number
+            this.addPageNumber(pdf);
         }
         
-        // Add student information lines without underlines
+        // Question number and text
         pdf.setFontSize(12);
-        pdf.setFont("helvetica", "normal");
+        pdf.setFont("times", "bold");  // Changed to Times New Roman
+        const questionNumber = i + 1;
         
-        // Left side
-        pdf.text("Name:", margin.left, y);
-        pdf.text("Section:", margin.left, y + 12); // Reduced spacing from 20 to 12
-        
-        // Right side
-        pdf.text("Date:", paperConfig.width - margin.right - 60, y);
-        pdf.text("Student Number:", paperConfig.width - margin.right - 60, y + 12); // Reduced spacing from 20 to 12
-        
-        y += 30; // Reduced spacing after student info from 40 to 30
-        
-        // Add general directions if provided
-        if (this.generalDirections && this.generalDirections.trim() !== '') {
-            pdf.setFontSize(11);
-            pdf.setFont("helvetica", "normal");
+        // Handle true/false questions differently
+        if (question.type.includes("true_false")) {
+            // For true/false questions, show as statement with underline after the number
+            // Only make the question number bold
+            pdf.text(`${questionNumber}. `, margin.left, y);
             
-            // Split text to fit within margins
-            const directionsLines = pdf.splitTextToSize(this.generalDirections, contentWidth);
-            pdf.text(directionsLines, margin.left, y);
+            // Set normal font for the underline and question text
+            pdf.setFont("times", "normal");  // Changed to Times New Roman
+            pdf.text(`_____ ${this.cleanHtml(question.text)}`, margin.left + pdf.getStringUnitWidth(`${questionNumber}. `) * 12 / pdf.internal.scaleFactor, y);
             
-            // Increase y position based on number of lines
-            y += directionsLines.length * 7 + 10;
-        }
-        
-        // Process each question
-        for (let i = 0; i < this.questions.length; i++) {
-            const question = this.questions[i];
+            y += 8;
             
-            // Check if we need a new page
-            if (y > paperConfig.height - margin.bottom - 40) {
-                pdf.addPage();
-                y = margin.top;
+            // If including answers, show the correct answer
+            if (this.includeAnswers) {
+                pdf.setFont("times", "italic");  // Changed to Times New Roman
                 
-                // Add page number
-                this.addPageNumber(pdf);
-            }
-            
-            // Question number and text
-            pdf.setFontSize(12);
-            pdf.setFont("helvetica", "bold");
-            const questionNumber = i + 1;
-            
-            // Handle true/false questions differently
-            if (question.type.includes("true_false")) {
-                // For true/false questions, show as statement with underline after the number
-                // Only make the question number bold
-                pdf.text(`${questionNumber}. `, margin.left, y);
+                // Find the correct option
+                const correctOption = question.options.find(option => option.correct);
+                const correctAnswer = correctOption ? correctOption.text : "Unknown";
                 
-                // Set normal font for the underline and question text
-                pdf.setFont("helvetica", "normal");
-                pdf.text(`_____ ${this.cleanHtml(question.text)}`, margin.left + pdf.getStringUnitWidth(`${questionNumber}. `) * 12 / pdf.internal.scaleFactor, y);
-                
+                pdf.text(`Answer: ${correctAnswer}`, margin.left + 20, y);
+                pdf.setFont("times", "normal");  // Changed to Times New Roman
                 y += 8;
+            }
+        } else {
+            // For all other question types
+            pdf.text(`${questionNumber}. `, margin.left, y);
+            
+            // Question text (indented)
+            const questionIndent = margin.left + 7;
+            pdf.setFont("times", "normal");  // Changed to Times New Roman
+            
+            // Check if question text contains HTML, and clean it
+            const cleanedText = this.cleanHtml(question.text);
+            
+            // Split long text to fit page width
+            const textLines = pdf.splitTextToSize(cleanedText, contentWidth - 7);
+            pdf.text(textLines, questionIndent, y);
+            
+            // Move down based on number of lines
+            y += textLines.length * 5 + 5;
+            
+            // Process answer options based on question type
+            if (question.type.includes("multiple_choice") || question.type.includes("multiple_answers")) {
+                pdf.setFontSize(10);
                 
-                // If including answers, show the correct answer
-                if (this.includeAnswers) {
-                    pdf.setFont("helvetica", "italic");
+                // Draw options
+                for (let j = 0; j < question.options.length; j++) {
+                    const option = question.options[j];
                     
-                    // Find the correct option
-                    const correctOption = question.options.find(option => option.correct);
-                    const correctAnswer = correctOption ? correctOption.text : "Unknown";
+                    // Check if we need a new page
+                    if (y > paperConfig.height - margin.bottom - 20) {
+                        pdf.addPage();
+                        y = margin.top;
+                        
+                        // Always add page number
+                        this.addPageNumber(pdf);
+                    }
                     
-                    pdf.text(`Answer: ${correctAnswer}`, margin.left + 20, y);
-                    pdf.setFont("helvetica", "normal");
-                    y += 8;
-                }
-            } else {
-                // For all other question types
-                pdf.text(`${questionNumber}. `, margin.left, y);
-                
-                // Question text (indented)
-                const questionIndent = margin.left + 7;
-                pdf.setFont("helvetica", "normal");
-                
-                // Check if question text contains HTML, and clean it
-                const cleanedText = this.cleanHtml(question.text);
-                
-                // Split long text to fit page width
-                const textLines = pdf.splitTextToSize(cleanedText, contentWidth - 7);
-                pdf.text(textLines, questionIndent, y);
-                
-                // Move down based on number of lines
-                y += textLines.length * 5 + 5;
-                
-                // Process answer options based on question type
-                if (question.type.includes("multiple_choice") || question.type.includes("multiple_answers")) {
-                    pdf.setFontSize(10);
+                    // Option letter (A, B, C, etc.)
+                    const optionLetter = String.fromCharCode(65 + j);
                     
-                    // Draw options
-                    for (let j = 0; j < question.options.length; j++) {
-                        const option = question.options[j];
-                        
-                        // Check if we need a new page
-                        if (y > paperConfig.height - margin.bottom - 20) {
-                            pdf.addPage();
-                            y = margin.top;
-                            
-                            // Always add page number
-                            this.addPageNumber(pdf);
-                        }
-                        
-                        // Option letter (A, B, C, etc.)
-                        const optionLetter = String.fromCharCode(65 + j);
-                        
-                        // Draw checkbox/circle for the option
+                    // Draw checkbox/circle for the option
+                    if (question.type.includes("multiple_choice")) {
+                        pdf.circle(margin.left + 3, y - 1.5, 1.5, 'S');
+                    } else if (question.type.includes("multiple_answers")) {
+                        // Draw a square for multiple answer questions
+                        pdf.rect(margin.left + 2, y - 3, 3, 3, 'S');
+                    }
+                    
+                    // If including answers and this is the correct answer
+                    if (this.includeAnswers && option.correct) {
                         if (question.type.includes("multiple_choice")) {
-                            pdf.circle(margin.left + 3, y - 1.5, 1.5, 'S');
+                            // Fill the circle for correct answer
+                            pdf.circle(margin.left + 3, y - 1.5, 0.8, 'F');
                         } else if (question.type.includes("multiple_answers")) {
-                            // Draw a square for multiple answer questions
-                            pdf.rect(margin.left + 2, y - 3, 3, 3, 'S');
+                            // Draw an X in the square for correct answer
+                            pdf.setLineWidth(0.3);
+                            pdf.line(margin.left + 2, y - 3, margin.left + 5, y);
+                            pdf.line(margin.left + 5, y - 3, margin.left + 2, y);
+                            pdf.setLineWidth(0.2);
                         }
-                        
-                        // If including answers and this is the correct answer
-                        if (this.includeAnswers && option.correct) {
-                            if (question.type.includes("multiple_choice")) {
-                                // Fill the circle for correct answer
-                                pdf.circle(margin.left + 3, y - 1.5, 0.8, 'F');
-                            } else if (question.type.includes("multiple_answers")) {
-                                // Draw an X in the square for correct answer
-                                pdf.setLineWidth(0.3);
-                                pdf.line(margin.left + 2, y - 3, margin.left + 5, y);
-                                pdf.line(margin.left + 5, y - 3, margin.left + 2, y);
-                                pdf.setLineWidth(0.2);
-                            }
-                        }
-                        
-                        // Option text
-                        const optionText = `${optionLetter}. ${this.cleanHtml(option.text)}`;
-                        const optionIndent = margin.left + 7;
-                        
-                        // Split long option text
-                        const optionLines = pdf.splitTextToSize(optionText, contentWidth - 10);
-                        pdf.text(optionLines, optionIndent, y);
-                        
-                        // Move down based on number of lines
-                        y += optionLines.length * 5 + 3;
-                    }
-                } else if (question.type.includes("essay")) {
-                    // Add blank lines for essay response
-                    pdf.setDrawColor(200, 200, 200);
-                    
-                    for (let j = 0; j < 10; j++) {
-                        // Check if we need a new page
-                        if (y > paperConfig.height - margin.bottom - 15) {
-                            pdf.addPage();
-                            y = margin.top;
-                            
-                            // Always add page number
-                            this.addPageNumber(pdf);
-                        }
-                        
-                        // Draw a line for writing
-                        pdf.line(margin.left, y + 4, paperConfig.width - margin.right, y + 4);
-                        y += 8;
                     }
                     
-                    pdf.setDrawColor(0, 0, 0);
-                } else if (question.type.includes("short_answer") || question.type.includes("fill_in")) {
-                    // Add blank space for short answer - no underlines
+                    // Option text
+                    const optionText = `${optionLetter}. ${this.cleanHtml(option.text)}`;
+                    const optionIndent = margin.left + 7;
                     
+                    // Split long option text
+                    const optionLines = pdf.splitTextToSize(optionText, contentWidth - 10);
+                    pdf.text(optionLines, optionIndent, y);
+                    
+                    // Move down based on number of lines
+                    y += optionLines.length * 5 + 3;
+                }
+            } else if (question.type.includes("essay")) {
+                // Add blank lines for essay response
+                pdf.setDrawColor(200, 200, 200);
+                
+                for (let j = 0; j < 10; j++) {
                     // Check if we need a new page
                     if (y > paperConfig.height - margin.bottom - 15) {
                         pdf.addPage();
@@ -664,55 +684,73 @@ class QTIToPDFConverter {
                         this.addPageNumber(pdf);
                     }
                     
-                    // Add some space instead of drawing a line
+                    // Draw a line for writing
+                    pdf.line(margin.left, y + 4, paperConfig.width - margin.right, y + 4);
                     y += 8;
-                    
-                    // Show correct answer if enabled
-                    if (this.includeAnswers) {
-                        if (question.correctAnswers && question.correctAnswers.length > 0) {
-                            // Multiple correct answers (FIB or short answer)
-                            pdf.setFontSize(10);
-                            pdf.setTextColor(70, 130, 180); // Steel Blue color for answers
-                            
-                            if (question.correctAnswers.length === 1) {
-                                pdf.text(`Answer: ${question.correctAnswers[0]}`, margin.left, y);
-                                y += 8;
-                            } else {
-                                pdf.text("Answers: ", margin.left, y);
-                                y += 5;
-                                
-                                question.correctAnswers.forEach((answer, index) => {
-                                    pdf.text(`   ${index + 1}. ${answer}`, margin.left, y);
-                                    y += 5;
-                                });
-                                
-                                y += 3; // Additional space after answers list
-                            }
-                            
-                            pdf.setTextColor(0, 0, 0); // Reset to black
-                        } 
-                        else if (question.correctAnswer) {
-                            // Backward compatibility for existing format
-                            pdf.setFontSize(10);
-                            pdf.setTextColor(70, 130, 180); // Steel Blue color for answers
-                            pdf.text(`Answer: ${question.correctAnswer}`, margin.left, y);
-                            pdf.setTextColor(0, 0, 0); // Reset to black
-                            y += 8;
-                        }
-                    }
                 }
                 
-                // Add extra space between questions
-                y += 5;
+                pdf.setDrawColor(0, 0, 0);
+            } else if (question.type.includes("short_answer") || question.type.includes("fill_in")) {
+                // Add blank space for short answer - no underlines
+                
+                // Check if we need a new page
+                if (y > paperConfig.height - margin.bottom - 15) {
+                    pdf.addPage();
+                    y = margin.top;
+                    
+                    // Always add page number
+                    this.addPageNumber(pdf);
+                }
+                
+                // Add some space instead of drawing a line
+                y += 8;
+                
+                // Show correct answer if enabled
+                if (this.includeAnswers) {
+                    if (question.correctAnswers && question.correctAnswers.length > 0) {
+                        // Multiple correct answers (FIB or short answer)
+                        pdf.setFontSize(10);
+                        pdf.setTextColor(70, 130, 180); // Steel Blue color for answers
+                        
+                        if (question.correctAnswers.length === 1) {
+                            pdf.text(`Answer: ${question.correctAnswers[0]}`, margin.left, y);
+                            y += 8;
+                        } else {
+                            pdf.text("Answers: ", margin.left, y);
+                            y += 5;
+                            
+                            question.correctAnswers.forEach((answer, index) => {
+                                pdf.text(`   ${index + 1}. ${answer}`, margin.left, y);
+                                y += 5;
+                            });
+                            
+                            y += 3; // Additional space after answers list
+                        }
+                        
+                        pdf.setTextColor(0, 0, 0); // Reset to black
+                    } 
+                    else if (question.correctAnswer) {
+                        // Backward compatibility for existing format
+                        pdf.setFontSize(10);
+                        pdf.setTextColor(70, 130, 180); // Steel Blue color for answers
+                        pdf.text(`Answer: ${question.correctAnswer}`, margin.left, y);
+                        pdf.setTextColor(0, 0, 0); // Reset to black
+                        y += 8;
+                    }
+                }
             }
+            
+            // Add extra space between questions
+            y += 5;
         }
-        
-        // Add page number to the last page
-        this.addPageNumber(pdf);
-        
-        // Return the PDF as a blob
-        return pdf.output("blob");
     }
+    
+    // Add page number to the last page
+    this.addPageNumber(pdf);
+    
+    // Return the PDF as a blob
+    return pdf.output("blob");
+}
 
     /**
      * Clean HTML tags from text while preserving some basic formatting
