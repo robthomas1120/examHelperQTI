@@ -12,23 +12,6 @@ document.addEventListener('DOMContentLoaded', function() {
               <p>Choose your preferred template format</p>
               
               <div class="template-section">
-                  <h3>Item Bank Template</h3>
-                  <div class="download-options">
-                      <a href="https://docs.google.com/spreadsheets/d/1q1uWXuw15KWtMrYEIAx_gU_0gvzk0yqMCt1iewDCpnw/edit?usp=sharing" class="download-btn-large" target="_blank">
-                          <i class="fab fa-google-drive"></i>
-                          <span class="btn-text">Google Sheet</span>
-                      </a>
-                      
-                      <a href="../templates/ItemBankTemplate.xlsx" class="download-btn-large" download>
-                          <i class="far fa-file-excel"></i>
-                          <span class="btn-text">Excel/CSV</span>
-                      </a>
-                  </div>
-              </div>
-              
-              <div class="template-divider"></div>
-              
-              <div class="template-section">
                   <h3>Quick Convert Template</h3>
                   <div class="download-options">
                       <a href="https://docs.google.com/spreadsheets/d/1jxbXah5UG_QmWFiI5Z5AqK6QPvBBhmmtYPXawh0wu6A/edit?usp=sharing" class="download-btn-large" target="_blank">
@@ -38,7 +21,24 @@ document.addEventListener('DOMContentLoaded', function() {
                       
                       <a href="../templates/QuickConvertTemplate.xlsx" class="download-btn-large" download>
                           <i class="far fa-file-excel"></i>
-                          <span class="btn-text">Excel/CSV</span>
+                          <span class="btn-text">Excel</span>
+                      </a>
+                  </div>
+              </div>
+              
+              <div class="template-divider"></div>
+              
+              <div class="template-section">
+                  <h3>Item Bank Template</h3>
+                  <div class="download-options">
+                      <a href="https://docs.google.com/spreadsheets/d/1q1uWXuw15KWtMrYEIAx_gU_0gvzk0yqMCt1iewDCpnw/edit?usp=sharing" class="download-btn-large" target="_blank">
+                          <i class="fab fa-google-drive"></i>
+                          <span class="btn-text">Google Sheet</span>
+                      </a>
+                      
+                      <a href="../templates/ItemBankTemplate.xlsx" class="download-btn-large" download>
+                          <i class="far fa-file-excel"></i>
+                          <span class="btn-text">Excel</span>
                       </a>
                   </div>
               </div>

@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <div class="logo-nav">
                   <a href="index.html">
                       <img src="../images/ustlogo.png" alt="UST Logo" class="logo-img">
-                      <span>Exam Helper</span>
+                      <span>ExamHelper</span>
                   </a>
               </div>
               

@@ -82,7 +82,7 @@ createDownloadButton() {
     const commitBtn = document.createElement('button');
     commitBtn.id = 'commit-changes-btn';
     commitBtn.className = 'commit-btn';
-    commitBtn.innerHTML = '<i class="fas fa-save"></i> Commit Changes';
+    commitBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
     commitBtn.style.cssText = `
         background-color: #4a6cf7;
         color: white;
