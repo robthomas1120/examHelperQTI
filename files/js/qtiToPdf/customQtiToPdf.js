@@ -95,8 +95,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Convert button
     if (elements.convertBtn) {
-        elements.convertBtn.addEventListener('click', function() {
-            handleConversion();
+        elements.convertBtn.addEventListener('click', async function() {
+            await handleConversion();
         });
     }
 
@@ -165,10 +165,10 @@ document.addEventListener('DOMContentLoaded', function() {
             showMessage('Please upload a QTI zip file and provide a title', 'error');
             return;
         }
-
+    
         try {
             showLoading(true);
-
+    
             // Get options from form
             const options = {
                 title: elements.titleInput.value.trim(),
@@ -177,16 +177,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 college: elements.collegeSelect.value,
                 generalDirections: elements.generalDirections.value
             };
-
+    
             // Set converter options
             converter.setOptions(options);
-
-            // Convert to PDF
+    
+            // Convert to PDF (now awaiting the async method)
             pdfBlob = await converter.convertToPDF(currentFile);
-
+    
             // Update results section
             updateResults(true);
-
+    
             showLoading(false);
         } catch (error) {
             console.error("Error converting to PDF:", error);
