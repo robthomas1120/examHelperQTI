@@ -135,20 +135,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // Function to handle download template click
   const handleDownloadClick = (e) => {
     e.preventDefault();
-    // Create a link to download the template file
-    const templateUrl = '../templates/exam_template.xlsx';
-    
-    // Create a temporary anchor element
-    const downloadLink = document.createElement('a');
-    downloadLink.href = templateUrl;
-    downloadLink.download = 'exam_template.xlsx';
-    
-    // Append to the body, click it, and remove it
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-    
-    console.log('Download template initiated');
+    // Add your download template logic here
+    console.log('Download template clicked');
+    // Example: window.location.href = 'template.xlsx';
   };
   
   // Add event listeners to both buttons
