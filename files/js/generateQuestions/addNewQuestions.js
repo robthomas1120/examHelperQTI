@@ -426,19 +426,20 @@ document.addEventListener("DOMContentLoaded", function () {
         .querySelector(".question-type")
         .textContent.trim();
       const newQuestionEntry = questionEntry.cloneNode(true);
-
+  
       // Generate new UUIDs for all inputs to avoid duplicate IDs
       const radioGroups = newQuestionEntry.querySelectorAll(
         'input[type="radio"]'
       );
       if (radioGroups.length > 0) {
         const newGroupId = generateUUID();
+        newQuestionEntry.dataset.radioGroupId = newGroupId; // Update the radio group ID in the dataset
         radioGroups.forEach((radio) => {
-          radio.name = `option-group-${newGroupId}`;
+          radio.name = newGroupId;
           radio.id = `option${generateUUID()}`;
         });
       }
-
+  
       // Copy textarea content and update preview
       const originalTextarea = questionEntry.querySelector("textarea");
       const newTextarea = newQuestionEntry.querySelector("textarea");
@@ -451,8 +452,20 @@ document.addEventListener("DOMContentLoaded", function () {
         newQuestionEntry
           .querySelector(".question-number")
           .setAttribute("data-question-preview", preview);
+          
+        // Add event listener to the new textarea to update the preview when the content changes
+        newTextarea.addEventListener("input", function () {
+          const updatedQuestionText = this.value.trim();
+          newQuestionEntry
+            .querySelector(".question-number")
+            .setAttribute(
+              "data-question-preview",
+              updatedQuestionText.substring(0, 80) +
+                (updatedQuestionText.length > 80 ? "..." : "")
+            );
+        });
       }
-
+  
       // Copy text input values
       const originalInputs =
         questionEntry.querySelectorAll('input[type="text"]');
@@ -462,7 +475,7 @@ document.addEventListener("DOMContentLoaded", function () {
           newInputs[i].value = originalInputs[i].value;
         }
       }
-
+  
       // Copy checkbox/radio states
       const originalCheckboxes = questionEntry.querySelectorAll(
         'input[type="checkbox"], input[type="radio"]'
@@ -475,10 +488,11 @@ document.addEventListener("DOMContentLoaded", function () {
           newCheckboxes[i].checked = originalCheckboxes[i].checked;
         }
       }
-
+  
       // Insert after the original question and update numbers
       questionEntry.after(newQuestionEntry);
       updateQuestionNumbers();
+      setupDragAndDrop(); // Make sure drag and drop is set up for the new question
     }
   });
 
