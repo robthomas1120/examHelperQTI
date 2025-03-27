@@ -61,8 +61,6 @@ header {
 }
 
 main {
-    max-width: 1200px;
-    margin: 0 auto;
     padding: 20px;
 }
 
@@ -314,8 +312,9 @@ button i {
     padding: 25px;
     margin-bottom: 30px;
     box-shadow: var(--box-shadow);
-    border: 1px solid var(--border-color);
-    width: 120vh;
+    border: none;
+    width: 100%;
+    max-width: 100%;
 }
 
 #add-question-btn {
