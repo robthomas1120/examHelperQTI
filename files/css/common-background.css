@@ -6,6 +6,9 @@ body {
     background-position: center;
     background-attachment: fixed;
     position: relative;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
 }
 
 /* Add an overlay to make content more readable */
@@ -28,8 +31,11 @@ body::before {
     border-radius: 10px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     padding: 20px;
-    margin-top: var(--navbar-height); /* Use the navbar height variable for consistency */
+    margin-top: var(--navbar-height, 0); /* Use the navbar height variable for consistency */
     margin-bottom: 60px; /* Add space before footer */
+    min-height: calc(100vh - var(--navbar-height, 0) - 60px); /* Adjust container height to fill viewport */
+    display: flex;
+    flex-direction: column;
 }
 
 /* Add consistent spacing for cards and sections */
@@ -107,3 +113,20 @@ p {
     margin-bottom: 30px;
 }
 
+/* Fix for macOS scrolling issue */
+html, body {
+    height: 100%;
+    overflow-x: hidden;
+}
+
+main {
+    flex: 1;
+}
+
+footer {
+    flex-shrink: 0;
+    width: 100%;
+    padding: 15px 0;
+    text-align: center;
+    background-color: transparent;
+}

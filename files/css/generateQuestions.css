@@ -274,6 +274,7 @@ button i {
     transform: translateX(-50%);
     z-index: 1000;
     width: 200px;
+    max-width: 90%;
 }
 
 .dropdown-item {
@@ -315,7 +316,26 @@ button i {
     margin-bottom: 30px;
     box-shadow: var(--box-shadow);
     border: 1px solid var(--border-color);
-    width: 120vh;
+    width: 100%;
+    max-width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+#question-type-dropdown {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    background-color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: 200px;
+    max-width: 90%;
 }
 
 #add-question-btn {
