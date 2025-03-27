@@ -7,9 +7,11 @@ document.addEventListener('DOMContentLoaded', function() {
             <!-- Left: Logo -->
             <div class="logo-nav">
                 <a href="index.html">
-                    <img src="../images/ustlogo.png" alt="UST Logo" class="logo-img">
-                    <span>ExamHelper</span>
-                </a>
+                  <img src="../images/edtech.png" alt="UST Logo" class="edlogo-img">
+                      <img src="../images/ustlogo.png" alt="UST Logo" class="logo-img">
+                     <span class="white-text">Ed</span>STAR<span class="white-text">Helper</span>
+                  </a>
+
             </div>
             
             <!-- Center: Navigation menu -->
@@ -204,10 +206,14 @@ document.addEventListener('DOMContentLoaded', function() {
       font-size: 1.2rem;
     }
     
-    .logo-img {
-      height: 35px;
-      margin-right: 10px;
-    }
+      .logo-img {
+        height: 50px;
+        margin-right: 10px;
+      }
+      .edlogo-img {
+        height: 35px;
+        margin-right: 10px;
+      }
     
     /* Center: Navigation menu */
     .nav-menu {
@@ -266,6 +272,9 @@ document.addEventListener('DOMContentLoaded', function() {
       text-decoration: none;
       font-weight: 500;
       transition: all 0.3s ease;
+    }
+    .white-text{
+      color: #ffffff;
     }
     
     .btn-download:hover {
