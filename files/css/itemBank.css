@@ -14,85 +14,47 @@
     --info-color: #0066cc;         /* UST light blue */
     --font-main: 'Segoe UI', Arial, sans-serif;  /* Keeping the same font */
     --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Keeping the same shadow */
+    /* Do not redefine navbar height here - use the one from nav-styles.css */
 }
 
-/* Basic Layout */
+/* Basic Layout - avoid overriding body styles that affect the navbar */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: var(--light-gray);
     color: var(--text-color);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-}
-
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-main {
-    flex: 1;
-}
-
-/* Header Styles */
-header {
-    background-color: white;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    padding: 15px 0;
-}
-
-header .container {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.logo a {
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    color: var(--primary-color);
-    font-weight: bold;
-    font-size: 1.2rem;
-}
-
-.logo i {
-    font-size: 1.5rem;
-    margin-right: 10px;
-}
-
-nav ul {
-    display: flex;
-    list-style: none;
     margin: 0;
     padding: 0;
 }
 
-nav li {
-    margin-left: 20px;
+header {
+    height: var(--navbar-height);
+}
+.container-nav {
+    height: var(--navbar-height);
 }
 
-nav a {
-    text-decoration: none;
-    color: var(--text-secondary);
-    font-weight: 500;
-    padding: 8px 12px;
-    border-radius: 5px;
-    transition: all 0.3s ease;
+/* Container styles */
+.container {
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    box-sizing: border-box;
+    margin-top: 30px; /* Add spacing at the top of the container */
 }
 
-nav a:hover {
-    color: var(--primary-color);
-    background-color: rgba(255, 184, 28, 0.1); /* Updated with primary-color rgba */
-}
-
-nav a.active {
-    color: var(--primary-color);
-    background-color: rgba(255, 184, 28, 0.1); /* Updated with primary-color rgba */
+/* Ensure main content starts below the navbar */
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    /* Let common-background.css handle the top margin */
+    padding-top: 20px; /* Additional top padding for main content */
 }
 
 /* Page Header */
@@ -115,12 +77,28 @@ nav a.active {
     font-size: 1.1rem;
 }
 
-/* File Upload Section */
-.file-upload-section {
-    margin-bottom: 30px;
+/* Upload Container Layout */
+.upload-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 40px;
+    flex-shrink: 0; /* Don't allow this to shrink */
 }
 
+@media (max-width: 768px) {
+    .upload-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* File Upload Area */
 .drop-area {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     background-color: white;
     border: 2px dashed var(--primary-color);
     border-radius: 10px;
@@ -146,12 +124,18 @@ nav a.active {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    width: 100%;
 }
 
 .drop-message i {
-    font-size: 3rem;
+    font-size: 4rem;
     color: var(--primary-color);
     margin-bottom: 15px;
+    transition: transform 0.3s ease;
+}
+
+.drop-area:hover .drop-message i {
+    transform: translateY(-10px);
 }
 
 .drop-message h3 {
@@ -183,6 +167,11 @@ nav a.active {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
+    background-color: rgba(74, 108, 247, 0.05);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
 }
 
 .file-details {
@@ -227,6 +216,7 @@ nav a.active {
 .sample-file {
     text-align: center;
     margin-top: 15px;
+    width: 100%;
 }
 
 .sample-btn {
@@ -241,6 +231,103 @@ nav a.active {
 
 .sample-btn:hover {
     color: var(--primary-dark);
+}
+
+/* Preview Section */
+.preview-section {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 30px;
+    flex: 1;
+    min-height: 600px; /* Minimum height for preview section */
+}
+
+.card {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    margin-bottom: 30px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.card h2 {
+    font-size: 1.4rem;
+    margin-bottom: 15px;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+}
+
+.card h2 i {
+    margin-right: 10px;
+}
+
+#csv-preview {
+    background-color: var(--light-gray);
+    border-radius: 8px;
+    padding: 15px;
+    overflow: auto;
+    max-height: 800px !important;
+    min-height: 500px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto !important;
+}
+
+.placeholder-text {
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 40px 0;
+}
+
+.table-container {
+    height: 100% !important;
+    max-height: none !important;
+    overflow-y: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background-color: #f3f4f6 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #e5e7eb;
+}
+
+.data-table td {
+    padding: 6px !important;
+    font-size: 14px;
+    border: 1px solid #e5e7eb;
+}
+
+.data-table tr:nth-child(even) {
+    background-color: #f9fafb;
+}
+
+.data-table td:first-child {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 5 !important;
+    background-color: #f3f4f6 !important;
+}
+
+.data-table th:first-child {
+    position: sticky !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 15 !important; /* Higher z-index to appear above both */
 }
 
 /* Summary Section */

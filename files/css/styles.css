@@ -796,7 +796,7 @@ tr:nth-child(even) {
     background-color: inherit !important;
 }
 
-/* Add to your CSS */
+
 .alert-success {
     background-color: #dcfce7;
     border-left: 4px solid #10b981;
@@ -813,7 +813,7 @@ tr:nth-child(even) {
     font-size: 1.2rem;
 }
 
-/* Add these styles to style.css */
+
 
 /* Edit Mode Toggle Button */
 .edit-mode-toggle {

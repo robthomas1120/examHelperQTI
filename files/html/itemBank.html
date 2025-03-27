@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Item Bank - Quiz Converter</title>
     <link rel="stylesheet" href="../css/styles.css">
-    <link rel="stylesheet" href="../css/itemBank.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="../css/nav-styles.css">
+    <link rel="stylesheet" href="../css/itemBank.css">
+    <link rel="stylesheet" href="../css/common-background.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="../js/navbar.js"></script>
     <script src="../js/modal.js"></script>
     <style>
@@ -15,8 +16,7 @@
         .quiz-details {
             background-color: white;
             border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 30px;
+            padding: 25px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
             border: 1px solid #e2e8f0;
         }
@@ -24,7 +24,7 @@
         .quiz-details h2 {
             font-size: 1.4rem;
             margin-bottom: 15px;
-           color: #ffb81c; 
+            color: #ffb81c; 
             display: flex;
             align-items: center;
         }
@@ -33,19 +33,19 @@
             margin-right: 10px;
         }
         
-        .quiz-details .form-group {
+        .form-group {
             margin-bottom: 15px;
         }
         
-        .quiz-details label {
+        .form-group label {
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
             color: #2d3748;
         }
         
-        .quiz-details input, 
-        .quiz-details textarea {
+        .form-group input, 
+        .form-group textarea {
             width: 100%;
             padding: 10px 12px;
             border: 1px solid #e2e8f0;
@@ -54,16 +54,64 @@
             transition: border-color 0.3s;
         }
         
-        .quiz-details input:focus, 
-        .quiz-details textarea:focus {
+        .form-group input:focus, 
+        .form-group textarea:focus {
             outline: none;
             border-color: #ffb81c; 
             box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.2);
         }
         
-        .quiz-details textarea {
+        .form-group textarea {
             min-height: 100px;
             resize: vertical;
+        }
+        
+        /* Upload Container Layout */
+        .upload-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        @media (max-width: 768px) {
+            .upload-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* File Upload Area Enhancements */
+        .drop-area {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: white;
+            border: 2px dashed var(--primary-color);
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .drop-area.dragover {
+            border-color: var(--primary-color);
+            background-color: rgba(255, 184, 28, 0.05);
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .drop-message i {
+            font-size: 4rem;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            transition: transform 0.3s ease;
+        }
+        
+        .drop-area:hover .drop-message i {
+            transform: translateY(-10px);
         }
     </style>
 </head>
@@ -76,7 +124,8 @@
                 <p>Upload an Excel file with questions, select and reorder questions, then convert to QTI format.</p>
             </section>
 
-            <section class="file-upload-section">
+            <div class="upload-container">
+                <!-- Left side: File upload area -->
                 <div id="dropArea" class="drop-area">
                     <div class="drop-message">
                         <i class="fas fa-file-excel"></i>
@@ -97,20 +146,26 @@
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
+                    <div class="sample-file">
+                        <p>Don't have a file? <button id="loadSampleBtn" class="sample-btn">Load Sample File</button></p>
+                    </div>
                 </div>
-            </section>
 
-            <section class="quiz-details">
-                <h2><i class="fas fa-clipboard-list"></i> Quiz Details</h2>
-                <div class="form-group">
-                    <label for="quiz-title">Quiz Title:</label>
-                    <input type="text" id="quiz-title" placeholder="Enter quiz title">
+                
+                <!-- Right side: Quiz details -->
+                <div class="quiz-details">
+                    <h2><i class="fas fa-clipboard-list"></i> Quiz Details</h2>
+                    <div class="form-group">
+                        <label for="quiz-title">Quiz Title:</label>
+                        <input type="text" id="quiz-title" placeholder="Enter quiz title">
+                    </div>
+                    <div class="form-group">
+                        <label for="quiz-description">Quiz Description (optional):</label>
+                        <textarea id="quiz-description" placeholder="Enter quiz description"></textarea>
+                    </div>
+
                 </div>
-                <div class="form-group">
-                    <label for="quiz-description">Quiz Description (optional):</label>
-                    <textarea id="quiz-description" placeholder="Enter quiz description"></textarea>
-                </div>
-            </section>
+            </div>
 
             <!-- Insert the CSV Preview component here -->
             <section class="preview-section">
@@ -252,5 +307,6 @@
     <script src="../js/itemBank/qtiExportUI.js"></script>
     <script src="../js/itemBank/main.js"></script>
     <script src="../js/itemBank/excelFilePreview.js"></script>
+    <script src="../js/analytics.js"></script>
 </body>
 </html>

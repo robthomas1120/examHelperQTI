@@ -24,7 +24,8 @@ class ExcelFilePreview {
         this.editedData = null;  // Store edited data
         this.editedHeaders = null; // Store headers for edited data
         this.currentEditCell = null; // Track which cell is being edited
-        
+        this.unsavedChangesNotification = null;
+
         // Track validation errors
         this.hasValidationErrors = false;
         
@@ -106,6 +107,22 @@ createDownloadButton() {
     commitBtn.disabled = true;
     this.commitBtn = commitBtn; // Store reference
 
+    // Inside createDownloadButton method where you add event listener:
+    commitBtn.addEventListener('click', () => {
+        this.commitChanges.bind(this)();
+        
+        // Additional direct cleanup to handle the notification
+        const elements = document.querySelectorAll('div');
+        for (let i = 0; i < elements.length; i++) {
+            const elem = elements[i];
+            if (elem.textContent && 
+                elem.textContent.includes('You have unsaved changes') &&
+                elem.textContent.includes('Save Changes button')) {
+                elem.remove();
+            }
+        }
+    });
+
     // Create download button
     this.downloadBtn = document.createElement('button');
     this.downloadBtn.id = 'download-edited-file-btn';
@@ -162,46 +179,17 @@ commitChanges() {
         // If we have a workbook, update it with the edited data
         if (this.workbook && this.currentSheetIndex !== undefined) {
             try {
-                console.log(`Updating workbook at sheet index ${this.currentSheetIndex}`);
-                
-                // Validate sheet name
-                if (!this.workbook.SheetNames || this.currentSheetIndex >= this.workbook.SheetNames.length) {
-                    console.error(`Invalid sheet index ${this.currentSheetIndex} (total sheets: ${this.workbook.SheetNames ? this.workbook.SheetNames.length : 0})`);
-                } else {
-                    const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
-                    console.log(`Found sheet name: "${sheetName}"`);
-                    
-                    if (sheetName) {
-                        // Validate sheet exists
-                        if (!this.workbook.Sheets || !this.workbook.Sheets[sheetName]) {
-                            console.error(`Sheet "${sheetName}" not found in workbook`);
-                        } else {
-                            const sheet = this.workbook.Sheets[sheetName];
-                            console.log(`Retrieved sheet "${sheetName}" for updating`);
-                            
-                            try {
-                                // Create new worksheet from edited data
-                                console.log('Creating new worksheet from edited data');
-                                const wsData = [this.editedHeaders, ...this.editedData];
-                                console.log(`Worksheet data: ${wsData.length} rows (including header)`);
-                                
-                                const newSheet = XLSX.utils.aoa_to_sheet(wsData);
-                                if (!newSheet) {
-                                    console.error('Failed to create new sheet from data');
-                                } else {
-                                    console.log('Successfully created new sheet from edited data');
-                                    
-                                    // Replace the sheet in the workbook
-                                    console.log(`Replacing sheet "${sheetName}" in workbook`);
-                                    this.workbook.Sheets[sheetName] = newSheet;
-                                    console.log('Workbook updated successfully');
-                                }
-                            } catch (sheetCreationError) {
-                                console.error('Error creating new sheet from edited data:', sheetCreationError);
-                            }
-                        }
-                    } else {
-                        console.error('Sheet name is empty or invalid');
+                // Existing implementation...
+                const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
+                if (sheetName) {
+                    const sheet = this.workbook.Sheets[sheetName];
+                    if (sheet) {
+                        // Create new worksheet from edited data
+                        const wsData = [this.editedHeaders, ...this.editedData];
+                        const newSheet = XLSX.utils.aoa_to_sheet(wsData);
+                        
+                        // Replace the sheet in the workbook
+                        this.workbook.Sheets[sheetName] = newSheet;
                     }
                 }
             } catch (workbookError) {
@@ -213,152 +201,98 @@ commitChanges() {
         
         // Update the fileHandler's processedData if available
         try {
+            // Existing implementation...
             if (window.app && window.app.fileHandler) {
-                console.log('Found app.fileHandler, updating processed data');
-                
                 // Determine the question type from the current sheet
                 let questionType = null;
-                let sheetName = null;
-                
-                try {
-                    if (this.workbook && this.currentSheetIndex !== undefined) {
-                        if (this.workbook.SheetNames && this.currentSheetIndex < this.workbook.SheetNames.length) {
-                            sheetName = this.workbook.SheetNames[this.currentSheetIndex];
-                            console.log(`Determining question type from sheet name: "${sheetName}"`);
-                            
-                            if (sheetName) {
-                                // Try to determine question type from sheet name
-                                if (sheetName.includes('MC')) {
-                                    questionType = 'MC';
-                                } else if (sheetName.includes('MA')) {
-                                    questionType = 'MA';
-                                } else if (sheetName.includes('TF')) {
-                                    questionType = 'TF';
-                                } else if (sheetName.includes('ESS')) {
-                                    questionType = 'ESS';
-                                } else if (sheetName.includes('FIB')) {
-                                    questionType = 'FIB';
-                                }
-                                
-                                console.log(`Determined question type: ${questionType || 'unknown'}`);
-                            } else {
-                                console.warn('Sheet name is empty or invalid');
-                            }
-                        } else {
-                            console.warn(`Invalid sheet index ${this.currentSheetIndex} (total sheets: ${this.workbook.SheetNames ? this.workbook.SheetNames.length : 0})`);
-                        }
-                    } else {
-                        console.warn('No workbook or sheet index available for determining question type');
+                if (this.workbook && this.currentSheetIndex !== undefined) {
+                    const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
+                    if (sheetName) {
+                        // Try to determine question type from sheet name
+                        if (sheetName.includes('MC')) questionType = 'MC';
+                        else if (sheetName.includes('MA')) questionType = 'MA';
+                        else if (sheetName.includes('TF')) questionType = 'TF';
+                        else if (sheetName.includes('ESS')) questionType = 'ESS';
+                        else if (sheetName.includes('FIB')) questionType = 'FIB';
                     }
-                } catch (sheetNameError) {
-                    console.error('Error determining sheet name or question type:', sheetNameError);
                 }
                 
-                // Validate processed data
-                if (!window.app.fileHandler.processedData) {
-                    console.error('fileHandler.processedData is missing or invalid');
-                } else if (questionType === null) {
-                    console.warn('Could not determine question type, cannot update processed data');
-                } else if (!window.app.fileHandler.processedData[questionType]) {
-                    console.warn(`No processed data found for question type ${questionType}`);
-                } else {
-                    console.log(`Updating processed data for question type: ${questionType}`);
+                // If we found a question type, update the corresponding data
+                if (questionType && window.app.fileHandler.processedData[questionType]) {
+                    // Re-process the edited data
+                    const processedQuestions = this.processEditedData(questionType);
                     
-                    try {
-                        // Re-process the edited data
-                        console.log('Processing edited data into question objects');
-                        const processedQuestions = this.processEditedData(questionType);
-                        console.log(`Processed ${processedQuestions.length} questions`);
+                    // Update processed data
+                    window.app.fileHandler.processedData[questionType] = processedQuestions;
+                    
+                    // Also update 'all' array
+                    window.app.fileHandler.processedData.all = window.app.fileHandler.processedData.all.filter(
+                        q => q.type !== questionType
+                    );
+                    window.app.fileHandler.processedData.all.push(...processedQuestions);
+                    
+                    // Update the question processor with the new data
+                    if (window.app.questionProcessor) {
+                        window.app.questionProcessor.setQuestions(window.app.fileHandler.processedData);
+                    }
+                    
+                    // Refresh the UI
+                    if (window.app.uiController) {
+                        window.app.uiController.renderQuestions();
                         
-                        // Update processed data
-                        console.log(`Updating processedData[${questionType}] with ${processedQuestions.length} questions`);
-                        window.app.fileHandler.processedData[questionType] = processedQuestions;
-                        
-                        // Update 'all' array
-                        try {
-                            console.log('Updating processedData.all array');
-                            
-                            if (!window.app.fileHandler.processedData.all) {
-                                console.warn('processedData.all is missing, creating new array');
-                                window.app.fileHandler.processedData.all = [...processedQuestions];
-                            } else {
-                                // First filter out questions of this type
-                                const filteredAll = window.app.fileHandler.processedData.all.filter(q => {
-                                    try {
-                                        return q.type !== questionType;
-                                    } catch (filterError) {
-                                        console.error('Error filtering question:', filterError);
-                                        return true; // Keep in array if error
-                                    }
-                                });
-                                
-                                console.log(`Filtered out questions of type ${questionType}, remaining: ${filteredAll.length}`);
-                                
-                                // Then add the new processed questions
-                                window.app.fileHandler.processedData.all = [...filteredAll, ...processedQuestions];
-                                console.log(`Updated all array, new size: ${window.app.fileHandler.processedData.all.length}`);
-                            }
-                        } catch (allArrayError) {
-                            console.error('Error updating processedData.all array:', allArrayError);
+                        // Re-render selected questions if any
+                        if (window.app.questionProcessor.getSelectedCount() > 0) {
+                            window.app.uiController.renderSelectedQuestions();
                         }
-                        
-                        // Update the question processor with the new data
-                        try {
-                            if (window.app.questionProcessor) {
-                                console.log('Updating questionProcessor with new data');
-                                window.app.questionProcessor.setQuestions(window.app.fileHandler.processedData);
-                                console.log('Question processor updated successfully');
-                            } else {
-                                console.warn('questionProcessor not available, skipping update');
-                            }
-                        } catch (processorError) {
-                            console.error('Error updating question processor:', processorError);
-                        }
-                        
-                        // Refresh the UI
-                        try {
-                            if (window.app.uiController) {
-                                console.log('Refreshing UI with uiController.renderQuestions()');
-                                window.app.uiController.renderQuestions();
-                                
-                                // Re-render selected questions if any
-                                try {
-                                    if (window.app.questionProcessor && window.app.questionProcessor.getSelectedCount) {
-                                        const selectedCount = window.app.questionProcessor.getSelectedCount();
-                                        console.log(`Found ${selectedCount} selected questions`);
-                                        
-                                        if (selectedCount > 0) {
-                                            console.log('Re-rendering selected questions');
-                                            window.app.uiController.renderSelectedQuestions();
-                                        }
-                                    } else {
-                                        console.warn('Cannot check selected count, questionProcessor or getSelectedCount not available');
-                                    }
-                                } catch (selectedRenderError) {
-                                    console.error('Error re-rendering selected questions:', selectedRenderError);
-                                }
-                                
-                                console.log('UI refreshed successfully');
-                            } else {
-                                console.warn('uiController not available, skipping UI refresh');
-                            }
-                        } catch (uiError) {
-                            console.error('Error refreshing UI:', uiError);
-                        }
-                    } catch (processingError) {
-                        console.error(`Error processing edited data for question type ${questionType}:`, processingError);
                     }
                 }
-            } else {
-                console.log('window.app or app.fileHandler not available, skipping processed data update');
             }
         } catch (fileHandlerError) {
             console.error('Error updating fileHandler processed data:', fileHandlerError);
         }
         
+        // DIRECT APPROACH: Find and remove all unsaved changes notifications
+        try {
+            // Use multiple selectors to ensure we catch the notification
+            const selectors = [
+                '.unsaved-changes-notification', 
+                'div:contains("You have unsaved changes")',
+                'div:contains("Save Changes button")'
+            ];
+            
+            // Direct DOM query to find any element containing the notification text
+            const elements = document.querySelectorAll('div');
+            for (let i = 0; i < elements.length; i++) {
+                const elem = elements[i];
+                if (elem.textContent && 
+                    elem.textContent.includes('You have unsaved changes') &&
+                    elem.textContent.includes('Save Changes button')) {
+                    console.log('Found unsaved changes notification by text content, removing:', elem);
+                    elem.remove();
+                }
+            }
+            
+            // Also check for the class-based notification
+            const classNotifications = document.querySelectorAll('.unsaved-changes-notification');
+            classNotifications.forEach(notification => {
+                console.log('Found unsaved changes notification by class, removing:', notification);
+                notification.remove();
+            });
+            
+            // Clear the reference
+            this.unsavedChangesNotification = null;
+        } catch (e) {
+            console.error('Error removing notifications:', e);
+        }
+        
+        // Disable commit button until there are new changes
+        if (this.commitBtn) {
+            this.commitBtn.disabled = true;
+        }
+        
         // Show success message
         console.log('Commit completed successfully, showing success message');
-        this.showMessage('Changes committed successfully!', 'success');
+        this.showMessage('Changes saved successfully!', 'success');
         
     } catch (error) {
         console.error('Fatal error in commitChanges method:', error);
@@ -1678,6 +1612,76 @@ displayTable(headers, rows, columnIndices, isTFSheet = false, isMASheet = false)
     }
 }
 
+/**
+ * Manages the unsaved changes notification
+ * @param {string} action - 'show' to display notification, 'hide' to remove it
+ */
+manageUnsavedChangesNotification(action) {
+    console.log(`Managing unsaved changes notification: ${action}`);
+    
+    // First, always clean up existing notifications
+    // Remove by reference if we have it
+    if (this.unsavedChangesNotification) {
+        try {
+            this.unsavedChangesNotification.remove();
+        } catch (e) {
+            console.error('Error removing notification by reference:', e);
+        }
+        this.unsavedChangesNotification = null;
+    }
+    
+    // Also try to remove by class name as a fallback
+    try {
+        const existingNotifications = document.querySelectorAll('.unsaved-changes-notification');
+        existingNotifications.forEach(notification => {
+            notification.remove();
+        });
+    } catch (e) {
+        console.error('Error removing notifications by class name:', e);
+    }
+    
+    // If we're showing the notification
+    if (action === 'show') {
+        try {
+            // Create the notification element
+            this.unsavedChangesNotification = document.createElement('div');
+            this.unsavedChangesNotification.className = 'unsaved-changes-notification';
+            this.unsavedChangesNotification.setAttribute('id', 'unsaved-changes-notification'); // Add ID for easier targeting
+            this.unsavedChangesNotification.innerHTML = `
+                <div style="display: flex; align-items: center; padding: 10px 15px; background-color: #fff7ed; border: 1px solid #ffb81c; border-radius: 4px; margin-bottom: 15px;">
+                    <i class="fas fa-exclamation-triangle" style="color: #f59e0b; margin-right: 10px; font-size: 1.2rem;"></i>
+                    <span style="color: #7c2d12; font-weight: 500;">You have unsaved changes. Click the "Save Changes" button for them to take effect.</span>
+                </div>
+            `;
+            
+            // Find the summary section to place the notification before it
+            const summarySection = document.getElementById('summary-section');
+            
+            if (summarySection) {
+                // Place before summary section
+                summarySection.parentNode.insertBefore(this.unsavedChangesNotification, summarySection);
+            } else if (this.previewElement && this.previewElement.parentNode) {
+                // If no summary section, place after preview element
+                this.previewElement.parentNode.insertBefore(
+                    this.unsavedChangesNotification, 
+                    this.previewElement.nextSibling
+                );
+            }
+            
+            // Also enable the commit button if it exists
+            if (this.commitBtn) {
+                this.commitBtn.disabled = false;
+            }
+            
+            console.log('Unsaved changes notification added to DOM');
+        } catch (error) {
+            console.error('Error creating unsaved changes notification:', error);
+        }
+    } else {
+        console.log('Unsaved changes notification removed');
+    }
+}
+
     /**
  * Validate True/False choices in TF sheets
  * @param {Array} headers - Table headers
@@ -1849,6 +1853,9 @@ finishEditing() {
     
     // Update error notifications without redrawing the table
     this.updateErrorNotificationsOnly();
+    
+    // Show unsaved changes notification
+    this.manageUnsavedChangesNotification('show');
 }
 
 
@@ -1982,86 +1989,6 @@ downloadEditedFile() {
     }
 }
 
-/**
- * Commit changes to the question data
- */
-commitChanges() {
-    if (!this.editedData || !this.editedHeaders) {
-        this.showMessage('No changes to commit', 'error');
-        return;
-    }
-    
-    try {
-        // If we have a workbook, update it with the edited data
-        if (this.workbook && this.currentSheetIndex !== undefined) {
-            const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
-            if (sheetName) {
-                const sheet = this.workbook.Sheets[sheetName];
-                if (sheet) {
-                    // Create new worksheet from edited data
-                    const wsData = [this.editedHeaders, ...this.editedData];
-                    const newSheet = XLSX.utils.aoa_to_sheet(wsData);
-                    
-                    // Replace the sheet in the workbook
-                    this.workbook.Sheets[sheetName] = newSheet;
-                }
-            }
-        }
-        
-        // Update the fileHandler's processedData if available
-        if (window.app && window.app.fileHandler) {
-            // Determine the question type from the current sheet
-            let questionType = null;
-            if (this.workbook && this.currentSheetIndex !== undefined) {
-                const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
-                if (sheetName) {
-                    // Try to determine question type from sheet name
-                    if (sheetName.includes('MC')) questionType = 'MC';
-                    else if (sheetName.includes('MA')) questionType = 'MA';
-                    else if (sheetName.includes('TF')) questionType = 'TF';
-                    else if (sheetName.includes('ESS')) questionType = 'ESS';
-                    else if (sheetName.includes('FIB')) questionType = 'FIB';
-                }
-            }
-            
-            // If we found a question type, update the corresponding data
-            if (questionType && window.app.fileHandler.processedData[questionType]) {
-                // Re-process the edited data
-                const processedQuestions = this.processEditedData(questionType);
-                
-                // Update processed data
-                window.app.fileHandler.processedData[questionType] = processedQuestions;
-                
-                // Also update 'all' array
-                window.app.fileHandler.processedData.all = window.app.fileHandler.processedData.all.filter(
-                    q => q.type !== questionType
-                );
-                window.app.fileHandler.processedData.all.push(...processedQuestions);
-                
-                // Update the question processor with the new data
-                if (window.app.questionProcessor) {
-                    window.app.questionProcessor.setQuestions(window.app.fileHandler.processedData);
-                }
-                
-                // Refresh the UI
-                if (window.app.uiController) {
-                    window.app.uiController.renderQuestions();
-                    
-                    // Re-render selected questions if any
-                    if (window.app.questionProcessor.getSelectedCount() > 0) {
-                        window.app.uiController.renderSelectedQuestions();
-                    }
-                }
-            }
-        }
-        
-        // Show success message
-        this.showMessage('Changes committed successfully!', 'success');
-    } catch (error) {
-        console.error('Error committing changes:', error);
-        this.showMessage(`Error committing changes: ${error.message}`, 'error');
-    }
-}
 
 /**
  * Process edited data into question objects
@@ -2172,6 +2099,9 @@ removeFile() {
         this.sheetNavContainer.remove();
         this.sheetNavContainer = null;
     }
+    
+    // Hide unsaved changes notification
+    this.manageUnsavedChangesNotification('hide');
     
     // Hide the summary section if it exists
     const summarySection = document.getElementById('summary-section');
