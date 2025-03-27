@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
+
   // Create the header HTML with a three-column layout
   const headerHTML = `
     <header>
@@ -65,6 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </header>
   `;
+
   
   // Create the footer HTML
   const footerHTML = `
@@ -384,8 +386,9 @@ document.addEventListener('DOMContentLoaded', function() {
       
       .container-nav {
         justify-content: space-between;
+
       }
-      
+
       .controls-group {
         order: 2;
       }
@@ -407,12 +410,15 @@ document.addEventListener('DOMContentLoaded', function() {
       .controls-group {
         gap: 10px;
       }
+
     }
     
     @media screen and (max-width: 480px) {
       .logo-nav span {
         font-size: 1rem;
+
       }
+        
       
       .logo-img {
         height: 25px;
