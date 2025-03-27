@@ -3,52 +3,56 @@
  * Integrates QTI to PDF conversion with existing Quick Convert functionality
  */
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Check if we're on the Quick Convert page
-    const isQuickConvertPage = document.querySelector('title')?.textContent.includes('Quick Convert');
-    
-    // Add QTI to PDF tab to the navigation if on Quick Convert page
-    if (isQuickConvertPage) {
-        addQtiToPdfTab();
-    }
-    
-    // Check if we're on QTI to PDF page (standalone)
-    const isQtiToPdfPage = document.querySelector('title')?.textContent.includes('QTI to PDF');
-    
-    // Initialize QTI to PDF converter if on its dedicated page
-    if (isQtiToPdfPage) {
-        initQtiToPdfConverter();
-    }
+document.addEventListener("DOMContentLoaded", function () {
+  // Check if we're on the Quick Convert page
+  const isQuickConvertPage = document
+    .querySelector("title")
+    ?.textContent.includes("Quick Convert");
+
+  // Add QTI to PDF tab to the navigation if on Quick Convert page
+  if (isQuickConvertPage) {
+    addQtiToPdfTab();
+  }
+
+  // Check if we're on QTI to PDF page (standalone)
+  const isQtiToPdfPage = document
+    .querySelector("title")
+    ?.textContent.includes("QTI to PDF");
+
+  // Initialize QTI to PDF converter if on its dedicated page
+  if (isQtiToPdfPage) {
+    initQtiToPdfConverter();
+  }
 });
 
 /**
  * Add QTI to PDF tab to Quick Convert page navigation
  */
 function addQtiToPdfTab() {
-    // Find navigation container
-    const navContainer = document.querySelector('.nav-container');
-    
-    if (!navContainer) return;
-    
-    // Get navigation list
-    const navList = navContainer.querySelector('ul');
-    
-    if (!navList) return;
-    
-    // Create new tab list item
-    const qtiToPdfTab = document.createElement('li');
-    qtiToPdfTab.innerHTML = `<a href="#" id="qti-to-pdf-tab">QTI to PDF</a>`;
-    
-    // Add to navigation
-    navList.appendChild(qtiToPdfTab);
-    
-    // Create a new section for QTI to PDF
-    const qtiToPdfSection = document.createElement('div');
-    qtiToPdfSection.id = 'qti-to-pdf-section';
-    qtiToPdfSection.className = 'qti-to-pdf-container hidden';
-    
-    // Create content for QTI to PDF section
-    qtiToPdfSection.innerHTML = `
+  // Find navigation container
+  const navContainer = document.querySelector(".nav-container");
+
+  if (!navContainer) return;
+
+  // Get navigation list
+  const navList = navContainer.querySelector("ul");
+
+  if (!navList) return;
+
+  // Create new tab list item
+  const qtiToPdfTab = document.createElement("li");
+  qtiToPdfTab.innerHTML = `<a href="#" id="qti-to-pdf-tab">QTI to PDF</a>`;
+
+  // Add to navigation
+  navList.appendChild(qtiToPdfTab);
+
+  // Create a new section for QTI to PDF
+  const qtiToPdfSection = document.createElement("div");
+  qtiToPdfSection.id = "qti-to-pdf-section";
+  qtiToPdfSection.className = "qti-to-pdf-container hidden";
+
+  // Create content for QTI to PDF section
+  qtiToPdfSection.innerHTML = `
         <div class="qti-upload-section">
             <div id="qti-drop-area" class="drop-area">
                 <div class="drop-message">
@@ -137,64 +141,66 @@ function addQtiToPdfTab() {
             <p>Converting QTI to PDF...</p>
         </div>
     `;
-    
-    // Add QTI to PDF section to main container
-    document.querySelector('.container').appendChild(qtiToPdfSection);
-    
-    // Add required CSS styles
-    addQtiToPdfStyles();
-    
-    // Add event handler for tab click
-    document.getElementById('qti-to-pdf-tab').addEventListener('click', function(e) {
-        e.preventDefault();
-        
-        // Hide all sections
-        const mainContent = document.querySelector('main');
-        const mainChildren = mainContent.children;
-        
-        for (let i = 0; i < mainChildren.length; i++) {
-            if (mainChildren[i].id !== 'qti-to-pdf-section') {
-                mainChildren[i].classList.add('hidden');
-            }
+
+  // Add QTI to PDF section to main container
+  document.querySelector(".container").appendChild(qtiToPdfSection);
+
+  // Add required CSS styles
+  addQtiToPdfStyles();
+
+  // Add event handler for tab click
+  document
+    .getElementById("qti-to-pdf-tab")
+    .addEventListener("click", function (e) {
+      e.preventDefault();
+
+      // Hide all sections
+      const mainContent = document.querySelector("main");
+      const mainChildren = mainContent.children;
+
+      for (let i = 0; i < mainChildren.length; i++) {
+        if (mainChildren[i].id !== "qti-to-pdf-section") {
+          mainChildren[i].classList.add("hidden");
         }
-        
-        // Show QTI to PDF section
-        document.getElementById('qti-to-pdf-section').classList.remove('hidden');
-        
-        // Update active tab
-        const navLinks = document.querySelectorAll('nav a');
-        navLinks.forEach(link => link.classList.remove('active'));
-        document.getElementById('qti-to-pdf-tab').classList.add('active');
-        
-        // Initialize QTI to PDF converter if not already
-        if (!window.qtiToPdfUI) {
-            initQtiToPdfConverter();
-        }
+      }
+
+      // Show QTI to PDF section
+      document.getElementById("qti-to-pdf-section").classList.remove("hidden");
+
+      // Update active tab
+      const navLinks = document.querySelectorAll("nav a");
+      navLinks.forEach((link) => link.classList.remove("active"));
+      document.getElementById("qti-to-pdf-tab").classList.add("active");
+
+      // Initialize QTI to PDF converter if not already
+      if (!window.qtiToPdfUI) {
+        initQtiToPdfConverter();
+      }
     });
-    
-    // Add custom event handler for other tabs
-    const otherTabs = document.querySelectorAll('nav a:not(#qti-to-pdf-tab)');
-    otherTabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-            // Hide QTI to PDF section when another tab is clicked
-            document.getElementById('qti-to-pdf-section').classList.add('hidden');
-        });
+
+  // Add custom event handler for other tabs
+  const otherTabs = document.querySelectorAll("nav a:not(#qti-to-pdf-tab)");
+  otherTabs.forEach((tab) => {
+    tab.addEventListener("click", function () {
+      // Hide QTI to PDF section when another tab is clicked
+      document.getElementById("qti-to-pdf-section").classList.add("hidden");
     });
+  });
 }
 
 /**
  * Add QTI to PDF styles to the page
  */
 function addQtiToPdfStyles() {
-    // Check if styles are already added
-    if (document.getElementById('qti-to-pdf-styles')) return;
-    
-    // Create style element
-    const styleEl = document.createElement('style');
-    styleEl.id = 'qti-to-pdf-styles';
-    
-    // Add CSS
-    styleEl.textContent = `
+  // Check if styles are already added
+  if (document.getElementById("qti-to-pdf-styles")) return;
+
+  // Create style element
+  const styleEl = document.createElement("style");
+  styleEl.id = "qti-to-pdf-styles";
+
+  // Add CSS
+  styleEl.textContent = `
         /* QTI to PDF Styles */
         .qti-to-pdf-container {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -269,45 +275,51 @@ function addQtiToPdfStyles() {
         
         /* More abbreviated styles */
     `;
-    
-    // Add to document head
-    document.head.appendChild(styleEl);
+
+  // Add to document head
+  document.head.appendChild(styleEl);
 }
 
 /**
  * Initialize QTI to PDF Converter
  */
 function initQtiToPdfConverter() {
-    // Check if jsPDF is available, load if not
-    if (!window.jspdf) {
-        loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
-            .then(() => {
-                // Check if JSZip is available, load if not
-                if (!window.JSZip) {
-                    return loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
-                }
-            })
-            .then(() => {
-                // Load QTI to PDF scripts
-                return Promise.all([
-                    loadScript('../js/quickConvert/qtiToPdf.js'),
-                    loadScript('../js/quickConvert/qtiToPdfUI.js')
-                ]);
-            })
-            .then(() => {
-                // Initialize the UI
-                window.qtiToPdfUI = new QTIToPDFUI();
-            })
-            .catch(error => {
-                console.error('Error loading QTI to PDF scripts:', error);
-                alert('Error loading QTI to PDF functionality. Please try again later.');
-            });
-    } else {
-        // All scripts already loaded, just initialize
-        if (window.QTIToPDFUI && !window.qtiToPdfUI) {
-            window.qtiToPdfUI = new QTIToPDFUI();
+  // Check if jsPDF is available, load if not
+  if (!window.jspdf) {
+    loadScript(
+      "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+    )
+      .then(() => {
+        // Check if JSZip is available, load if not
+        if (!window.JSZip) {
+          return loadScript(
+            "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+          );
         }
+      })
+      .then(() => {
+        // Load QTI to PDF scripts
+        return Promise.all([
+          loadScript("../js/quickConvert/qtiToPdf.js"),
+          loadScript("../js/quickConvert/qtiToPdfUI.js"),
+        ]);
+      })
+      .then(() => {
+        // Initialize the UI
+        window.qtiToPdfUI = new QTIToPDFUI();
+      })
+      .catch((error) => {
+        console.error("Error loading QTI to PDF scripts:", error);
+        alert(
+          "Error loading QTI to PDF functionality. Please try again later."
+        );
+      });
+  } else {
+    // All scripts already loaded, just initialize
+    if (window.QTIToPDFUI && !window.qtiToPdfUI) {
+      window.qtiToPdfUI = new QTIToPDFUI();
     }
+  }
 }
 
 /**
@@ -316,11 +328,11 @@ function initQtiToPdfConverter() {
  * @returns {Promise} - Promise that resolves when script is loaded
  */
 function loadScript(src) {
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-    });
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
 }
