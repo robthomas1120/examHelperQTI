@@ -1,74 +1,73 @@
 document.addEventListener('DOMContentLoaded', function() {
 
   // Create the header HTML with a three-column layout
-  const headerHTML = `
-    <header>
-        <div class="container-nav">
-            <!-- Left: Logo -->
-            <div class="logo-nav">
-                <a href="index.html">
+// Create the header HTML with a three-column layout
+const headerHTML = `
+  <header>
+      <div class="container-nav">
+          <!-- Left: Logo -->
+          <div class="logo-nav">
+              <a href="index.html">
+                  <img src="../images/ustlogo.png" alt="UST Logo" class="logo-img">
                   <img src="../images/edtech.png" alt="UST Logo" class="edlogo-img">
-                      <img src="../images/ustlogo.png" alt="UST Logo" class="logo-img">
-                     <span class="white-text">Ed</span>STAR<span class="white-text">Helper</span>
+                  <span class="white-text">Ed</span>STAR<span class="white-text">Helper</span>
+              </a>
+          </div>
+          
+          <!-- Center: Navigation menu -->
+          <nav class="nav-menu">
+              <ul>
+                  <li><a href="index.html">Home</a></li>
+                  <li><a href="quickConvert.html">Quick Convert</a></li>
+                  <li><a href="generateQuestions.html">Generate Questions</a></li>
+                  <li><a href="itemBank.html">Item Bank</a></li>
+                  <li><a href="qtiToPdf.html">QTI to PDF</a></li>
+              </ul>
+          </nav>
+          
+          <!-- Right: Controls group (download button and hamburger) -->
+          <div class="controls-group">
+              <!-- Download button -->
+              <div class="download-btn">
+                  <a href="#" class="btn-download" id="download-template-btn">
+                      <i class="fas fa-download"></i> Download Template
                   </a>
-
-            </div>
-            
-            <!-- Center: Navigation menu -->
-            <nav class="nav-menu">
-                <ul>
-                    <li><a href="index.html">Home</a></li>
-                    <li><a href="quickConvert.html">Quick Convert</a></li>
-                    <li><a href="generateQuestions.html">Generate Questions</a></li>
-                    <li><a href="itemBank.html">Item Bank</a></li>
-                    <li><a href="qtiToPdf.html">QTI to PDF</a></li>
-                </ul>
-            </nav>
-            
-            <!-- Right: Controls group (download button and hamburger) -->
-            <div class="controls-group">
-                <!-- Download button -->
-                <div class="download-btn">
-                    <a href="#" class="btn-download" id="download-template-btn">
-                        <i class="fas fa-download"></i> Download Template
-                    </a>
-                </div>
-                
-                <!-- Mobile menu button (hidden on desktop) -->
-                <div class="hamburger-menu">
-                    <div class="hamburger-icon">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Mobile navigation (hidden initially) -->
-            <div class="mobile-nav">
-                <div class="close-btn">
-                    <div class="close-icon">
-                        <span></span>
-                        <span></span>
-                    </div>
-                </div>
-                <ul>
-                    <li><a href="index.html">Home</a></li>
-                    <li><a href="quickConvert.html">Quick Convert</a></li>
-                    <li><a href="generateQuestions.html">Generate Questions</a></li>
-                    <li><a href="itemBank.html">Item Bank</a></li>
-                    <li><a href="qtiToPdf.html">QTI to PDF</a></li>
-                    <li>
-                        <a href="#" class="mobile-download-btn" id="mobile-download-template-btn">
-                            <i class="fas fa-download"></i> Download Template
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </header>
-  `;
-
+              </div>
+              
+              <!-- Mobile menu button (hidden on desktop) -->
+              <div class="hamburger-menu">
+                  <div class="hamburger-icon">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                  </div>
+              </div>
+          </div>
+          
+          <!-- Mobile navigation (hidden initially) -->
+          <div class="mobile-nav">
+              <div class="close-btn">
+                  <div class="close-icon">
+                      <span></span>
+                      <span></span>
+                  </div>
+              </div>
+              <ul>
+                  <li><a href="index.html">Home</a></li>
+                  <li><a href="quickConvert.html">Quick Convert</a></li>
+                  <li><a href="generateQuestions.html">Generate Questions</a></li>
+                  <li><a href="itemBank.html">Item Bank</a></li>
+                  <li><a href="qtiToPdf.html">QTI to PDF</a></li>
+                  <li>
+                      <a href="#" class="mobile-download-btn" id="mobile-download-template-btn">
+                          <i class="fas fa-download"></i> Download Template
+                      </a>
+                  </li>
+              </ul>
+          </div>
+      </div>
+  </header>
+`;
   
   // Create the footer HTML
   const footerHTML = `
