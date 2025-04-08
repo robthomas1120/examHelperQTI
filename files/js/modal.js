@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <div class="template-section">
                   <h3>Quick Convert Template</h3>
                   <div class="download-options">
-                      <a href="https://docs.google.com/spreadsheets/d/1jxbXah5UG_QmWFiI5Z5AqK6QPvBBhmmtYPXawh0wu6A/edit?usp=sharing" class="download-btn-large" target="_blank">
+                      <a href="https://docs.google.com/spreadsheets/d/1vLxY2Abv4pw0l1dcvn7hRC0HKPHZKfYJ_f-RaNOI7c8/edit?usp=sharing" class="download-btn-large" target="_blank">
                           <i class="fab fa-google-drive"></i>
                           <span class="btn-text">Google Sheet</span>
                       </a>
@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <div class="template-section">
                   <h3>Item Bank Template</h3>
                   <div class="download-options">
-                      <a href="https://docs.google.com/spreadsheets/d/1q1uWXuw15KWtMrYEIAx_gU_0gvzk0yqMCt1iewDCpnw/edit?usp=sharing" class="download-btn-large" target="_blank">
+                      <a href="https://docs.google.com/spreadsheets/d/1lL1DDwAk88kdKhObe2SszN8LKAOHfEAVUsGsMFyd_Oo/edit?usp=sharing" class="download-btn-large" target="_blank">
                           <i class="fab fa-google-drive"></i>
                           <span class="btn-text">Google Sheet</span>
                       </a>
