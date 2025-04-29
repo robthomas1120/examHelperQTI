@@ -13,6 +13,7 @@ class ExcelFilePreview {
         this.fileSize = null;
         this.removeFileBtn = null;
         this.previewElement = null;
+        this.pendingEdits = {}; // Store edits for each sheet
         
         // State variables
         this.currentFile = null;
@@ -162,11 +163,12 @@ createDownloadButton() {
 
 /**
  * Commit changes to the question data with comprehensive error handling
+ * Updated to handle edits across multiple exam types/sheets
  */
 commitChanges() {
     console.log('Starting commitChanges process');
     
-    // Validate edited data
+    // First, check if we have any edits to commit
     if (!this.editedData || !this.editedHeaders) {
         console.warn('No edited data or headers available for commit');
         this.showMessage('No changes to commit', 'error');
@@ -176,74 +178,159 @@ commitChanges() {
     console.log(`Committing changes for ${this.editedData.length} rows with ${this.editedHeaders.length} columns`);
     
     try {
-        // If we have a workbook, update it with the edited data
-        if (this.workbook && this.currentSheetIndex !== undefined) {
+        // Step 1: If we have a workbook, update it with the edited data for all sheets
+        if (this.workbook) {
             try {
-                // Existing implementation...
-                const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
-                if (sheetName) {
-                    const sheet = this.workbook.Sheets[sheetName];
+                console.log('Updating workbook with edited data for all sheets');
+                
+                // Save current sheet edits to workbook before proceeding
+                const currentSheetName = this.workbook.SheetNames[this.currentSheetIndex];
+                if (currentSheetName && this.editedData && this.editedHeaders) {
+                    console.log(`Updating current sheet: ${currentSheetName}`);
+                    const sheet = this.workbook.Sheets[currentSheetName];
                     if (sheet) {
                         // Create new worksheet from edited data
                         const wsData = [this.editedHeaders, ...this.editedData];
                         const newSheet = XLSX.utils.aoa_to_sheet(wsData);
                         
                         // Replace the sheet in the workbook
-                        this.workbook.Sheets[sheetName] = newSheet;
+                        this.workbook.Sheets[currentSheetName] = newSheet;
+                        console.log(`Updated sheet: ${currentSheetName}`);
+                    }
+                }
+                
+                // Apply any pending edits for other sheets that might be stored
+                if (this.pendingEdits && Object.keys(this.pendingEdits).length > 0) {
+                    console.log('Applying pending edits for other sheets:', Object.keys(this.pendingEdits));
+                    
+                    for (const sheetIndex in this.pendingEdits) {
+                        // Skip current sheet as we already processed it
+                        if (parseInt(sheetIndex) === this.currentSheetIndex) continue;
+                        
+                        const editData = this.pendingEdits[sheetIndex];
+                        if (editData.data && editData.headers) {
+                            const pendingSheetName = this.workbook.SheetNames[sheetIndex];
+                            if (pendingSheetName) {
+                                console.log(`Applying pending edits to sheet: ${pendingSheetName}`);
+                                const pendingSheet = this.workbook.Sheets[pendingSheetName];
+                                if (pendingSheet) {
+                                    // Create new worksheet from edited data
+                                    const wsData = [editData.headers, ...editData.data];
+                                    const newSheet = XLSX.utils.aoa_to_sheet(wsData);
+                                    
+                                    // Replace the sheet in the workbook
+                                    this.workbook.Sheets[pendingSheetName] = newSheet;
+                                    console.log(`Updated sheet from pending edits: ${pendingSheetName}`);
+                                }
+                            }
+                        }
                     }
                 }
             } catch (workbookError) {
                 console.error('Error updating workbook with edited data:', workbookError);
             }
         } else {
-            console.log('No workbook or current sheet index available, skipping workbook update');
+            console.log('No workbook available, skipping workbook update');
         }
         
-        // Update the fileHandler's processedData if available
+        // Step 2: Update the fileHandler's processedData for all question types
         try {
-            // Existing implementation...
             if (window.app && window.app.fileHandler) {
-                // Determine the question type from the current sheet
-                let questionType = null;
+                console.log('Updating fileHandler processedData for all question types');
+                
+                // Process current sheet question type
+                let currentQuestionType = null;
                 if (this.workbook && this.currentSheetIndex !== undefined) {
                     const sheetName = this.workbook.SheetNames[this.currentSheetIndex];
                     if (sheetName) {
                         // Try to determine question type from sheet name
+                        if (sheetName.includes('MC')) currentQuestionType = 'MC';
+                        else if (sheetName.includes('MA')) currentQuestionType = 'MA';
+                        else if (sheetName.includes('TF')) currentQuestionType = 'TF';
+                        else if (sheetName.includes('ESS')) currentQuestionType = 'ESS';
+                        else if (sheetName.includes('FIB')) currentQuestionType = 'FIB';
+                    }
+                }
+                
+                // Add currently edited data to processed questions
+                if (currentQuestionType && window.app.fileHandler.processedData[currentQuestionType]) {
+                    console.log(`Processing current question type: ${currentQuestionType}`);
+                    // Re-process the edited data
+                    const processedCurrentQuestions = this.processEditedData(currentQuestionType);
+                    
+                    // Update processed data
+                    window.app.fileHandler.processedData[currentQuestionType] = processedCurrentQuestions;
+                    
+                    // Update 'all' array for current question type
+                    window.app.fileHandler.processedData.all = window.app.fileHandler.processedData.all.filter(
+                        q => q.type !== currentQuestionType
+                    );
+                    window.app.fileHandler.processedData.all.push(...processedCurrentQuestions);
+                }
+                
+                // Process pending edits for other question types
+                if (this.pendingEdits && Object.keys(this.pendingEdits).length > 0) {
+                    console.log('Processing pending edits for other question types');
+                    
+                    for (const sheetIndex in this.pendingEdits) {
+                        // Skip current sheet as we already processed it
+                        if (parseInt(sheetIndex) === this.currentSheetIndex) continue;
+                        
+                        const sheetName = this.workbook.SheetNames[sheetIndex];
+                        if (!sheetName) continue;
+                        
+                        // Determine question type from sheet name
+                        let questionType = null;
                         if (sheetName.includes('MC')) questionType = 'MC';
                         else if (sheetName.includes('MA')) questionType = 'MA';
                         else if (sheetName.includes('TF')) questionType = 'TF';
                         else if (sheetName.includes('ESS')) questionType = 'ESS';
                         else if (sheetName.includes('FIB')) questionType = 'FIB';
+                        
+                        if (questionType && window.app.fileHandler.processedData[questionType]) {
+                            console.log(`Processing pending question type: ${questionType}`);
+                            
+                            // Temporarily set edited data to the pending sheet data
+                            const tempEditedData = this.editedData;
+                            const tempEditedHeaders = this.editedHeaders;
+                            
+                            // Set data for the pending sheet
+                            this.editedData = this.pendingEdits[sheetIndex].data;
+                            this.editedHeaders = this.pendingEdits[sheetIndex].headers;
+                            
+                            // Process the pending edited data
+                            const processedPendingQuestions = this.processEditedData(questionType);
+                            
+                            // Update processed data for this question type
+                            window.app.fileHandler.processedData[questionType] = processedPendingQuestions;
+                            
+                            // Update 'all' array for this question type
+                            window.app.fileHandler.processedData.all = window.app.fileHandler.processedData.all.filter(
+                                q => q.type !== questionType
+                            );
+                            window.app.fileHandler.processedData.all.push(...processedPendingQuestions);
+                            
+                            // Restore original edited data
+                            this.editedData = tempEditedData;
+                            this.editedHeaders = tempEditedHeaders;
+                        }
                     }
                 }
                 
-                // If we found a question type, update the corresponding data
-                if (questionType && window.app.fileHandler.processedData[questionType]) {
-                    // Re-process the edited data
-                    const processedQuestions = this.processEditedData(questionType);
+                // Update the question processor with the new data
+                if (window.app.questionProcessor) {
+                    console.log('Updating question processor with all changes');
+                    window.app.questionProcessor.setQuestions(window.app.fileHandler.processedData);
+                }
+                
+                // Refresh the UI
+                if (window.app.uiController) {
+                    console.log('Refreshing UI with updated data');
+                    window.app.uiController.renderQuestions();
                     
-                    // Update processed data
-                    window.app.fileHandler.processedData[questionType] = processedQuestions;
-                    
-                    // Also update 'all' array
-                    window.app.fileHandler.processedData.all = window.app.fileHandler.processedData.all.filter(
-                        q => q.type !== questionType
-                    );
-                    window.app.fileHandler.processedData.all.push(...processedQuestions);
-                    
-                    // Update the question processor with the new data
-                    if (window.app.questionProcessor) {
-                        window.app.questionProcessor.setQuestions(window.app.fileHandler.processedData);
-                    }
-                    
-                    // Refresh the UI
-                    if (window.app.uiController) {
-                        window.app.uiController.renderQuestions();
-                        
-                        // Re-render selected questions if any
-                        if (window.app.questionProcessor.getSelectedCount() > 0) {
-                            window.app.uiController.renderSelectedQuestions();
-                        }
+                    // Re-render selected questions if any
+                    if (window.app.questionProcessor.getSelectedCount() > 0) {
+                        window.app.uiController.renderSelectedQuestions();
                     }
                 }
             }
@@ -251,15 +338,9 @@ commitChanges() {
             console.error('Error updating fileHandler processed data:', fileHandlerError);
         }
         
-        // DIRECT APPROACH: Find and remove all unsaved changes notifications
+        // Step 3: Remove all unsaved changes notifications
         try {
-            // Use multiple selectors to ensure we catch the notification
-            const selectors = [
-                '.unsaved-changes-notification', 
-                'div:contains("You have unsaved changes")',
-                'div:contains("Save Changes button")'
-            ];
-            
+            console.log('Removing unsaved changes notifications');
             // Direct DOM query to find any element containing the notification text
             const elements = document.querySelectorAll('div');
             for (let i = 0; i < elements.length; i++) {
@@ -285,14 +366,17 @@ commitChanges() {
             console.error('Error removing notifications:', e);
         }
         
-        // Disable commit button until there are new changes
+        // Step 4: Clear pending edits since they're now applied
+        this.pendingEdits = {};
+        
+        // Step 5: Disable commit button until there are new changes
         if (this.commitBtn) {
             this.commitBtn.disabled = true;
         }
         
-        // Show success message
+        // Step 6: Show success message
         console.log('Commit completed successfully, showing success message');
-        this.showMessage('Changes saved successfully!', 'success');
+        this.showMessage('All changes saved successfully!', 'success');
         
     } catch (error) {
         console.error('Fatal error in commitChanges method:', error);
@@ -759,6 +843,21 @@ async processExcelFile(file) {
      */
     displaySheet(sheetIndex) {
         try {
+
+            if (this.currentSheetIndex !== undefined && this.editedData && this.editedHeaders) {
+                if (!this.pendingEdits) {
+                    this.pendingEdits = {};
+                }
+                
+                // Store the current sheet's edited data before switching
+                this.pendingEdits[this.currentSheetIndex] = {
+                    data: JSON.parse(JSON.stringify(this.editedData)),
+                    headers: JSON.parse(JSON.stringify(this.editedHeaders))
+                };
+                
+                console.log(`Stored pending edits for sheet index ${this.currentSheetIndex}`);
+            }
+
             // Update current sheet index
             this.currentSheetIndex = sheetIndex;
             
@@ -1833,6 +1932,17 @@ finishEditing() {
     if (this.editedData && this.editedData[row]) {
         this.editedData[row][originalCol] = newValue;
     }
+
+    if (!this.pendingEdits) {
+        this.pendingEdits = {};
+    }
+    
+    this.pendingEdits[this.currentSheetIndex] = {
+        data: JSON.parse(JSON.stringify(this.editedData)),
+        headers: JSON.parse(JSON.stringify(this.editedHeaders))
+    };
+    
+    console.log(`Added edit to pending edits for sheet ${this.currentSheetIndex}`);
     
     // Update the original question data to persist changes
     this.updateOriginalQuestionData(row, originalCol, newValue);
