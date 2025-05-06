@@ -1824,8 +1824,13 @@ validateTFChoices(headers, rows, columnIndices) {
         rows.forEach((row, rowIndex) => {
             const value = row[headers.indexOf(headers.find((h, i) => columnIndices[i] === choice1ColumnIndex))];
             
-            // Skip empty cells
+            // Check for empty or missing answer
             if (!value || value.toString().trim() === '') {
+                tfErrors.push({
+                    row: rowIndex + 1,
+                    value: value,
+                    message: `Row ${rowIndex + 1}: No answer provided. True/False questions must have either "true" or "false" as the answer.`
+                });
                 return;
             }
             
@@ -2647,6 +2652,11 @@ updateErrorNotificationsOnly() {
         
         // Check for MA sheet and question type
         const isMAQuestion = isMASheet || (row.length > 0 && row[0] === "MA");
+        const isMCQuestion = isMCSheet || (row.length > 0 && row[0] === "MC");
+        const isFIBQuestion = (this.workbook && 
+                              this.workbook.SheetNames[this.currentSheetIndex] && 
+                              this.workbook.SheetNames[this.currentSheetIndex].includes("FIB")) ||
+                             (row.length > 0 && row[0] === "FIB");
         
         if (isMAQuestion) {
             let correctCount = 0;
@@ -2662,16 +2672,17 @@ updateErrorNotificationsOnly() {
                 }
             });
 
-            // For MA questions, check if there's only 1 correct answer
-            if (correctCount === 1) {
+            // For MA questions, only flag if there are no correct answers
+            if (correctCount === 0) {
                 singleCorrectMAErrors.push({
                     row: rowIndex + 1,
-                    count: correctCount
+                    count: correctCount,
+                    message: "No correct answers found. Multiple Answer Questions must have at least one correct answer."
                 });
             }
         }
-        // For MC questions, check how many "correct" values exist in the row
-        else if (isMCSheet || (row.length > 0 && row[0] === "MC")) {
+        // For MC questions, check for no correct answers or multiple correct answers
+        else if (isMCQuestion) {
             let correctCount = 0;
             
             // Count the number of "correct" values in tagging columns
@@ -2685,12 +2696,35 @@ updateErrorNotificationsOnly() {
                 }
             });
 
-            // If there are multiple correct answers, flag this row
-            if (correctCount > 1) {
+            // If there are no correct answers or multiple correct answers, flag this row
+            if (correctCount === 0) {
                 multipleCorrectErrors.push({
                     row: rowIndex + 1,
-                    count: correctCount
+                    count: correctCount,
+                    message: "No correct answer selected. Multiple Choice Questions must have exactly one correct answer."
                 });
+            } else if (correctCount > 1) {
+                multipleCorrectErrors.push({
+                    row: rowIndex + 1,
+                    count: correctCount,
+                    message: "Multiple correct answers found. Multiple Choice Questions should only have 1 correct answer."
+                });
+            }
+        }
+        // For FIB questions, check if all answers are blank
+        else if (isFIBQuestion) {
+            let hasValidAnswer = false;
+            
+            // Check if there are any non-blank answers
+            for (let i = 2; i < row.length; i++) {
+                if (row[i] && row[i].toString().trim() !== '') {
+                    hasValidAnswer = true;
+                    break;
+                }
+            }
+            
+            if (!hasValidAnswer) {
+                errors.push(`Row ${rowIndex + 1}: Fill in the Blank question has no correct answers. At least one answer must be provided.`);
             }
         }
         
@@ -2741,13 +2775,13 @@ updateErrorNotificationsOnly() {
         }
     }
     
-    // Add single correct MA errors warning if needed
+    // Add MA validation errors if needed
     if (singleCorrectMAErrors.length > 0) {
         let maErrorHtml = '<div class="single-correct-ma-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
-        maErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Only 1 Correct Answer Found:</h3><ul style="margin: 0; padding-left: 20px;">';
+        maErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Answer Validation Errors:</h3><ul style="margin: 0; padding-left: 20px;">';
         
         singleCorrectMAErrors.forEach(error => {
-            maErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: Contains Only 1 Correct Answer. Multiple Answer Questions should have at least 2 correct answers.</li>`;
+            maErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: ${error.message}</li>`;
         });
         
         maErrorHtml += '</ul></div>';
@@ -2760,13 +2794,13 @@ updateErrorNotificationsOnly() {
         }
     }
     
-    // Add multiple correct answers warning if needed
+    // Add MC validation errors if needed
     if (multipleCorrectErrors.length > 0) {
         let mcErrorHtml = '<div class="multiple-correct-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
-        mcErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Correct Answers Found:</h3><ul style="margin: 0; padding-left: 20px;">';
+        mcErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Choice Validation Errors:</h3><ul style="margin: 0; padding-left: 20px;">';
         
         multipleCorrectErrors.forEach(error => {
-            mcErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: Contains ${error.count} Correct Answers. Multiple Choice Questions should only have 1 correct answer.</li>`;
+            mcErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: ${error.message}</li>`;
         });
         
         mcErrorHtml += '</ul></div>';
@@ -2782,12 +2816,12 @@ updateErrorNotificationsOnly() {
     // Add error summary
     if (errors.length > 0) {
         let errorHtml = '<div class="validation-errors-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #fee2e2; border-radius: 6px; border: 1px solid #ef4444;">';
-        errorHtml += '<h3 style="margin: 0 0 8px 0; color: #b91c1c; font-size: 1rem; font-weight: 600;">Tagging Errors Found:</h3><ul style="margin: 0; padding-left: 20px;">';
+        errorHtml += '<h3 style="margin: 0 0 8px 0; color: #b91c1c; font-size: 1rem; font-weight: 600;">Validation Errors Found:</h3><ul style="margin: 0; padding-left: 20px;">';
         errors.forEach(error => {
             errorHtml += `<li style="color: #7f1d1d; margin-bottom: 4px;">${error}</li>`;
         });
         errorHtml += '</ul></div>';
-    
+
         if (this.previewElement.parentNode) {
             this.previewElement.parentNode.insertBefore(
                 document.createRange().createContextualFragment(errorHtml),
@@ -2796,9 +2830,9 @@ updateErrorNotificationsOnly() {
         }
     }
     
-    // Update validation errors state - include TF errors now
+    // Update validation errors state
     this.hasValidationErrors = errors.length > 0 || multipleCorrectErrors.length > 0 || 
-                               singleCorrectMAErrors.length > 0 || tfErrors.length > 0;
+                              singleCorrectMAErrors.length > 0 || tfErrors.length > 0;
     
     // Also update row styles based on errors
     this.updateRowStyles(multipleCorrectErrors, singleCorrectMAErrors, tfErrors);
