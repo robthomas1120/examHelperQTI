@@ -1175,9 +1175,9 @@ displayTable(headers, rows, columnIndices, isTFSheet = false, isMASheet = false)
                             
                             console.log(`Row ${rowIndex + 1} (MA) has ${correctCount} correct answers`);
 
-                            // For MA questions, check if there's only 1 correct answer
-                            if (correctCount === 1) {
-                                console.log(`Row ${rowIndex + 1} has only 1 correct answer - flagging as MA error`);
+                            // For MA questions, check if there's only 1 correct answer or less
+                            if (correctCount < 2) {
+                                console.log(`Row ${rowIndex + 1} has less than 2 correct answers - flagging as MA error`);
                                 isSingleCorrectMA = true;
                                 rowStyle = 'border-left: 6px solid #f97316;'; // Orange highlight on the left side
                                 singleCorrectMAErrors.push({
@@ -1211,9 +1211,9 @@ displayTable(headers, rows, columnIndices, isTFSheet = false, isMASheet = false)
                             
                             console.log(`Row ${rowIndex + 1} (MC) has ${correctCount} correct answers`);
 
-                            // If there are multiple correct answers, flag this row
-                            if (correctCount > 1) {
-                                console.log(`Row ${rowIndex + 1} has multiple correct answers - flagging as MC error`);
+                            // If there are multiple correct answers or zero correct answers, flag this row
+                            if (correctCount !== 1) {
+                                console.log(`Row ${rowIndex + 1} has ${correctCount} correct answers - flagging as MC error`);
                                 isMultipleCorrect = true;
                                 rowStyle = 'border-left: 6px solid #f97316;'; // Orange highlight on the left side
                                 multipleCorrectErrors.push({
@@ -1474,11 +1474,11 @@ displayTable(headers, rows, columnIndices, isTFSheet = false, isMASheet = false)
                 try {
                     console.log(`Adding ${singleCorrectMAErrors.length} single correct MA warnings`);
                     let maErrorHtml = '<div class="single-correct-ma-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
-                    maErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Only 1 Correct Answer Found:</h3><ul style="margin: 0; padding-left: 20px;">';
+                    maErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Answer Questions Need At Least 2 Correct Answers:</h3><ul style="margin: 0; padding-left: 20px;">';
                     
                     singleCorrectMAErrors.forEach(error => {
                         try {
-                            maErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: Contains Only 1 Correct Answer. Multiple Answer Questions should have at least 2 correct answers.</li>`;
+                            maErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: Contains Only ${error.count} Correct Answer. Multiple Answer Questions should have at least 2 correct answers.</li>`;
                         } catch (errorItemError) {
                             console.error('Error adding MA error item:', errorItemError);
                         }
@@ -1508,11 +1508,11 @@ displayTable(headers, rows, columnIndices, isTFSheet = false, isMASheet = false)
                 try {
                     console.log(`Adding ${multipleCorrectErrors.length} multiple correct MC warnings`);
                     let mcErrorHtml = '<div class="multiple-correct-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
-                    mcErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Correct Answers Found:</h3><ul style="margin: 0; padding-left: 20px;">';
+                    mcErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Choice Questions Need Exactly 1 Correct Answer:</h3><ul style="margin: 0; padding-left: 20px;">';
                     
                     multipleCorrectErrors.forEach(error => {
                         try {
-                            mcErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: Contains ${error.count} Correct Answers. Multiple Choice Questions should only have 1 correct answer.</li>`;
+                            mcErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: Contains ${error.count} Correct Answers. Multiple Choice Questions should have exactly 1 correct answer.</li>`;
                         } catch (errorItemError) {
                             console.error('Error adding MC error item:', errorItemError);
                         }
