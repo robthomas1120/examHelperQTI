@@ -274,7 +274,7 @@ document.addEventListener("DOMContentLoaded", function () {
           // Add alternate answer for fill in the blank
           if (e.target.classList.contains("add-alternate-answer-btn")) {
             e.stopPropagation();
-            const optionsContainer = e.target.closest(".options-container");
+            const optionsContainer = optionsContainer.closest(".options-container");
             const alternateAnswersContainer = optionsContainer.querySelector(
               ".alternate-answers-container"
             );
@@ -292,7 +292,7 @@ document.addEventListener("DOMContentLoaded", function () {
           // Add option for multiple choice
           if (e.target.classList.contains("add-option-btn")) {
             e.stopPropagation();
-            const optionsContainer = e.target.closest(".options-container");
+            const optionsContainer = optionsContainer.closest(".options-container");
             const newOptionId = `option${
               optionsContainer.querySelectorAll(".option-entry").length + 1
             }-${generateUUID()}`;
@@ -568,177 +568,18 @@ document.addEventListener("DOMContentLoaded", function () {
   function validateQuiz() {
     const questionEntries =
       questionsContainer.querySelectorAll(".question-entry");
-
-    // Check if title and description are filled
+    // Check if title is filled
     const quizTitle = document.getElementById("quiz-title").value.trim();
     if (!quizTitle) {
       alert("Please enter a quiz title before proceeding.");
       document.getElementById("quiz-title").focus();
       return false;
     }
-
-    const quizDescription =
-      document.getElementById("quiz-description") ||
-      document.getElementById("quiz-instructions");
-    if (quizDescription && !quizDescription.value.trim()) {
-      alert("Please enter quiz instructions before proceeding.");
-      quizDescription.focus();
-      return false;
-    }
-
+    // Do NOT require description
     if (questionEntries.length === 0) {
       alert("Please add at least one question before proceeding.");
       return false;
     }
-
-    // Check each question for validity
-    for (let i = 0; i < questionEntries.length; i++) {
-      const questionText = questionEntries[i]
-        .querySelector("textarea")
-        .value.trim();
-      if (!questionText) {
-        alert(
-          `Question ${i + 1} is missing text. Please complete all questions.`
-        );
-        return false;
-      }
-
-      // Check if multiple choice questions have at least 2 options filled and one selected
-      const questionType = questionEntries[i]
-        .querySelector(".question-type")
-        .textContent.trim();
-      if (questionType === "Multiple Choice") {
-        const optionEntries =
-          questionEntries[i].querySelectorAll(".option-entry");
-
-        // Check if there are at least 2 options
-        if (optionEntries.length < 2) {
-          alert(
-            `Question ${
-              i + 1
-            }: Multiple choice questions must have at least 2 options.`
-          );
-          return false;
-        }
-
-        let hasEmptyOption = false;
-
-        optionEntries.forEach((option) => {
-          const optionText = option
-            .querySelector('input[type="text"]')
-            .value.trim();
-          if (!optionText) {
-            hasEmptyOption = true;
-          }
-        });
-
-        if (hasEmptyOption) {
-          alert(
-            `Question ${i + 1}: All multiple choice options must be filled in.`
-          );
-          return false;
-        }
-
-        const hasSelectedOption = Array.from(
-          questionEntries[i].querySelectorAll('input[type="radio"]')
-        ).some((radio) => radio.checked);
-        if (!hasSelectedOption) {
-          alert(
-            `Question ${
-              i + 1
-            }: Please select a correct answer for the multiple choice question.`
-          );
-          return false;
-        }
-      }
-
-      // Check if multiple answer questions have all options filled and at least one selected
-      if (questionType === "Multiple Answer") {
-        const answerEntries =
-          questionEntries[i].querySelectorAll(".answer-entry");
-        let hasEmptyAnswer = false;
-
-        answerEntries.forEach((answer) => {
-          const answerText = answer
-            .querySelector('input[type="text"]')
-            .value.trim();
-          if (!answerText) {
-            hasEmptyAnswer = true;
-          }
-        });
-
-        if (hasEmptyAnswer) {
-          alert(
-            `Question ${i + 1}: All multiple answer options must be filled in.`
-          );
-          return false;
-        }
-
-        const hasSelectedOption = Array.from(
-          questionEntries[i].querySelectorAll('input[type="checkbox"]')
-        ).some((checkbox) => checkbox.checked);
-        if (!hasSelectedOption) {
-          alert(
-            `Question ${
-              i + 1
-            }: Please select at least one correct answer for the multiple answer question.`
-          );
-          return false;
-        }
-      }
-
-      // Check if fill in the blank questions have all answers filled
-      if (questionType === "Fill In The Blank") {
-        const answerEntries =
-          questionEntries[i].querySelectorAll(".answer-entry");
-
-        if (answerEntries.length === 0) {
-          alert(
-            `Question ${
-              i + 1
-            }: Please add at least one answer for the fill in the blank question.`
-          );
-          return false;
-        }
-
-        let hasEmptyAnswer = false;
-        answerEntries.forEach((answer) => {
-          const answerText = answer
-            .querySelector('input[type="text"]')
-            .value.trim();
-          if (!answerText) {
-            hasEmptyAnswer = true;
-          }
-        });
-
-        if (hasEmptyAnswer) {
-          alert(
-            `Question ${
-              i + 1
-            }: All fill in the blank answers must be filled in.`
-          );
-          return false;
-        }
-
-        // No validation for underscores - they are not required anymore
-      }
-
-      // Check if true or false questions have a selected answer
-      if (questionType === "True Or False") {
-        const hasSelectedOption = Array.from(
-          questionEntries[i].querySelectorAll('input[type="radio"]')
-        ).some((radio) => radio.checked);
-        if (!hasSelectedOption) {
-          alert(
-            `Question ${
-              i + 1
-            }: Please select either True or False as the correct answer.`
-          );
-          return false;
-        }
-      }
-    }
-
     return true;
   }
 

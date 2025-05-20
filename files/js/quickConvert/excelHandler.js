@@ -227,7 +227,12 @@ class ExcelHandler {
         fullHtml += '<thead>';
         fullHtml += '<tr>';
         headers.forEach((header, index) => {
-            fullHtml += `<th class="sticky-header-cell">${header}</th>`;
+            let thWidth = '';
+            if (index === 0) thWidth = 'min-width:80px;'; // #
+            else if (index === 1) thWidth = 'min-width:180px;'; // Exam Type
+            else if (index === 2) thWidth = 'min-width:600px;'; // Question (wider)
+            else thWidth = 'min-width:200px;'; // Other columns
+            fullHtml += `<th class="sticky-header-cell" style="${thWidth}">${header}</th>`;
         });
         fullHtml += '</tr>';
         fullHtml += '</thead>';
@@ -245,7 +250,7 @@ class ExcelHandler {
             fullHtml += `<tr data-row-index="${displayRowNumber}">`;
             
             // Add row number column
-            fullHtml += `<td style="background-color: #f3f4f6; font-weight: 500; text-align: center;">${displayRowNumber}</td>`;
+            fullHtml += `<td style="background-color: #f3f4f6; font-weight: 500; text-align: center; min-width:80px;">${displayRowNumber}</td>`;
             
             // Get question type for this row (if available)
             const questionType = row[0]?.toString().toUpperCase() || '';
@@ -259,7 +264,11 @@ class ExcelHandler {
                     const isEditable = true;
                     
                     // Determine cell style based on content
-                    let cellStyle = ''; 
+                    let cellStyle = '';
+                    if (colIndex === 0) cellStyle = 'min-width:180px;';
+                    else if (colIndex === 1) cellStyle = 'min-width:600px;';
+                    else cellStyle = 'min-width:200px;';
+                    
                     if (cellValue.toLowerCase() === 'correct') {
                         cellStyle += 'color: #10b981; font-weight: 500;'; // Green for correct
                     } else if (cellValue.toLowerCase() === 'incorrect') {
@@ -294,6 +303,7 @@ class ExcelHandler {
                         data-col="${colIndex}" 
                         data-value=""
                         contenteditable="true"
+                        style="min-width:200px;"
                     ></td>`;
                 }
             }
