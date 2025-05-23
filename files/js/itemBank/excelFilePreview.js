@@ -902,15 +902,33 @@ async processExcelFile(file) {
             }
             
             // Get headers (first row)
-            const headers = jsonData[0].map(header => header || '');
+            let headers = jsonData[0].map(header => header || '');
             
             // Get data rows (skip first row)
-            const rows = jsonData.slice(1);
+            let rows = jsonData.slice(1);
             
             // Filter out completely empty rows
-            const nonEmptyRows = rows.filter(row => 
+            let nonEmptyRows = rows.filter(row => 
                 row.some(cell => cell !== null && cell !== undefined && cell !== '')
             );
+
+            // Check if we have pending edits for this sheet
+            if (this.pendingEdits && this.pendingEdits[sheetIndex]) {
+                console.log(`Found pending edits for sheet ${sheetIndex}, using edited data`);
+                // Use the pending edits instead of the original data
+                nonEmptyRows = this.pendingEdits[sheetIndex].data;
+                headers = this.pendingEdits[sheetIndex].headers;
+            }
+            
+            // Find non-empty columns
+            let nonEmptyColumnIndices = this.findNonEmptyColumnIndices(headers, nonEmptyRows);
+            
+            // Filter headers to only include non-empty columns
+            let filteredHeaders = nonEmptyColumnIndices.map(index => headers[index] || `Column ${index + 1}`);
+            
+            // Save a copy of the data for editing
+            this.editedData = JSON.parse(JSON.stringify(nonEmptyRows));
+            this.editedHeaders = filteredHeaders;
             
             // Check if this is a TF sheet
             const isTFSheet = sheetName.includes('TF');
@@ -935,16 +953,6 @@ async processExcelFile(file) {
                     });
                 }
             }
-            
-            // Save a copy of the data for editing
-            this.editedData = JSON.parse(JSON.stringify(nonEmptyRows));
-            
-            // Find non-empty columns
-            const nonEmptyColumnIndices = this.findNonEmptyColumnIndices(headers, nonEmptyRows);
-            
-            // Filter headers to only include non-empty columns
-            const filteredHeaders = nonEmptyColumnIndices.map(index => headers[index] || `Column ${index + 1}`);
-            this.editedHeaders = filteredHeaders;
             
             // Check if this is a MA (Multiple Answer) sheet
             const isMASheet = sheetName.toUpperCase().includes('MA') || 
@@ -2005,21 +2013,22 @@ finishEditing() {
             }
             // Update only the specific cell
             this.editedData[row][originalCol] = newValue;
+            
+            // Store in pendingEdits to preserve across sheet switches
+            if (!this.pendingEdits) {
+                this.pendingEdits = {};
+            }
+            
+            // Only store if we have valid data
+            if (this.editedData && this.editedHeaders) {
+                // Create a deep copy of the current state
+                this.pendingEdits[this.currentSheetIndex] = {
+                    data: JSON.parse(JSON.stringify(this.editedData)),
+                    headers: JSON.parse(JSON.stringify(this.editedHeaders))
+                };
+                console.log(`Updated pending edits for sheet ${this.currentSheetIndex}`);
+            }
         }
-    }
-
-    // Store pending edits
-    if (!this.pendingEdits) {
-        this.pendingEdits = {};
-    }
-    
-    // Only store if we have valid data
-    if (this.editedData && this.editedHeaders) {
-        this.pendingEdits[this.currentSheetIndex] = {
-            data: JSON.parse(JSON.stringify(this.editedData)),
-            headers: JSON.parse(JSON.stringify(this.editedHeaders))
-        };
-        console.log(`Added edit to pending edits for sheet ${this.currentSheetIndex}`);
     }
     
     // Update the original question data to persist changes
