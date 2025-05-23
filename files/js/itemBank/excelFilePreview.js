@@ -2678,14 +2678,22 @@ updateErrorNotificationsOnly() {
         }
     }
     
-    // Determine if this is a TF or MA sheet
-    const isTFSheet = this.workbook && 
-                      this.workbook.SheetNames[this.currentSheetIndex] && 
-                      this.workbook.SheetNames[this.currentSheetIndex].includes("TF");
-                     
-    const isMASheet = this.workbook && 
-                      this.workbook.SheetNames[this.currentSheetIndex] && 
-                      this.workbook.SheetNames[this.currentSheetIndex].includes("MA");
+    // Determine sheet type
+    const currentSheetName = this.workbook?.SheetNames[this.currentSheetIndex] || '';
+    const isTFSheet = currentSheetName.includes('TF');
+    const isMASheet = currentSheetName.includes('MA');
+    const isMCSheet = currentSheetName.includes('MC');
+    const isFIBSheet = currentSheetName.includes('FIB');
+    
+    // Skip validation for FIB sheets
+    if (isFIBSheet) {
+        // Remove any existing error notifications
+        document.querySelectorAll(".validation-errors-container").forEach(el => el.remove());
+        document.querySelectorAll(".multiple-correct-container").forEach(el => el.remove());
+        document.querySelectorAll(".single-correct-ma-container").forEach(el => el.remove());
+        document.querySelectorAll(".tf-errors-container").forEach(el => el.remove());
+        return;
+    }
     
     // Collect all types of errors
     let errors = [];
@@ -2722,12 +2730,6 @@ updateErrorNotificationsOnly() {
         }
     }
     
-    // Determine if this is an MC sheet
-    const isMCSheet = (this.workbook && 
-                       this.workbook.SheetNames[this.currentSheetIndex] && 
-                       this.workbook.SheetNames[this.currentSheetIndex].includes("MC")) ||
-                      headers.some(header => header && header.includes("MC"));
-    
     // Check each row for errors
     rows.forEach((row, rowIndex) => {
         let rowErrors = [];
@@ -2735,10 +2737,6 @@ updateErrorNotificationsOnly() {
         // Check for MA sheet and question type
         const isMAQuestion = isMASheet || (row.length > 0 && row[0] === "MA");
         const isMCQuestion = isMCSheet || (row.length > 0 && row[0] === "MC");
-        const isFIBQuestion = (this.workbook && 
-                              this.workbook.SheetNames[this.currentSheetIndex] && 
-                              this.workbook.SheetNames[this.currentSheetIndex].includes("FIB")) ||
-                             (row.length > 0 && row[0] === "FIB");
         
         if (isMAQuestion) {
             let correctCount = 0;
@@ -2793,22 +2791,6 @@ updateErrorNotificationsOnly() {
                 });
             }
         }
-        // For FIB questions, check if all answers are blank
-        else if (isFIBQuestion) {
-            let hasValidAnswer = false;
-            
-            // Check if there are any non-blank answers
-            for (let i = 2; i < row.length; i++) {
-                if (row[i] && row[i].toString().trim() !== '') {
-                    hasValidAnswer = true;
-                    break;
-                }
-            }
-            
-            if (!hasValidAnswer) {
-                errors.push(`Row ${rowIndex + 1}: Fill in the Blank question has no correct answers. At least one answer must be provided.`);
-            }
-        }
         
         // Check for tagging errors
         tagPairs.forEach(pair => {
@@ -2838,83 +2820,86 @@ updateErrorNotificationsOnly() {
     document.querySelectorAll(".single-correct-ma-container").forEach(el => el.remove());
     document.querySelectorAll(".tf-errors-container").forEach(el => el.remove());
     
-    // Add TF validation errors if any
-    if (tfErrors.length > 0) {
-        let tfErrorHtml = '<div class="tf-errors-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #fee2e2; border-radius: 6px; border: 1px solid #ef4444;">';
-        tfErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #b91c1c; font-size: 1rem; font-weight: 600;">True/False Validation Errors:</h3><ul style="margin: 0; padding-left: 20px;">';
-        
-        tfErrors.forEach(error => {
-            tfErrorHtml += `<li style="color: #7f1d1d; margin-bottom: 4px;">${error.message}</li>`;
-        });
-        
-        tfErrorHtml += '</ul></div>';
+    // Add error notifications (excluding FIB)
+    if (!isFIBSheet) {
+        // Add TF validation errors if any
+        if (tfErrors.length > 0) {
+            let tfErrorHtml = '<div class="tf-errors-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #fee2e2; border-radius: 6px; border: 1px solid #ef4444;">';
+            tfErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #b91c1c; font-size: 1rem; font-weight: 600;">True/False Validation Errors:</h3><ul style="margin: 0; padding-left: 20px;">';
+            
+            tfErrors.forEach(error => {
+                tfErrorHtml += `<li style="color: #7f1d1d; margin-bottom: 4px;">${error.message}</li>`;
+            });
+            
+            tfErrorHtml += '</ul></div>';
 
-        if (this.previewElement.parentNode) {
-            this.previewElement.parentNode.insertBefore(
-                document.createRange().createContextualFragment(tfErrorHtml),
-                this.previewElement
-            );
+            if (this.previewElement.parentNode) {
+                this.previewElement.parentNode.insertBefore(
+                    document.createRange().createContextualFragment(tfErrorHtml),
+                    this.previewElement
+                );
+            }
         }
-    }
-    
-    // Add MA validation errors if needed
-    if (singleCorrectMAErrors.length > 0) {
-        let maErrorHtml = '<div class="single-correct-ma-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
-        maErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Answer Validation Errors:</h3><ul style="margin: 0; padding-left: 20px;">';
         
-        singleCorrectMAErrors.forEach(error => {
-            maErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: ${error.message}</li>`;
-        });
-        
-        maErrorHtml += '</ul></div>';
+        // Add MA validation errors if needed
+        if (singleCorrectMAErrors.length > 0) {
+            let maErrorHtml = '<div class="single-correct-ma-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
+            maErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Answer Validation Errors:</h3><ul style="margin: 0; padding-left: 20px;">';
+            
+            singleCorrectMAErrors.forEach(error => {
+                maErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: ${error.message}</li>`;
+            });
+            
+            maErrorHtml += '</ul></div>';
 
-        if (this.previewElement.parentNode) {
-            this.previewElement.parentNode.insertBefore(
-                document.createRange().createContextualFragment(maErrorHtml),
-                this.previewElement
-            );
+            if (this.previewElement.parentNode) {
+                this.previewElement.parentNode.insertBefore(
+                    document.createRange().createContextualFragment(maErrorHtml),
+                    this.previewElement
+                );
+            }
         }
-    }
-    
-    // Add MC validation errors if needed
-    if (multipleCorrectErrors.length > 0) {
-        let mcErrorHtml = '<div class="multiple-correct-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
-        mcErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Choice Validation Errors:</h3><ul style="margin: 0; padding-left: 20px;">';
         
-        multipleCorrectErrors.forEach(error => {
-            mcErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: ${error.message}</li>`;
-        });
-        
-        mcErrorHtml += '</ul></div>';
+        // Add MC validation errors if needed
+        if (multipleCorrectErrors.length > 0) {
+            let mcErrorHtml = '<div class="multiple-correct-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #ffedd5; border-radius: 6px; border: 1px solid #f97316;">';
+            mcErrorHtml += '<h3 style="margin: 0 0 8px 0; color: #9a3412; font-size: 1rem; font-weight: 600;">Multiple Choice Validation Errors:</h3><ul style="margin: 0; padding-left: 20px;">';
+            
+            multipleCorrectErrors.forEach(error => {
+                mcErrorHtml += `<li style="color: #7c2d12; margin-bottom: 4px;">Row ${error.row}: ${error.message}</li>`;
+            });
+            
+            mcErrorHtml += '</ul></div>';
 
-        if (this.previewElement.parentNode) {
-            this.previewElement.parentNode.insertBefore(
-                document.createRange().createContextualFragment(mcErrorHtml),
-                this.previewElement
-            );
+            if (this.previewElement.parentNode) {
+                this.previewElement.parentNode.insertBefore(
+                    document.createRange().createContextualFragment(mcErrorHtml),
+                    this.previewElement
+                );
+            }
         }
-    }
-    
-    // Add error summary
-    if (errors.length > 0) {
-        let errorHtml = '<div class="validation-errors-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #fee2e2; border-radius: 6px; border: 1px solid #ef4444;">';
-        errorHtml += '<h3 style="margin: 0 0 8px 0; color: #b91c1c; font-size: 1rem; font-weight: 600;">Validation Errors Found:</h3><ul style="margin: 0; padding-left: 20px;">';
-        errors.forEach(error => {
-            errorHtml += `<li style="color: #7f1d1d; margin-bottom: 4px;">${error}</li>`;
-        });
-        errorHtml += '</ul></div>';
+        
+        // Add general error summary (excluding FIB-related errors)
+        if (errors.length > 0) {
+            let errorHtml = '<div class="validation-errors-container" style="margin-bottom: 15px; padding: 12px 15px; background-color: #fee2e2; border-radius: 6px; border: 1px solid #ef4444;">';
+            errorHtml += '<h3 style="margin: 0 0 8px 0; color: #b91c1c; font-size: 1rem; font-weight: 600;">Validation Errors Found:</h3><ul style="margin: 0; padding-left: 20px;">';
+            errors.forEach(error => {
+                errorHtml += `<li style="color: #7f1d1d; margin-bottom: 4px;">${error}</li>`;
+            });
+            errorHtml += '</ul></div>';
 
-        if (this.previewElement.parentNode) {
-            this.previewElement.parentNode.insertBefore(
-                document.createRange().createContextualFragment(errorHtml),
-                this.previewElement
-            );
+            if (this.previewElement.parentNode) {
+                this.previewElement.parentNode.insertBefore(
+                    document.createRange().createContextualFragment(errorHtml),
+                    this.previewElement
+                );
+            }
         }
     }
     
     // Update validation errors state
-    this.hasValidationErrors = errors.length > 0 || multipleCorrectErrors.length > 0 || 
-                              singleCorrectMAErrors.length > 0 || tfErrors.length > 0;
+    this.hasValidationErrors = !isFIBSheet && (errors.length > 0 || multipleCorrectErrors.length > 0 || 
+                              singleCorrectMAErrors.length > 0 || tfErrors.length > 0);
     
     // Also update row styles based on errors
     this.updateRowStyles(multipleCorrectErrors, singleCorrectMAErrors, tfErrors);
