@@ -281,9 +281,14 @@ class ExcelHandler {
                     }
                     
                     // Add error highlighting for invalid TF values
-                    if (questionType === 'TF' && colIndex === 2 && cellValue && 
-                        cellValue.toLowerCase() !== 'true' && cellValue.toLowerCase() !== 'false') {
-                        cellStyle += ' background-color: #fee2e2;'; // Red background for invalid TF values
+                    if (questionType === 'TF') {
+                        const header = headers[colIndex];
+                        if (header && header.toLowerCase() === 'choice1' && cellValue) {
+                            const lowerValue = cellValue.toLowerCase();
+                            if (lowerValue !== 'true' && lowerValue !== 'false') {
+                                cellStyle += ' background-color: #fee2e2; color: #b91c1c;'; // Red background and text for invalid TF values
+                            }
+                        }
                     }
                     
                     fullHtml += `<td 
@@ -624,11 +629,15 @@ class ExcelHandler {
                 const newValue = cell.textContent.trim();
                 const questionType = cell.getAttribute('data-question-type') || '';
                 
-                // Update edited data
-                if (!this.editedData[row-1]) {
-                    this.editedData[row-1] = [];
+                // Update edited data - ensure we don't create new rows accidentally
+                if (row > 0 && row <= this.editedData.length) {
+                    // Make sure the row exists
+                    if (!this.editedData[row-1]) {
+                        this.editedData[row-1] = Array(this.editedData[0].length).fill('');
+                    }
+                    // Update only the specific cell value
+                    this.editedData[row-1][col] = newValue;
                 }
-                this.editedData[row-1][col] = newValue;
                 
                 // Update cell attributes
                 cell.setAttribute('data-value', this.escapeHTML(newValue));
@@ -667,12 +676,17 @@ class ExcelHandler {
                 }
                 
                 // Handle TF answer validation - highlight invalid TF answers
-                if (questionType === 'TF' && col === 2) { // Column 2 is the answer column for TF questions
-                    const lowerValue = newValue.toLowerCase();
-                    if (newValue && lowerValue !== 'true' && lowerValue !== 'false') {
-                        cell.style.backgroundColor = '#fee2e2'; // Red background for invalid TF value
-                    } else {
-                        cell.style.backgroundColor = '';
+                if (questionType === 'TF') {
+                    const header = this.headers[col];
+                    if (header && header.toLowerCase() === 'choice1') {
+                        const lowerValue = newValue.toLowerCase();
+                        if (newValue && lowerValue !== 'true' && lowerValue !== 'false') {
+                            cell.style.backgroundColor = '#fee2e2'; // Red background for invalid TF value
+                            cell.style.color = '#b91c1c'; // Red text for better visibility
+                        } else {
+                            cell.style.backgroundColor = '';
+                            cell.style.color = '';
+                        }
                     }
                 }
                 
@@ -721,12 +735,23 @@ class ExcelHandler {
             return tfErrors;
         }
         
-        // In this structure, column 2 (index 2) contains the TF answer
-        const tfAnswer = row[2] ? row[2].toString().trim().toLowerCase() : '';
+        // Find the choice1 column index
+        let choice1Value = null;
+        for (let i = 0; i < row.length; i++) {
+            // Check column headers to find choice1
+            const header = this.headers[i];
+            if (header && header.toLowerCase() === 'choice1') {
+                choice1Value = row[i] ? row[i].toString().trim() : '';
+                break;
+            }
+        }
         
-        // If answer is provided but not 'true' or 'false'
-        if (tfAnswer && tfAnswer !== 'true' && tfAnswer !== 'false') {
-            tfErrors.push(`Row ${rowNum}: Invalid True/False value "${row[2]}". Only "true" or "false" are accepted.`);
+        // If choice1 value is found but not 'true' or 'false'
+        if (choice1Value !== null) {
+            const lowerValue = choice1Value.toLowerCase();
+            if (choice1Value && lowerValue !== 'true' && lowerValue !== 'false') {
+                tfErrors.push(`Row ${rowNum}: Invalid True/False value "${choice1Value}" in Choice1 column. Only "true" or "false" are accepted (case insensitive).`);
+            }
         }
         
         return tfErrors;

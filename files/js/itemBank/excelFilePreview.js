@@ -710,12 +710,40 @@ async processExcelFile(file) {
             console.log('Sheet navigation created successfully');
         } catch (navError) {
             console.error('Error creating sheet navigation:', navError);
-            // Continue execution despite navigation creation error
         }
         
         // Set current sheet index to display first non-instruction sheet
         this.currentSheetIndex = startIndex;
         console.log(`Setting current sheet index to ${this.currentSheetIndex}`);
+        
+        // Pre-validate TF sheets
+        console.log('Pre-validating TF sheets...');
+        for (let i = startIndex; i < this.workbook.SheetNames.length; i++) {
+            const sheetName = this.workbook.SheetNames[i];
+            if (sheetName.includes('TF')) {
+                console.log(`Found TF sheet: ${sheetName}, validating...`);
+                const sheet = this.workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                
+                if (jsonData.length > 1) {
+                    const headers = jsonData[0];
+                    const rows = jsonData.slice(1);
+                    const nonEmptyRows = rows.filter(row => 
+                        row.some(cell => cell !== null && cell !== undefined && cell !== '')
+                    );
+                    const columnIndices = this.findNonEmptyColumnIndices(headers, nonEmptyRows);
+                    
+                    // Store the data for this sheet
+                    if (!this.pendingEdits) {
+                        this.pendingEdits = {};
+                    }
+                    this.pendingEdits[i] = {
+                        data: nonEmptyRows,
+                        headers: headers
+                    };
+                }
+            }
+        }
         
         // Display the first non-skipped sheet
         console.log(`Attempting to display sheet at index ${this.currentSheetIndex}...`);
@@ -725,7 +753,6 @@ async processExcelFile(file) {
         } catch (displayError) {
             console.error(`Error displaying sheet ${this.currentSheetIndex}:`, displayError);
             this.previewElement.innerHTML = `<p class="error-text">Error displaying sheet: ${displayError.message}</p>`;
-            // Continue execution despite display error
         }
         
         // Return processed data for all sheets
@@ -843,7 +870,7 @@ async processExcelFile(file) {
      */
     displaySheet(sheetIndex) {
         try {
-
+            // Store pending edits for current sheet before switching
             if (this.currentSheetIndex !== undefined && this.editedData && this.editedHeaders) {
                 if (!this.pendingEdits) {
                     this.pendingEdits = {};
@@ -885,6 +912,30 @@ async processExcelFile(file) {
                 row.some(cell => cell !== null && cell !== undefined && cell !== '')
             );
             
+            // Check if this is a TF sheet
+            const isTFSheet = sheetName.includes('TF');
+            
+            // If this is a TF sheet, validate it immediately
+            if (isTFSheet) {
+                console.log('Validating TF sheet on display...');
+                // Find the Choice1 column index
+                const choice1Index = headers.findIndex(h => h.toLowerCase() === 'choice1');
+                
+                if (choice1Index !== -1) {
+                    // Validate each row's Choice1 value
+                    nonEmptyRows.forEach((row, rowIndex) => {
+                        const value = row[choice1Index];
+                        if (value) {
+                            const normalizedValue = value.toString().trim().toLowerCase();
+                            if (normalizedValue !== 'true' && normalizedValue !== 'false') {
+                                // Mark this row for error highlighting
+                                nonEmptyRows[rowIndex] = { ...row, hasError: true };
+                            }
+                        }
+                    });
+                }
+            }
+            
             // Save a copy of the data for editing
             this.editedData = JSON.parse(JSON.stringify(nonEmptyRows));
             
@@ -899,8 +950,13 @@ async processExcelFile(file) {
             const isMASheet = sheetName.toUpperCase().includes('MA') || 
                              sheetName.toLowerCase().includes('multiple answer');
             
-            // Display table
-            this.displayTable(filteredHeaders, nonEmptyRows, nonEmptyColumnIndices, false, isMASheet);
+            // Display table with validation
+            this.displayTable(filteredHeaders, nonEmptyRows, nonEmptyColumnIndices, isTFSheet, isMASheet);
+            
+            // If this is a TF sheet, immediately update error notifications
+            if (isTFSheet) {
+                this.updateErrorNotificationsOnly();
+            }
         } catch (error) {
             console.error(`Error displaying sheet ${sheetIndex}:`, error);
             this.previewElement.innerHTML = `<p class="error-text">Error displaying sheet: ${error.message}</p>`;
@@ -1788,66 +1844,72 @@ manageUnsavedChangesNotification(action) {
  * @param {Array} columnIndices - Indices of columns to display
  * @returns {Array} - Array of TF validation errors
  */
-validateTFChoices(headers, rows, columnIndices) {
-    const tfErrors = [];
-    
-    // Check if this is a TF sheet based on the sheet name
-    const isTFSheet = this.workbook && 
-                     this.workbook.SheetNames[this.currentSheetIndex] && 
-                     (this.workbook.SheetNames[this.currentSheetIndex].includes("TF") ||
-                     rows.some(row => row[0] === "TF"));
-    
-    if (!isTFSheet) {
-        return tfErrors; // Not a TF sheet, no validation needed
-    }
-    
-    // Find the Choice1 column index
-    let choice1ColumnIndex = -1;
-    headers.forEach((header, index) => {
-        if (header && header.toLowerCase() === 'choice1') {
-            choice1ColumnIndex = columnIndices[index];
+    validateTFChoices(headers, rows, columnIndices) {
+        const tfErrors = [];
+        
+        // Check if this is a TF sheet based on the sheet name
+        const isTFSheet = this.workbook && 
+                         this.workbook.SheetNames[this.currentSheetIndex] && 
+                         (this.workbook.SheetNames[this.currentSheetIndex].includes("TF") ||
+                         rows.some(row => row[0] === "TF"));
+        
+        if (!isTFSheet) {
+            return tfErrors; // Not a TF sheet, no validation needed
         }
-    });
-    
-    // If Choice1 column not found, try to find another column that might contain T/F values
-    if (choice1ColumnIndex === -1) {
-        // Look for columns with "choice" in the name
+        
+        // Find the Choice1 column index
+        let choice1ColumnIndex = -1;
+        let choice1HeaderIndex = -1;
+        
         headers.forEach((header, index) => {
-            if (header && header.toLowerCase().includes('choice')) {
+            if (header && header.toLowerCase() === 'choice1') {
+                choice1HeaderIndex = index;
                 choice1ColumnIndex = columnIndices[index];
             }
         });
+        
+        // If Choice1 column not found, try to find another column that might contain T/F values
+        if (choice1ColumnIndex === -1) {
+            headers.forEach((header, index) => {
+                if (header && header.toLowerCase().includes('choice')) {
+                    choice1HeaderIndex = index;
+                    choice1ColumnIndex = columnIndices[index];
+                }
+            });
+        }
+        
+        // If we found a potential Choice1 column, validate its values
+        if (choice1HeaderIndex !== -1) {
+            rows.forEach((row, rowIndex) => {
+                // Get the value from the correct column index
+                const value = row[choice1HeaderIndex];
+                
+                // Check for empty or missing answer
+                if (!value || value.toString().trim() === '') {
+                    tfErrors.push({
+                        row: rowIndex + 1,
+                        value: value,
+                        message: `Row ${rowIndex + 1}: No answer provided. True/False questions must have either "true" or "false" as the answer.`
+                    });
+                    return;
+                }
+                
+                // Check if the value is either "true" or "false" (case-insensitive)
+                const normalizedValue = value.toString().trim().toLowerCase();
+                if (normalizedValue !== 'true' && normalizedValue !== 'false') {
+                    tfErrors.push({
+                        row: rowIndex + 1,
+                        value: value,
+                        message: `Row ${rowIndex + 1}: Invalid True/False value: "${value}". Only "true" or "false" are accepted.`
+                    });
+                }
+            });
+        } else {
+            console.warn('Choice1 column not found in TF sheet');
+        }
+        
+        return tfErrors;
     }
-    
-    // If we found a potential Choice1 column, validate its values
-    if (choice1ColumnIndex !== -1) {
-        rows.forEach((row, rowIndex) => {
-            const value = row[headers.indexOf(headers.find((h, i) => columnIndices[i] === choice1ColumnIndex))];
-            
-            // Check for empty or missing answer
-            if (!value || value.toString().trim() === '') {
-                tfErrors.push({
-                    row: rowIndex + 1,
-                    value: value,
-                    message: `Row ${rowIndex + 1}: No answer provided. True/False questions must have either "true" or "false" as the answer.`
-                });
-                return;
-            }
-            
-            // Check if the value is either "true" or "false" (case-insensitive)
-            const normalizedValue = value.toString().trim().toLowerCase();
-            if (normalizedValue !== 'true' && normalizedValue !== 'false') {
-                tfErrors.push({
-                    row: rowIndex + 1,
-                    value: value,
-                    message: `Row ${rowIndex + 1}: Invalid True/False value: "${value}". Only "true" or "false" are accepted.`
-                });
-            }
-        });
-    }
-    
-    return tfErrors;
-}
 
 /**
  * Handle cell click for editing
@@ -1933,21 +1995,32 @@ finishEditing() {
     cell.innerHTML = newValue;
     cell.setAttribute('data-value', this.escapeHTML(newValue));
     
-    // Update the edited data
-    if (this.editedData && this.editedData[row]) {
-        this.editedData[row][originalCol] = newValue;
+    // Update the edited data - ensure we don't create new rows
+    if (this.editedData) {
+        // Make sure we're within bounds of existing data
+        if (row >= 0 && row < this.editedData.length) {
+            // Initialize row array if it doesn't exist
+            if (!this.editedData[row]) {
+                this.editedData[row] = Array(this.editedHeaders.length).fill('');
+            }
+            // Update only the specific cell
+            this.editedData[row][originalCol] = newValue;
+        }
     }
 
+    // Store pending edits
     if (!this.pendingEdits) {
         this.pendingEdits = {};
     }
     
-    this.pendingEdits[this.currentSheetIndex] = {
-        data: JSON.parse(JSON.stringify(this.editedData)),
-        headers: JSON.parse(JSON.stringify(this.editedHeaders))
-    };
-    
-    console.log(`Added edit to pending edits for sheet ${this.currentSheetIndex}`);
+    // Only store if we have valid data
+    if (this.editedData && this.editedHeaders) {
+        this.pendingEdits[this.currentSheetIndex] = {
+            data: JSON.parse(JSON.stringify(this.editedData)),
+            headers: JSON.parse(JSON.stringify(this.editedHeaders))
+        };
+        console.log(`Added edit to pending edits for sheet ${this.currentSheetIndex}`);
+    }
     
     // Update the original question data to persist changes
     this.updateOriginalQuestionData(row, originalCol, newValue);
