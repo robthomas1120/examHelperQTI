@@ -1,0 +1,44 @@
+{
+  "name": "edstar-helper",
+  "version": "1.0.0",
+  "description": "Electron app wrapper for EdSTAR Helper",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^30.5.1",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "productName": "EdSTAR Helper",
+    "appId": "com.yourname.edstarhelper",
+    "mac": {
+      "target": "dmg",
+      "icon": "files/images/logo.icns",
+      "category": "public.app-category.education",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "files": [
+      "**/*",
+      "!**/*.git*",
+      "!**/*.DS_Store",
+      "!files/TestExams/**",
+      "files/templates/*"
+    ],
+    "extraResources": [
+      {
+        "from": "files/templates",
+        "to": "files/templates",
+        "filter": ["**/*"]
+      }
+    ]
+  }
+}
