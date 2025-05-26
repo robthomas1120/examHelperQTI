@@ -335,14 +335,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // Check all validation conditions
         const hasAllRequiredFields = 
             validationState.hasFile && 
-            validationState.hasTitle &&
-            validationState.hasDescription;
+            validationState.hasTitle;
         
         // Enable convert button only if all required fields present AND no cell errors
         const shouldEnable = hasAllRequiredFields && !validationState.hasCellErrors;
         convertBtn.disabled = !shouldEnable;
         
-        console.log(`Convert button ${shouldEnable ? 'enabled' : 'disabled'}: hasFile=${validationState.hasFile}, hasTitle=${validationState.hasTitle}, hasDescription=${validationState.hasDescription}, hasCellErrors=${validationState.hasCellErrors}`);
+        console.log(`Convert button ${shouldEnable ? 'enabled' : 'disabled'}: hasFile=${validationState.hasFile}, hasTitle=${validationState.hasTitle}, hasCellErrors=${validationState.hasCellErrors}`);
         
         // Update validation notification
         updateValidationNotification(shouldEnable, validationState.hasCellErrors);
@@ -375,8 +374,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Final validation before conversion
         const hasAllRequiredFields = 
             validationState.hasFile && 
-            validationState.hasTitle &&
-            validationState.hasDescription;
+            validationState.hasTitle;
         
         const hasCellErrors = window.excelHandler && window.excelHandler.hasValidationErrors;
         
