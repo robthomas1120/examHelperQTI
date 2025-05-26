@@ -504,38 +504,6 @@ document.addEventListener("DOMContentLoaded", function () {
       updateQuestionNumbers();
     }
 
-    if (e.target.classList.contains("add-answer")) {
-      const answersGroup = e.target.closest(".form-group");
-      const questionType = e.target
-        .closest(".question-entry")
-        .querySelector(".question-type")
-        .textContent.trim();
-
-      // Don't add more options for multiple choice
-      if (questionType === "Multiple Choice") {
-        return;
-      }
-
-      const newEntry = document.createElement("div");
-
-      if (questionType === "Multiple Answer") {
-        newEntry.className = "answer-entry";
-        newEntry.innerHTML = `
-                    <input type="checkbox">
-                    <input type="text" placeholder="New answer">
-                    <button type="button" class="remove-answer">&times;</button>
-                `;
-      } else if (questionType === "Fill In The Blank") {
-        newEntry.className = "answer-entry";
-        newEntry.innerHTML = `
-                    <input type="text" placeholder="Alternative answer">
-                    <button type="button" class="remove-answer">&times;</button>
-                `;
-      }
-
-      answersGroup.insertBefore(newEntry, e.target);
-    }
-
     if (e.target.classList.contains("remove-answer")) {
       const answerEntry = e.target.closest(".answer-entry");
       answerEntry.remove();
