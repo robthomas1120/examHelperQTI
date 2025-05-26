@@ -320,7 +320,14 @@ commitChanges() {
                 // Update the question processor with the new data
                 if (window.app.questionProcessor) {
                     console.log('Updating question processor with all changes');
+                    // Preserve selected question IDs
+                    const prevSelectedIds = window.app.questionProcessor.getSelectedQuestions().map(q => q.id);
                     window.app.questionProcessor.setQuestions(window.app.fileHandler.processedData);
+                    // Restore selected questions
+                    prevSelectedIds.forEach(id => {
+                        const q = window.app.questionProcessor.getAllQuestions().find(q => q.id === id);
+                        if (q) window.app.questionProcessor.addSelectedQuestion(q);
+                    });
                 }
                 
                 // Refresh the UI
