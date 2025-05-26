@@ -274,16 +274,16 @@ document.addEventListener("DOMContentLoaded", function () {
           // Add alternate answer for fill in the blank
           if (e.target.classList.contains("add-alternate-answer-btn")) {
             e.stopPropagation();
-            const optionsContainer = optionsContainer.closest(".options-container");
+            const optionsContainer = e.target.closest(".options-container");
             const alternateAnswersContainer = optionsContainer.querySelector(
               ".alternate-answers-container"
             );
 
             const altAnswerEntry = document.createElement("div");
-            altAnswerEntry.className = "answer-entry";
+            altAnswerEntry.className = "alt-answer-entry";
             altAnswerEntry.innerHTML = `
                         <input type="text" placeholder="Alternate Answer">
-                        <button type="button" class="remove-answer-btn"><i class="fas fa-times"></i></button>
+                        <button type="button" class="remove-alt-answer-btn"><i class="fas fa-times"></i></button>
                     `;
 
             alternateAnswersContainer.appendChild(altAnswerEntry);

@@ -340,41 +340,38 @@ button i {
 }
 
 /* Option Entry Styling */
-.option-entry, .answer-entry {
+.option-entry, .answer-entry, .alt-answer-entry {
     display: flex;
     align-items: center;
     margin-bottom: 10px;
-    position: relative;
 }
 
 .option-entry input[type="radio"],
 .option-entry input[type="checkbox"],
-.answer-entry input[type="checkbox"] {
+.answer-entry input[type="checkbox"],
+.alt-answer-entry input[type="checkbox"] {
     margin-right: 10px;
 }
 
 .option-entry input[type="text"],
-.answer-entry input[type="text"] {
-    flex-grow: 1;
+.answer-entry input[type="text"],
+.alt-answer-entry input[type="text"] {
+    flex: 1;
+    margin-right: 10px;
 }
 
-.remove-option-btn, .remove-answer-btn {
-    background-color: transparent;
-    color: var(--danger-color);
-    border: none;
-    padding: 5px;
-    margin-left: 5px;
-    cursor: pointer;
-    font-size: 16px;
+.remove-option-btn, .remove-answer-btn, .remove-alt-answer-btn {
+    min-width: 40px;
+    min-height: 40px;
+    margin-left: 0;
+    margin-right: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
 }
 
-.remove-option-btn:hover, .remove-answer-btn:hover {
-    background-color: rgba(220, 53, 69, 0.1);
-    transform: scale(1.1);
+.remove-option-btn:hover, .remove-answer-btn:hover, .remove-alt-answer-btn:hover {
+    filter: brightness(0.9);
 }
 
 .add-option-btn, .add-answer-btn, .add-alternate-answer-btn {
