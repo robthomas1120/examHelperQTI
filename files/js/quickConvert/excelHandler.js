@@ -777,9 +777,14 @@ class ExcelHandler {
                 if (questionType === 'MC' && correctCount !== 1) {
                     this.errorMessages.push(`Row ${rowNum}: Multiple Choice question must have exactly 1 correct answer`);
                     this.hasValidationErrors = true;
-                } else if (questionType === 'MA' && correctCount < 2) {
-                    this.errorMessages.push(`Row ${rowNum}: Multiple Answer question must have at least 2 correct answers`);
-                    this.hasValidationErrors = true;
+                } else if (questionType === 'MA') {
+                    if (correctCount < 1) {
+                        this.errorMessages.push(`Row ${rowNum}: Multiple Answer question must have at least 1 correct answer`);
+                        this.hasValidationErrors = true;
+                        console.log(`DEBUG: MA validation failed for row ${rowNum}, correctCount=${correctCount}`);
+                    } else {
+                        console.log(`DEBUG: MA validation passed for row ${rowNum}, correctCount=${correctCount}`);
+                    }
                 }
             }
             
