@@ -292,7 +292,7 @@ document.addEventListener("DOMContentLoaded", function () {
           // Add option for multiple choice
           if (e.target.classList.contains("add-option-btn")) {
             e.stopPropagation();
-            const optionsContainer = optionsContainer.closest(".options-container");
+            const optionsContainer = e.target.closest(".options-container");
             const newOptionId = `option${
               optionsContainer.querySelectorAll(".option-entry").length + 1
             }-${generateUUID()}`;
