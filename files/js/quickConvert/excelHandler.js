@@ -227,12 +227,7 @@ class ExcelHandler {
         fullHtml += '<thead>';
         fullHtml += '<tr>';
         headers.forEach((header, index) => {
-            let thWidth = '';
-            if (index === 0) thWidth = 'min-width:80px;'; // #
-            else if (index === 1) thWidth = 'min-width:180px;'; // Exam Type
-            else if (index === 2) thWidth = 'min-width:600px;'; // Question (wider)
-            else thWidth = 'min-width:200px;'; // Other columns
-            fullHtml += `<th class="sticky-header-cell" style="${thWidth}">${header}</th>`;
+            fullHtml += `<th class="sticky-header-cell">${header}</th>`;
         });
         fullHtml += '</tr>';
         fullHtml += '</thead>';
@@ -250,7 +245,7 @@ class ExcelHandler {
             fullHtml += `<tr data-row-index="${displayRowNumber}">`;
             
             // Add row number column
-            fullHtml += `<td style="background-color: #f3f4f6; font-weight: 500; text-align: center; min-width:80px;">${displayRowNumber}</td>`;
+            fullHtml += `<td style="background-color: #f3f4f6; font-weight: 500; text-align: center;">${displayRowNumber}</td>`;
             
             // Get question type for this row (if available)
             const questionType = row[0]?.toString().toUpperCase() || '';
@@ -264,11 +259,7 @@ class ExcelHandler {
                     const isEditable = true;
                     
                     // Determine cell style based on content
-                    let cellStyle = '';
-                    if (colIndex === 0) cellStyle = 'min-width:180px;';
-                    else if (colIndex === 1) cellStyle = 'min-width:600px;';
-                    else cellStyle = 'min-width:200px;';
-                    
+                    let cellStyle = ''; 
                     if (cellValue.toLowerCase() === 'correct') {
                         cellStyle += 'color: #10b981; font-weight: 500;'; // Green for correct
                     } else if (cellValue.toLowerCase() === 'incorrect') {
@@ -281,14 +272,9 @@ class ExcelHandler {
                     }
                     
                     // Add error highlighting for invalid TF values
-                    if (questionType === 'TF') {
-                        const header = headers[colIndex];
-                        if (header && header.toLowerCase() === 'choice1' && cellValue) {
-                            const lowerValue = cellValue.toLowerCase();
-                            if (lowerValue !== 'true' && lowerValue !== 'false') {
-                                cellStyle += ' background-color: #fee2e2; color: #b91c1c;'; // Red background and text for invalid TF values
-                            }
-                        }
+                    if (questionType === 'TF' && colIndex === 2 && cellValue && 
+                        cellValue.toLowerCase() !== 'true' && cellValue.toLowerCase() !== 'false') {
+                        cellStyle += ' background-color: #fee2e2;'; // Red background for invalid TF values
                     }
                     
                     fullHtml += `<td 
@@ -308,7 +294,6 @@ class ExcelHandler {
                         data-col="${colIndex}" 
                         data-value=""
                         contenteditable="true"
-                        style="min-width:200px;"
                     ></td>`;
                 }
             }
@@ -629,15 +614,11 @@ class ExcelHandler {
                 const newValue = cell.textContent.trim();
                 const questionType = cell.getAttribute('data-question-type') || '';
                 
-                // Update edited data - ensure we don't create new rows accidentally
-                if (row > 0 && row <= this.editedData.length) {
-                    // Make sure the row exists
-                    if (!this.editedData[row-1]) {
-                        this.editedData[row-1] = Array(this.editedData[0].length).fill('');
-                    }
-                    // Update only the specific cell value
-                    this.editedData[row-1][col] = newValue;
+                // Update edited data
+                if (!this.editedData[row-1]) {
+                    this.editedData[row-1] = [];
                 }
+                this.editedData[row-1][col] = newValue;
                 
                 // Update cell attributes
                 cell.setAttribute('data-value', this.escapeHTML(newValue));
@@ -676,17 +657,12 @@ class ExcelHandler {
                 }
                 
                 // Handle TF answer validation - highlight invalid TF answers
-                if (questionType === 'TF') {
-                    const header = this.headers[col];
-                    if (header && header.toLowerCase() === 'choice1') {
-                        const lowerValue = newValue.toLowerCase();
-                        if (newValue && lowerValue !== 'true' && lowerValue !== 'false') {
-                            cell.style.backgroundColor = '#fee2e2'; // Red background for invalid TF value
-                            cell.style.color = '#b91c1c'; // Red text for better visibility
-                        } else {
-                            cell.style.backgroundColor = '';
-                            cell.style.color = '';
-                        }
+                if (questionType === 'TF' && col === 2) { // Column 2 is the answer column for TF questions
+                    const lowerValue = newValue.toLowerCase();
+                    if (newValue && lowerValue !== 'true' && lowerValue !== 'false') {
+                        cell.style.backgroundColor = '#fee2e2'; // Red background for invalid TF value
+                    } else {
+                        cell.style.backgroundColor = '';
                     }
                 }
                 
@@ -735,23 +711,12 @@ class ExcelHandler {
             return tfErrors;
         }
         
-        // Find the choice1 column index
-        let choice1Value = null;
-        for (let i = 0; i < row.length; i++) {
-            // Check column headers to find choice1
-            const header = this.headers[i];
-            if (header && header.toLowerCase() === 'choice1') {
-                choice1Value = row[i] ? row[i].toString().trim() : '';
-                break;
-            }
-        }
+        // In this structure, column 2 (index 2) contains the TF answer
+        const tfAnswer = row[2] ? row[2].toString().trim().toLowerCase() : '';
         
-        // If choice1 value is found but not 'true' or 'false'
-        if (choice1Value !== null) {
-            const lowerValue = choice1Value.toLowerCase();
-            if (choice1Value && lowerValue !== 'true' && lowerValue !== 'false') {
-                tfErrors.push(`Row ${rowNum}: Invalid True/False value "${choice1Value}" in Choice1 column. Only "true" or "false" are accepted (case insensitive).`);
-            }
+        // If answer is provided but not 'true' or 'false'
+        if (tfAnswer && tfAnswer !== 'true' && tfAnswer !== 'false') {
+            tfErrors.push(`Row ${rowNum}: Invalid True/False value "${row[2]}". Only "true" or "false" are accepted.`);
         }
         
         return tfErrors;
