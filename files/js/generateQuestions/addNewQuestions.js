@@ -242,14 +242,12 @@ document.addEventListener("DOMContentLoaded", function () {
   // Sets up event listeners for adding/removing question options
   function setupButtonListeners() {
     try {
-      // Prevent duplicate listeners
-      document.removeEventListener("click", handleButtonClicks);
-      document.addEventListener("click", handleButtonClicks);
-
-      function handleButtonClicks(e) {
+      // Create a single event handler function
+      const handleButtonClicks = (e) => {
         try {
           // Add answer for multiple answers
           if (e.target.classList.contains("add-answer-btn")) {
+            e.preventDefault();
             e.stopPropagation();
             const optionsContainer = e.target.closest(".options-container");
             const newAnswerId = `answer${
@@ -273,6 +271,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
           // Add alternate answer for fill in the blank
           if (e.target.classList.contains("add-alternate-answer-btn")) {
+            e.preventDefault();
             e.stopPropagation();
             const optionsContainer = e.target.closest(".options-container");
             const alternateAnswersContainer = optionsContainer.querySelector(
@@ -287,32 +286,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     `;
 
             alternateAnswersContainer.appendChild(altAnswerEntry);
-          }
-
-          // Add option for multiple choice
-          if (e.target.classList.contains("add-option-btn")) {
-            e.stopPropagation();
-            const optionsContainer = e.target.closest(".options-container");
-            const newOptionId = `option${
-              optionsContainer.querySelectorAll(".option-entry").length + 1
-            }-${generateUUID()}`;
-
-            const optionEntry = document.createElement("div");
-            optionEntry.className = "option-entry";
-            optionEntry.innerHTML = `
-                        <input type="radio" name="${
-                          optionsContainer.closest(".question-entry").dataset
-                            .radioGroupId
-                        }" id="${newOptionId}">
-                        <label></label>
-                        <input type="text" placeholder="Option ${
-                          optionsContainer.querySelectorAll(".option-entry")
-                            .length + 1
-                        }">
-                        <button type="button" class="remove-option-btn"><i class="fas fa-times"></i></button>
-                    `;
-
-            optionsContainer.insertBefore(optionEntry, e.target);
+            e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
 
           // Remove answer
@@ -358,7 +332,12 @@ document.addEventListener("DOMContentLoaded", function () {
         } catch (error) {
           console.error("Error handling button clicks:", error);
         }
-      }
+      };
+
+      // Remove any existing click listeners
+      document.removeEventListener("click", handleButtonClicks);
+      // Add the click listener
+      document.addEventListener("click", handleButtonClicks);
     } catch (error) {
       console.error("Error setting up button listeners:", error);
     }
@@ -1320,15 +1299,15 @@ document.addEventListener("DOMContentLoaded", function () {
                         <p class="alt-answers-label">Alternative Answers (Optional):</p>
                         <div class="alternate-answers-container">
                         </div>
+                        <button type="button" class="add-alternate-answer-btn">+ Add Alternate Answer</button>
                     </div>
-                    <button type="button" class="add-alternate-answer-btn">+ Add Alternate Answer</button>
                 </div>
             `,
       essay: `
                 <textarea placeholder="Enter your question here..."></textarea>
                 <div class="essay-input">
                 </div>
-            `,
+            `
     };
 
     return templates[type] || "";
