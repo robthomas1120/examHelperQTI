@@ -251,7 +251,7 @@ class ExcelHandler {
             const questionType = row[0]?.toString().toUpperCase() || '';
             
             // Add data cells
-            for (let colIndex = 0; colIndex < maxColumns - 1; colIndex++) {
+            for (let colIndex = 0; colIndex < maxColumns; colIndex++) {
                 // Check if this column exists in the row
                 if (colIndex < row.length) {
                     const cell = row[colIndex];
@@ -671,6 +671,7 @@ class ExcelHandler {
                 
                 // Revalidate data and update error displays
                 this.validateData();
+                this.updateErrorDisplay(); // Ensure error display is updated
                 
                 // If validation state has changed, dispatch an event to notify the main script
                 if (previousValidationState !== this.hasValidationErrors) {
@@ -778,7 +779,7 @@ class ExcelHandler {
                     this.errorMessages.push(`Row ${rowNum}: Multiple Choice question must have exactly 1 correct answer`);
                     this.hasValidationErrors = true;
                 } else if (questionType === 'MA') {
-                    if (correctCount < 1) {
+                    if (correctCount === 0) {
                         this.errorMessages.push(`Row ${rowNum}: Multiple Answer question must have at least 1 correct answer`);
                         this.hasValidationErrors = true;
                         console.log(`DEBUG: MA validation failed for row ${rowNum}, correctCount=${correctCount}`);
