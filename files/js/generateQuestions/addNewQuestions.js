@@ -269,6 +269,24 @@ document.addEventListener("DOMContentLoaded", function () {
             optionsContainer.insertBefore(answerEntry, e.target);
           }
 
+          // Add answer option for multiple choice
+          if (e.target.classList.contains("add-option-btn")) {
+            e.preventDefault();
+            e.stopPropagation();
+            const optionsContainer = e.target.closest(".options-container");
+            const optionEntry = document.createElement("div");
+            optionEntry.className = "option-entry";
+            const optionId = generateUUID();
+            optionEntry.innerHTML = `
+                <input type="radio" name="${optionsContainer.closest('.question-entry').dataset.radioGroupId}" id="option${optionId}">
+                <label></label>
+                <input type="text" placeholder="Option ${optionsContainer.querySelectorAll('.option-entry').length + 1}">
+                <button type="button" class="remove-option-btn"><i class="fas fa-times"></i></button>
+            `;
+            optionsContainer.insertBefore(optionEntry, e.target);
+            e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+
           // Add alternate answer for fill in the blank
           if (e.target.classList.contains("add-alternate-answer-btn")) {
             e.preventDefault();
@@ -278,15 +296,25 @@ document.addEventListener("DOMContentLoaded", function () {
               ".alternate-answers-container"
             );
 
+            // Check if this is a duplicate event
+            if (e.target.dataset.processing) {
+              return;
+            }
+            e.target.dataset.processing = 'true';
+
             const altAnswerEntry = document.createElement("div");
             altAnswerEntry.className = "alt-answer-entry";
             altAnswerEntry.innerHTML = `
-                        <input type="text" placeholder="Alternate Answer">
-                        <button type="button" class="remove-alt-answer-btn"><i class="fas fa-times"></i></button>
-                    `;
-
+                <input type="text" placeholder="Alternate Answer">
+                <button type="button" class="remove-alt-answer-btn"><i class="fas fa-times"></i></button>
+            `;
             alternateAnswersContainer.appendChild(altAnswerEntry);
             e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            // Clear the processing flag after a short delay
+            setTimeout(() => {
+              e.target.dataset.processing = '';
+            }, 100);
           }
 
           // Remove answer
@@ -783,39 +811,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Process Multiple Choice questions
         if (questionType === "Multiple Choice") {
-          const optionEntries = entry.querySelectorAll(".option-entry");
-
-          if (optionEntries.length === 0) {
-            console.warn(`Question ${index + 1} has no options.`);
-          } else {
-            optionEntries.forEach((optionEntry, optIndex) => {
-              const optionText = optionEntry
-                .querySelector('input[type="text"]')
-                .value.trim();
-              const isCorrect = optionEntry.querySelector(
-                'input[type="radio"]'
-              ).checked;
-              if (optionText) {
-                questionData.options.push({
-                  id: `q${index + 1}_opt${optIndex + 1}`,
-                  text: optionText,
-                  isCorrect: isCorrect,
-                });
-              }
-            });
-
-            // Set default correct answer if none selected
-            if (!questionData.options.some((opt) => opt.isCorrect)) {
-              if (questionData.options.length > 0) {
-                console.warn(
-                  `Question ${
-                    index + 1
-                  } has no correct answer selected. Marking the first option as correct.`
-                );
-                questionData.options[0].isCorrect = true;
-              }
+          const answerEntries = entry.querySelectorAll(".option-entry");
+          answerEntries.forEach((answerEntry, ansIndex) => {
+            const answerText = answerEntry
+              .querySelector('input[type="text"]')
+              .value.trim();
+            const isCorrect = answerEntry.querySelector(
+              'input[type="radio"]'
+            ).checked;
+            if (answerText) {
+              questionData.options.push({
+                id: `q${index + 1}_ans${ansIndex + 1}`,
+                text: answerText,
+                isCorrect: isCorrect,
+              });
             }
-          }
+          });
         }
         // Process Multiple Answer questions
         else if (questionType === "Multiple Answer") {
@@ -847,25 +858,6 @@ document.addEventListener("DOMContentLoaded", function () {
               questionData.options.push({
                 id: `q${index + 1}_ans${ansIndex + 1}`,
                 text: answerText,
-                isCorrect: true,
-              });
-            }
-          });
-
-          // Process alternate answers
-          const alternateAnswersContainer = entry.querySelector(
-            ".alternate-answers-container"
-          );
-          const alternateAnswerEntries =
-            alternateAnswersContainer.querySelectorAll(".answer-entry");
-          alternateAnswerEntries.forEach((altAnswerEntry, altAnsIndex) => {
-            const altAnswerText = altAnswerEntry
-              .querySelector('input[type="text"]')
-              .value.trim();
-            if (altAnswerText) {
-              questionData.options.push({
-                id: `q${index + 1}_alt${altAnsIndex + 1}`,
-                text: altAnswerText,
                 isCorrect: true,
               });
             }
