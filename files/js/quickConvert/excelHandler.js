@@ -813,12 +813,15 @@ class ExcelHandler {
         
         // If no answer is provided
         if (!tfAnswer) {
-            tfErrors.push(`Row ${rowNum}: True/False question must have a provided answer (true/false).`);
+            tfErrors.push(`Row ${rowNum}: Answer defaulted to false. Please recheck the question to change the answer if needed.`);
             // Store this cell for highlighting
             if (!this.cellHighlightErrors[rowNum]) {
                 this.cellHighlightErrors[rowNum] = {};
             }
-            this.cellHighlightErrors[rowNum][2] = '#FEE2E2'; // Highlight the TF answer cell (column index 2)
+            // Highlight the entire row
+            for (let i = 0; i < row.length; i++) {
+                this.cellHighlightErrors[rowNum][i] = '#FEE2E2';
+            }
         }
         // If answer is provided but not 'true' or 'false'
         else if (tfAnswer !== 'true' && tfAnswer !== 'false') {
