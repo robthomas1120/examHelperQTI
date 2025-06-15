@@ -809,11 +809,12 @@ class ExcelHandler {
         }
         
         // In this structure, column 2 (index 2) contains the TF answer
-        const tfAnswer = row[2] ? row[2].toString().trim().toLowerCase() : '';
+        const tfAnswerRaw = row[2]; // Get the raw value
+        const tfAnswer = String(tfAnswerRaw).trim().toLowerCase(); // Convert to string and lowercase for comparison
         
-        // If no answer is provided
-        if (!tfAnswer) {
-            tfErrors.push(`Row ${rowNum}: Answer defaulted to false. Please recheck the question to change the answer if needed.`);
+        // If no answer is provided or if it's an empty string after trimming
+        if (tfAnswerRaw === null || tfAnswerRaw === undefined || tfAnswer === '') {
+            tfErrors.push(`Row ${rowNum}: Answer cannot be empty, please choose between True or False`);
             // Store this cell for highlighting
             if (!this.cellHighlightErrors[rowNum]) {
                 this.cellHighlightErrors[rowNum] = {};
@@ -823,9 +824,9 @@ class ExcelHandler {
                 this.cellHighlightErrors[rowNum][i] = '#FEE2E2';
             }
         }
-        // If answer is provided but not 'true' or 'false'
+        // If answer is provided but not 'true' or 'false' (case-insensitive)
         else if (tfAnswer !== 'true' && tfAnswer !== 'false') {
-            tfErrors.push(`Row ${rowNum}: Invalid True/False value "${row[2]}". Only "true" or "false" are accepted.`);
+            tfErrors.push(`Row ${rowNum}: Invalid True/False value "${String(tfAnswerRaw)}". Only "true" or "false" are accepted.`);
             
             // Store this cell for highlighting
             if (!this.cellHighlightErrors[rowNum]) {
