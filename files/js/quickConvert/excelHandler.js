@@ -814,10 +814,21 @@ class ExcelHandler {
         // If no answer is provided
         if (!tfAnswer) {
             tfErrors.push(`Row ${rowNum}: True/False question must have a provided answer (true/false).`);
+            // Store this cell for highlighting
+            if (!this.cellHighlightErrors[rowNum]) {
+                this.cellHighlightErrors[rowNum] = {};
+            }
+            this.cellHighlightErrors[rowNum][2] = '#FEE2E2'; // Highlight the TF answer cell (column index 2)
         }
         // If answer is provided but not 'true' or 'false'
         else if (tfAnswer !== 'true' && tfAnswer !== 'false') {
             tfErrors.push(`Row ${rowNum}: Invalid True/False value "${row[2]}". Only "true" or "false" are accepted.`);
+            
+            // Store this cell for highlighting
+            if (!this.cellHighlightErrors[rowNum]) {
+                this.cellHighlightErrors[rowNum] = {};
+            }
+            this.cellHighlightErrors[rowNum][2] = '#FEE2E2'; // Highlight the TF answer cell (column index 2)
         }
         
         return tfErrors;
@@ -852,6 +863,12 @@ class ExcelHandler {
             if (questionType && !validQuestionTypes.includes(questionType)) {
                 this.errorMessages.push(`Row ${rowNum}: Invalid exam type "${questionType}" - must be one of: MC, MA, FIB, ESS, TF`);
                 this.hasValidationErrors = true;
+                
+                // Highlight the cell with the invalid exam type
+                if (!this.cellHighlightErrors[rowNum]) {
+                    this.cellHighlightErrors[rowNum] = {};
+                }
+                this.cellHighlightErrors[rowNum][0] = '#FEE2E2'; // Column 0 is the exam type cell
             }
         
             // Only validate correct/incorrect tags for MC and MA
@@ -893,6 +910,11 @@ class ExcelHandler {
                 if (choicesCount < 2) {
                     this.errorMessages.push(`Row ${rowNum}: ${questionType} question must have at least 2 choices`);
                     this.hasValidationErrors = true;
+                    // Highlight the first choice cell
+                    if (!this.cellHighlightErrors[rowNum]) {
+                        this.cellHighlightErrors[rowNum] = {};
+                    }
+                    this.cellHighlightErrors[rowNum][2] = '#FEE2E2'; // Column 2 is the first choice cell
                 }
 
                 // Validate correct answers based on question type
@@ -900,11 +922,21 @@ class ExcelHandler {
                     if (correctCount !== 1) {
                         this.errorMessages.push(`Row ${rowNum}: Multiple Choice question must have exactly 1 correct answer`);
                         this.hasValidationErrors = true;
+                        // Highlight the question text cell
+                        if (!this.cellHighlightErrors[rowNum]) {
+                            this.cellHighlightErrors[rowNum] = {};
+                        }
+                        this.cellHighlightErrors[rowNum][1] = '#FEE2E2'; // Column 1 is the question text cell
                     }
                 } else if (questionType === 'MA') {
                     if (correctCount === 0) {
                         this.errorMessages.push(`Row ${rowNum}: Multiple Answer question must have at least 1 correct answer`);
                         this.hasValidationErrors = true;
+                        // Highlight the question text cell
+                        if (!this.cellHighlightErrors[rowNum]) {
+                            this.cellHighlightErrors[rowNum] = {};
+                        }
+                        this.cellHighlightErrors[rowNum][1] = '#FEE2E2'; // Column 1 is the question text cell
                     }
                 }
             }
@@ -929,6 +961,12 @@ class ExcelHandler {
                 if (fibAnswersCount === 0) {
                     this.errorMessages.push(`Row ${rowNum}: Fill-in-the-Blank question must have at least 1 answer provided.`);
                     this.hasValidationErrors = true;
+                    
+                    // Store this cell for highlighting (first answer column)
+                    if (!this.cellHighlightErrors[rowNum]) {
+                        this.cellHighlightErrors[rowNum] = {};
+                    }
+                    this.cellHighlightErrors[rowNum][2] = '#FEE2E2'; 
                 }
             }
         });
