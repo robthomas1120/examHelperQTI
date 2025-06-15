@@ -834,81 +834,55 @@ class ExcelHandler {
         
             // Only validate correct/incorrect tags for MC and MA
             if (questionType === 'MC' || questionType === 'MA') {
-                // Check for invalid tag values
-                row.forEach((cell, colIndex) => {
-                    if (this.isTagColumn(colIndex + 1, questionType)) {
-                        const cellValue = cell?.toString().toLowerCase();
-                        if (cellValue && !['correct', 'incorrect'].includes(cellValue)) {
-                            this.errorMessages.push(`Row ${rowNum}: Invalid tag value "${cell}" - must be "correct" or "incorrect"`);
-                            this.hasValidationErrors = true;
-                        }
-                    }
-                });
-        
-                // Count correct answers
                 let correctCount = 0;
-                row.forEach((cell, colIndex) => {
-                    if (this.isTagColumn(colIndex + 1, questionType) && cell?.toString().toLowerCase() === 'correct') {
-                        correctCount++;
-                    }
-                });
-        
-                // Validate based on question type
-                if (questionType === 'MC') {
-                    // Count choices for MC
-                    let mcChoicesCount = 0;
-                    for (let i = 2; i < row.length; i += 2) {
-                        if (row[i] && row[i].toString().trim() !== '') {
-                            mcChoicesCount++;
+                let choicesCount = 0;
+                let hasUntaggedChoice = false;
+
+                // Check for invalid tag values and count choices/correct answers
+                for (let i = 2; i < row.length; i += 2) {
+                    const choiceValue = row[i] ? row[i].toString().trim() : '';
+                    const tagValue = (i + 1 < row.length && row[i + 1]) ? row[i + 1].toString().trim().toLowerCase() : '';
+
+                    if (choiceValue !== '') {
+                        choicesCount++;
+                        
+                        // Check if choice has a valid tag
+                        if (tagValue === 'correct') {
+                            correctCount++;
+                        } else if (tagValue === 'incorrect') {
+                            // Valid incorrect tag, do nothing
+                        } else {
+                            // Invalid or missing tag
+                            hasUntaggedChoice = true;
+                            this.errorMessages.push(`Row ${rowNum}, Choice Column ${i + 1}: Choice must be tagged as "correct" or "incorrect"`);
+                            this.hasValidationErrors = true;
+                            
+                            // Store this cell for highlighting
+                            if (!this.cellHighlightErrors[rowNum]) {
+                                this.cellHighlightErrors[rowNum] = {};
+                            }
+                            this.cellHighlightErrors[rowNum][i] = '#FEE2E2'; // Highlight the choice cell
+                            this.cellHighlightErrors[rowNum][i + 1] = '#FEE2E2'; // Highlight the tag cell
                         }
                     }
+                }
 
-                    if (mcChoicesCount < 2) {
-                        this.errorMessages.push(`Row ${rowNum}: Multiple Choice question must have at least 2 choices`);
-                        this.hasValidationErrors = true;
-                    }
-                    
+                // Validate minimum number of choices
+                if (choicesCount < 2) {
+                    this.errorMessages.push(`Row ${rowNum}: ${questionType} question must have at least 2 choices`);
+                    this.hasValidationErrors = true;
+                }
+
+                // Validate correct answers based on question type
+                if (questionType === 'MC') {
                     if (correctCount !== 1) {
                         this.errorMessages.push(`Row ${rowNum}: Multiple Choice question must have exactly 1 correct answer`);
                         this.hasValidationErrors = true;
                     }
                 } else if (questionType === 'MA') {
-                    // Count choices for MA
-                    let maChoicesCount = 0;
-                    for (let i = 2; i < row.length; i += 2) {
-                        if (row[i] && row[i].toString().trim() !== '') {
-                            maChoicesCount++;
-                        }
-                    }
-
-                    if (maChoicesCount < 2) {
-                        this.errorMessages.push(`Row ${rowNum}: Multiple Answer question must have at least 2 choices`);
-                        this.hasValidationErrors = true;
-                    }
-
                     if (correctCount === 0) {
                         this.errorMessages.push(`Row ${rowNum}: Multiple Answer question must have at least 1 correct answer`);
                         this.hasValidationErrors = true;
-                        console.log(`DEBUG: MA validation failed for row ${rowNum}, correctCount=${correctCount}`);
-                    } else {
-                        console.log(`DEBUG: MA validation passed for row ${rowNum}, correctCount=${correctCount}`);
-                    }
-                    
-                    // Check for unpaired choices and tags for MC/MA
-                    for (let i = 2; i < row.length; i += 2) { // Iterate through choices (col index 2, 4, 6...)
-                        const choiceValue = row[i] ? row[i].toString().trim() : '';
-                        const tagValue = (i + 1 < row.length && row[i + 1]) ? row[i + 1].toString().trim() : '';
-
-                        if (choiceValue !== '' && tagValue === '') {
-                            // Error: Choice present without a tag
-                            this.errorMessages.push(`Row ${rowNum}, Choice Column ${i + 1}: Choice provided without a paired tag.`);
-                            this.hasValidationErrors = true;
-                            // Store this cell for highlighting
-                            if (!this.cellHighlightErrors[rowNum]) {
-                                this.cellHighlightErrors[rowNum] = {};
-                            }
-                            this.cellHighlightErrors[rowNum][i] = '#FEE2E2'; // Highlight the choice cell (data-col = i)
-                        }
                     }
                 }
             }
@@ -925,7 +899,7 @@ class ExcelHandler {
             // Validate FIB questions
             if (questionType === 'FIB') {
                 let fibAnswersCount = 0;
-                for (let i = 2; i < row.length; i++) { // Start checking from column 2 (index 2)
+                for (let i = 2; i < row.length; i++) {
                     if (row[i] && row[i].toString().trim() !== '') {
                         fibAnswersCount++;
                     }
