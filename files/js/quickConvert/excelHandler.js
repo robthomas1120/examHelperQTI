@@ -439,12 +439,34 @@ class ExcelHandler {
             downloadBtn.id = 'downloadExcelBtn';
             downloadBtn.className = 'secondary-btn';
             downloadBtn.innerHTML = '<i class="fas fa-download"></i> Download Edited Excel';
-            
             // Add event listener for download button
             downloadBtn.addEventListener('click', () => this.downloadEditedFile());
-            
             downloadContainer.appendChild(downloadBtn);
-            
+
+            // Add template download buttons
+            const templates = [
+                { name: 'QuickConvertTemplate.xlsx', label: 'Download QuickConvert Template' },
+                { name: 'ItemBankTemplate.xlsx', label: 'Download ItemBank Template' }
+            ];
+            templates.forEach(template => {
+                const btn = document.createElement('button');
+                btn.className = 'secondary-btn';
+                btn.style.marginLeft = '10px';
+                btn.innerHTML = `<i class='fas fa-download'></i> ${template.label}`;
+                btn.addEventListener('click', async () => {
+                    if (window.electronAPI && window.electronAPI.downloadTemplate) {
+                        try {
+                            await window.electronAPI.downloadTemplate(template.name);
+                        } catch (err) {
+                            alert('Failed to download template: ' + err.message);
+                        }
+                    } else {
+                        alert('Template download is not available in this environment.');
+                    }
+                });
+                downloadContainer.appendChild(btn);
+            });
+
             // Insert AFTER the preview element
             cardElement.insertBefore(downloadContainer, this.previewElement.nextSibling);
         }
