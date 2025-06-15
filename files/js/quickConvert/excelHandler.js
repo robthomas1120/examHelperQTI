@@ -14,6 +14,7 @@ class ExcelHandler {
         this.errorMessages = [];
         this.errorContainer = null;
         this.mcErrorContainer = null;
+        this.cellHighlightErrors = {}; // Initialize to store cell-specific errors for highlighting
     }
 
     async processExcelFile(file) {
@@ -173,15 +174,13 @@ class ExcelHandler {
                     width: 100%;
                 }
                 .data-table {
-                    table-layout: fixed !important;
-                    width: max-content !important;
+                    width: max-content !important; 
                     min-width: 100% !important;
                     border-collapse: separate !important;
                     border-spacing: 0 !important;
                     border: none !important;
                 }
                 .data-table th {
-                    white-space: nowrap;
                     padding: 10px;
                     border: 1px solid #e5e7eb !important;
                     text-align: left;
@@ -190,6 +189,9 @@ class ExcelHandler {
                 .data-table tbody td {
                     border: 1px solid #e5e7eb;
                     padding: 6px;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                    max-width: 250px;
                 }
                 /* Ensure table takes full width */
                 #csv-preview {
@@ -227,7 +229,15 @@ class ExcelHandler {
         fullHtml += '<thead>';
         fullHtml += '<tr>';
         headers.forEach((header, index) => {
-            fullHtml += `<th class="sticky-header-cell">${header}</th>`;
+            let headerStyle = '';
+            if (index === 0) {
+                // Style for '#' column
+                headerStyle = 'width: 50px; min-width: 50px; max-width: 50px;';
+            } else if (index === 1) {
+                // Style for 'Exam Type' column
+                headerStyle = 'width: 100px; min-width: 100px; max-width: 100px;';
+            }
+            fullHtml += `<th class="sticky-header-cell" style="${headerStyle}">${header}</th>`;
         });
         fullHtml += '</tr>';
         fullHtml += '</thead>';
@@ -245,7 +255,7 @@ class ExcelHandler {
             fullHtml += `<tr data-row-index="${displayRowNumber}">`;
             
             // Add row number column
-            fullHtml += `<td style="background-color: #f3f4f6; font-weight: 500; text-align: center;">${displayRowNumber}</td>`;
+            fullHtml += `<td style="background-color: #f3f4f6; font-weight: 500; text-align: center; width: 50px; min-width: 50px; max-width: 50px;">${displayRowNumber}</td>`;
             
             // Get question type for this row (if available)
             const questionType = row[0]?.toString().toUpperCase() || '';
@@ -264,6 +274,13 @@ class ExcelHandler {
                         cellStyle += 'color: #10b981; font-weight: 500;'; // Green for correct
                     } else if (cellValue.toLowerCase() === 'incorrect') {
                         cellStyle += 'color: #ef4444; font-weight: 500;'; // Red for incorrect
+                    }
+                    
+                    // Apply specific widths to cells based on their column index
+                    if (colIndex === 0) { // Exam Type column (row[0])
+                        cellStyle += 'width: 100px; min-width: 100px; max-width: 100px;';
+                    } else if (colIndex === 1) { // Question column (row[1])
+                        cellStyle += 'min-width: 200px; width: auto; max-width: none;'; // Override the general max-width
                     }
                     
                     // Add error highlighting for invalid tag values
@@ -487,28 +504,77 @@ class ExcelHandler {
         // Separate regular validation errors from multiple correct answer errors
         const regularErrors = [];
         const multipleCorrectErrors = [];
-        const mcErrorRows = new Set(); // Track row numbers with MC/MA errors only
+        const mcChoicesErrors = []; // New array for "at least 2 choices" error messages
+        
+        const mcCorrectnessErrorRows = new Set(); // For MC/MA "correctness" errors (orange highlight)
+        const mcChoicesErrorRows = new Set(); // For MC "at least 2 choices" errors (red highlight)
+        const tfNoAnswerErrorRows = new Set(); // New: For TF "no answer provided" errors (full red highlight)
         
         this.errorMessages.forEach(error => {
+            const rowMatch = error.match(/Row (\d+):/);
+            const rowNum = rowMatch ? parseInt(rowMatch[1]) : null;
+
             if (error.includes('Multiple Choice question must have exactly 1 correct answer') || 
                 error.includes('Multiple Answer question must have at least 2 correct answers')) {
                 multipleCorrectErrors.push(error);
-                
-                // Extract row number from error message (assuming format "Row X: ...")
-                const rowMatch = error.match(/Row (\d+):/);
-                if (rowMatch && rowMatch[1]) {
-                    // The rowMatch[1] is a string, so parse it to integer
-                    mcErrorRows.add(parseInt(rowMatch[1]));
-                }
-            } else {
+                if (rowNum) mcCorrectnessErrorRows.add(rowNum);
+            } else if (error.includes('Multiple Choice question must have at least 2 choices') ||
+                       error.includes('Multiple Answer question must have at least 2 choices')) {
+                mcChoicesErrors.push(error);
+                if (rowNum) mcChoicesErrorRows.add(rowNum);
+            } else if (error.includes('True/False question must have a provided answer (true/false).') ||
+                       error.includes('Fill-in-the-Blank question must have at least 1 answer provided.') ||
+                       error.includes('Multiple Answer question must have at least 1 correct answer')) {
+                regularErrors.push(error); // Add to regular errors as well for display
+                if (rowNum) tfNoAnswerErrorRows.add(rowNum);
+            }
+            else {
                 regularErrors.push(error);
             }
         });
         
-        // Highlight rows with multiple choice/answer errors
-        this.highlightErrorRows(mcErrorRows);
-        
+        // First, clear all existing highlights by calling highlightRows with an empty set and empty color
+        this.highlightRows(new Set(), ''); // This ensures all previous highlights are removed.
+
+        // Clear any existing cell highlights
+        const allEditableCells = this.previewElement.querySelectorAll('.editable-cell');
+        allEditableCells.forEach(cell => {
+            // Reset background color and border if they were set by error highlights
+            const dataRow = cell.getAttribute('data-row');
+            const dataCol = cell.getAttribute('data-col');
+            // Only clear if it was an error highlight, not other legitimate styles
+            if (cell.style.backgroundColor === 'rgb(254, 226, 226)' || // #FEE2E2
+                cell.style.backgroundColor === 'rgb(255, 203, 141)') { // #ffcb8d
+                cell.style.backgroundColor = '';
+            }
+        });
+
+        // Apply highlights based on error types, with TF no answer error taking precedence
+        this.highlightRows(tfNoAnswerErrorRows, '#FEE2E2'); // Full red for TF no answer, FIB no answer, MA no correct answer, MA no tag errors
+        this.highlightRows(mcCorrectnessErrorRows, '#ffcb8d'); // Orange for MC/MA correctness errors
+        this.highlightRows(mcChoicesErrorRows, '#fee2e2'); // Light red for MC/MA choice count errors
+
+        // Apply cell-specific highlights (e.g., for choice without tag)
+        for (const rowNumKey in this.cellHighlightErrors) {
+            if (this.cellHighlightErrors.hasOwnProperty(rowNumKey)) {
+                const rowNum = parseInt(rowNumKey);
+                for (const colIndexKey in this.cellHighlightErrors[rowNumKey]) {
+                    if (this.cellHighlightErrors[rowNumKey].hasOwnProperty(colIndexKey)) {
+                        const colIndex = parseInt(colIndexKey);
+                        const cellColor = this.cellHighlightErrors[rowNumKey][colIndexKey];
+                        const targetCell = this.previewElement.querySelector(`td[data-row="${rowNum}"][data-col="${colIndex}"]`);
+                        if (targetCell) {
+                            targetCell.style.backgroundColor = cellColor;
+                        }
+                    }
+                }
+            }
+        }
+
         // Regular validation errors
+        // Merge mcChoicesErrors into regularErrors for display in the standard error container
+        regularErrors.push(...mcChoicesErrors);
+
         if (regularErrors.length > 0) {
             let errorHtml = '<h3 style="margin: 0 0 8px 0; color: #991b1b; font-size: 1rem; font-weight: 600;">Validation Errors:</h3>';
             errorHtml += '<ul style="margin: 0; padding-left: 20px;">';
@@ -542,31 +608,28 @@ class ExcelHandler {
     }
     
     /**
-     * Highlight rows with errors - FIXED VERSION
-     * @param {Set<number>} errorRows - Set of row numbers with errors
+     * Highlight rows with errors - MODIFIED VERSION
+     * @param {Set<number>} rowNumbers - Set of row numbers with errors
+     * @param {string} color - Background color for the rows. If empty, clears existing highlight.
      */
-    highlightErrorRows(errorRows) {
-        // First, remove any existing error highlighting from all table rows
-        const allTableRows = this.previewElement.querySelectorAll('table.data-table tr');
-        allTableRows.forEach(row => {
-            row.style.backgroundColor = '';
-        });
+    highlightRows(rowNumbers, color) {
+        // Clear any existing error highlighting from all table rows ONLY IF the color is being reset
+        if (color === '') {
+            const allTableRows = this.previewElement.querySelectorAll('table.data-table tr');
+            allTableRows.forEach(row => {
+                row.style.backgroundColor = '';
+            });
+            return; // Exit after clearing
+        }
         
         // Then highlight rows with errors
-        errorRows.forEach(rowNum => {
-            // We need to find the actual displayed row that corresponds to the data row where the error was found
-            // The issue was that we need to find the displayed row that has cells with data-row attribute equal to rowNum
-            
-            // First, get all cells with the specific data-row attribute
+        rowNumbers.forEach(rowNum => {
             const cellsForRow = this.previewElement.querySelectorAll(`td[data-row="${rowNum}"]`);
             
-            // If we found matching cells, highlight their parent row
             if (cellsForRow.length > 0) {
-                // Get the parent tr element of the first matching cell
                 const rowToHighlight = cellsForRow[0].closest('tr');
                 if (rowToHighlight) {
-                    // Add a distinct orange background to highlight the row
-                    rowToHighlight.style.backgroundColor = '#ffcb8d'; // Brighter orange color
+                    rowToHighlight.style.backgroundColor = color;
                 }
             }
         });
@@ -666,6 +729,17 @@ class ExcelHandler {
                     }
                 }
                 
+                // Apply specific widths to edited cells for consistent display
+                if (col === 0) { // Exam Type column
+                    cell.style.width = '100px';
+                    cell.style.minWidth = '100px';
+                    cell.style.maxWidth = '100px';
+                } else if (col === 1) { // Question column
+                    cell.style.minWidth = '200px';
+                    cell.style.width = 'auto';
+                    cell.style.maxWidth = 'none';
+                }
+                
                 // Store previous validation state to detect changes
                 const previousValidationState = this.hasValidationErrors;
                 
@@ -715,8 +789,12 @@ class ExcelHandler {
         // In this structure, column 2 (index 2) contains the TF answer
         const tfAnswer = row[2] ? row[2].toString().trim().toLowerCase() : '';
         
+        // If no answer is provided
+        if (!tfAnswer) {
+            tfErrors.push(`Row ${rowNum}: True/False question must have a provided answer (true/false).`);
+        }
         // If answer is provided but not 'true' or 'false'
-        if (tfAnswer && tfAnswer !== 'true' && tfAnswer !== 'false') {
+        else if (tfAnswer !== 'true' && tfAnswer !== 'false') {
             tfErrors.push(`Row ${rowNum}: Invalid True/False value "${row[2]}". Only "true" or "false" are accepted.`);
         }
         
@@ -729,6 +807,7 @@ class ExcelHandler {
     validateData() {
         this.errorMessages = [];
         this.hasValidationErrors = false;
+        this.cellHighlightErrors = {}; // Clear cell-specific errors at the beginning of validation
         
         if (!this.editedData || this.editedData.length < 1) return;
         
@@ -775,16 +854,61 @@ class ExcelHandler {
                 });
         
                 // Validate based on question type
-                if (questionType === 'MC' && correctCount !== 1) {
-                    this.errorMessages.push(`Row ${rowNum}: Multiple Choice question must have exactly 1 correct answer`);
-                    this.hasValidationErrors = true;
+                if (questionType === 'MC') {
+                    // Count choices for MC
+                    let mcChoicesCount = 0;
+                    for (let i = 2; i < row.length; i += 2) {
+                        if (row[i] && row[i].toString().trim() !== '') {
+                            mcChoicesCount++;
+                        }
+                    }
+
+                    if (mcChoicesCount < 2) {
+                        this.errorMessages.push(`Row ${rowNum}: Multiple Choice question must have at least 2 choices`);
+                        this.hasValidationErrors = true;
+                    }
+                    
+                    if (correctCount !== 1) {
+                        this.errorMessages.push(`Row ${rowNum}: Multiple Choice question must have exactly 1 correct answer`);
+                        this.hasValidationErrors = true;
+                    }
                 } else if (questionType === 'MA') {
+                    // Count choices for MA
+                    let maChoicesCount = 0;
+                    for (let i = 2; i < row.length; i += 2) {
+                        if (row[i] && row[i].toString().trim() !== '') {
+                            maChoicesCount++;
+                        }
+                    }
+
+                    if (maChoicesCount < 2) {
+                        this.errorMessages.push(`Row ${rowNum}: Multiple Answer question must have at least 2 choices`);
+                        this.hasValidationErrors = true;
+                    }
+
                     if (correctCount === 0) {
                         this.errorMessages.push(`Row ${rowNum}: Multiple Answer question must have at least 1 correct answer`);
                         this.hasValidationErrors = true;
                         console.log(`DEBUG: MA validation failed for row ${rowNum}, correctCount=${correctCount}`);
                     } else {
                         console.log(`DEBUG: MA validation passed for row ${rowNum}, correctCount=${correctCount}`);
+                    }
+                    
+                    // Check for unpaired choices and tags for MC/MA
+                    for (let i = 2; i < row.length; i += 2) { // Iterate through choices (col index 2, 4, 6...)
+                        const choiceValue = row[i] ? row[i].toString().trim() : '';
+                        const tagValue = (i + 1 < row.length && row[i + 1]) ? row[i + 1].toString().trim() : '';
+
+                        if (choiceValue !== '' && tagValue === '') {
+                            // Error: Choice present without a tag
+                            this.errorMessages.push(`Row ${rowNum}, Choice Column ${i + 1}: Choice provided without a paired tag.`);
+                            this.hasValidationErrors = true;
+                            // Store this cell for highlighting
+                            if (!this.cellHighlightErrors[rowNum]) {
+                                this.cellHighlightErrors[rowNum] = {};
+                            }
+                            this.cellHighlightErrors[rowNum][i] = '#FEE2E2'; // Highlight the choice cell (data-col = i)
+                        }
                     }
                 }
             }
@@ -794,6 +918,20 @@ class ExcelHandler {
                 const tfErrors = this.validateTFQuestion(row, rowNum, questionType);
                 if (tfErrors.length > 0) {
                     this.errorMessages.push(...tfErrors);
+                    this.hasValidationErrors = true;
+                }
+            }
+            
+            // Validate FIB questions
+            if (questionType === 'FIB') {
+                let fibAnswersCount = 0;
+                for (let i = 2; i < row.length; i++) { // Start checking from column 2 (index 2)
+                    if (row[i] && row[i].toString().trim() !== '') {
+                        fibAnswersCount++;
+                    }
+                }
+                if (fibAnswersCount === 0) {
+                    this.errorMessages.push(`Row ${rowNum}: Fill-in-the-Blank question must have at least 1 answer provided.`);
                     this.hasValidationErrors = true;
                 }
             }
