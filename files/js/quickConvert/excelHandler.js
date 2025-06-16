@@ -545,8 +545,10 @@ class ExcelHandler {
                 mcChoicesErrors.push(error);
                 if (rowNum) mcChoicesErrorRows.add(rowNum);
             } else if (error.includes('True/False question must have a provided answer (true/false).') ||
+                       error.includes('Answer cannot be empty, please choose between True or False') ||
                        error.includes('Fill-in-the-Blank question must have at least 1 answer provided.') ||
-                       error.includes('Multiple Answer question must have at least 1 correct answer')) {
+                       error.includes('Multiple Answer question must have at least 1 correct answer') ||
+                       error.includes('Multiple Choice question must have at least 1 correct answer')) {
                 regularErrors.push(error); // Add to regular errors as well for display
                 if (rowNum) tfNoAnswerErrorRows.add(rowNum);
             }
@@ -555,9 +557,6 @@ class ExcelHandler {
             }
         });
         
-        // First, clear all existing highlights by calling highlightRows with an empty set and empty color
-        this.highlightRows(new Set(), ''); // This ensures all previous highlights are removed.
-
         // Clear any existing cell highlights
         const allEditableCells = this.previewElement.querySelectorAll('.editable-cell');
         allEditableCells.forEach(cell => {
@@ -569,6 +568,8 @@ class ExcelHandler {
                 cell.style.backgroundColor === 'rgb(255, 203, 141)') { // #ffcb8d
                 cell.style.backgroundColor = '';
             }
+            cell.style.border = ''; // Clear any specific border
+            cell.style.outline = ''; // Clear any outline from previous interactions
         });
 
         // Apply highlights based on error types, with TF no answer error taking precedence
@@ -587,6 +588,13 @@ class ExcelHandler {
                         const targetCell = this.previewElement.querySelector(`td[data-row="${rowNum}"][data-col="${colIndex}"]`);
                         if (targetCell) {
                             targetCell.style.backgroundColor = cellColor;
+                            // Determine if this is a tag column and has the invalid tag background color
+                            const questionType = targetCell.getAttribute('data-question-type') || '';
+                            if (this.isTagColumn(colIndex + 1, questionType) && cellColor === '#FEE2E2') {
+                                targetCell.style.border = '2px solid #ef4444'; // Apply darker red border
+                            } else {
+                                targetCell.style.border = ''; // Clear any specific border if not an invalid tag cell
+                            }
                         }
                     }
                 }
@@ -832,7 +840,10 @@ class ExcelHandler {
             if (!this.cellHighlightErrors[rowNum]) {
                 this.cellHighlightErrors[rowNum] = {};
             }
-            this.cellHighlightErrors[rowNum][2] = '#FEE2E2'; // Highlight the TF answer cell (column index 2)
+            // Highlight the entire row
+            for (let i = 0; i < row.length; i++) {
+                this.cellHighlightErrors[rowNum][i] = '#FEE2E2';
+            }
         }
         
         return tfErrors;
@@ -872,7 +883,10 @@ class ExcelHandler {
                 if (!this.cellHighlightErrors[rowNum]) {
                     this.cellHighlightErrors[rowNum] = {};
                 }
-                this.cellHighlightErrors[rowNum][0] = '#FEE2E2'; // Column 0 is the exam type cell
+                // Highlight the entire row for invalid exam type
+                for (let i = 0; i < row.length; i++) {
+                    this.cellHighlightErrors[rowNum][i] = '#FEE2E2';
+                }
             }
         
             // Only validate correct/incorrect tags for MC and MA
@@ -923,7 +937,15 @@ class ExcelHandler {
 
                 // Validate correct answers based on question type
                 if (questionType === 'MC') {
-                    if (correctCount !== 1) {
+                    if (correctCount === 0) {
+                        this.errorMessages.push(`Row ${rowNum}: Multiple Choice question must have at least 1 correct answer`);
+                        this.hasValidationErrors = true;
+                        // Highlight the question text cell
+                        if (!this.cellHighlightErrors[rowNum]) {
+                            this.cellHighlightErrors[rowNum] = {};
+                        }
+                        this.cellHighlightErrors[rowNum][1] = '#FEE2E2'; // Column 1 is the question text cell
+                    } else if (correctCount > 1) {
                         this.errorMessages.push(`Row ${rowNum}: Multiple Choice question must have exactly 1 correct answer`);
                         this.hasValidationErrors = true;
                         // Highlight the question text cell
